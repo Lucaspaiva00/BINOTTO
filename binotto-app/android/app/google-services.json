@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "513219470339",
+    "project_id": "binotto-d7c82",
+    "storage_bucket": "binotto-d7c82.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:513219470339:android:cf6bba7b47a2d9d5d79a36",
+        "android_client_info": {
+          "package_name": "com.binotto.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6ccQOVSk7iICs7qZ8x1FKMiKgQSSjfGI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
