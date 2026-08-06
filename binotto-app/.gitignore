@@ -1,9 +1,0 @@
-node_modules/
-.expo/
-.npm-cache/
-dist/
-CLAUDE.md
-.claude/
-.env
-.env.local
-.env.homolog
