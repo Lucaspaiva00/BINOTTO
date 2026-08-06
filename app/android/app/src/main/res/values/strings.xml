@@ -1,0 +1,10 @@
+<resources>
+  <string name="app_name">Binotto PDR</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+
+   <string name="facebook_app_id">1044519288012704</string>
+
+   <string name="facebook_client_token">80ad245b63bbd95ecb6319366ab1805a</string>
+
+</resources>

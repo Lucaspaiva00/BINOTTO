@@ -1,0 +1,22 @@
+export type WorkshopProfileForm = {
+  tradeName: string;
+  companyName: string;
+  responsible: string;
+  email: string;
+  email2: string;
+  primaryPhone: string;
+  primaryPhoneCountryCode: string;
+  primaryPhoneCountryIso: string;
+  secondaryPhone: string;
+  secondaryPhoneCountryCode: string;
+  secondaryPhoneCountryIso: string;
+  cnpj: string;
+  street: string;
+  number: string;
+  complement: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  paymentTerms: string;
+};

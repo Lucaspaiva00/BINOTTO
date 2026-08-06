@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Binotto PDR - Exclusão de Conta</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700;14..32,800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #f0f0f0;
+            line-height: 1.5;
+            scroll-behavior: smooth;
+        }
+
+        .bg-orange {
+            background-color: #f9b800;
+        }
+
+        .text-orange {
+            color: #f9b800;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.8rem;
+        }
+
+        /* header */
+        .header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid rgba(249, 184, 0, 0.3);
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 30%, #f9b800 80%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .logo p {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        .lang-selector {
+            display: flex;
+            gap: 0.7rem;
+            background: #111;
+            padding: 0.4rem 0.8rem;
+            border-radius: 60px;
+            border: 1px solid #2c2c2c;
+        }
+
+        .lang-btn {
+            background: transparent;
+            border: none;
+            color: #ccc;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 0.4rem 0.9rem;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+
+        .lang-btn.active {
+            background-color: #f9b800;
+            color: #000;
+            box-shadow: 0 2px 8px rgba(249, 184, 0, 0.3);
+        }
+
+        .lang-btn:hover:not(.active) {
+            background-color: #2a2a2a;
+            color: #f9b800;
+        }
+
+        /* hero */
+        .hero {
+            padding: 3rem 0 2rem 0;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: rgba(249, 184, 0, 0.12);
+            padding: 0.3rem 1rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #f9b800;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+        }
+
+        /* content section */
+        .content-section {
+            margin: 1.5rem 0 3rem;
+            background: #0a0a0a;
+            border-radius: 2rem;
+            padding: 2.5rem;
+            border: 1px solid #1f1f1f;
+        }
+
+        .content-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 1.8rem;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .content-header h3 {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .instructions-content {
+            font-size: 1rem;
+            line-height: 1.7;
+            color: #dddddd;
+        }
+
+        .instructions-content p {
+            margin-bottom: 1.2rem;
+        }
+
+        .instructions-content strong {
+            color: #f9b800;
+        }
+
+        .instructions-content ol {
+            margin: 1.5rem 0 1.5rem 1.5rem;
+        }
+
+        .instructions-content li {
+            margin-bottom: 0.8rem;
+        }
+
+        /* footer */
+        .footer {
+            margin-top: 2rem;
+            padding: 2rem 0 2.5rem;
+            border-top: 1px solid #1c1c1c;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .footer-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .footer-info i {
+            width: 28px;
+            color: #f9b800;
+        }
+
+        .footer a {
+            color: #f9b800;
+            text-decoration: none;
+        }
+
+        .copyright {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            margin-top: 1rem;
+            text-align: center;
+            width: 100%;
+        }
+
+        @media (max-width: 680px) {
+            .container {
+                padding: 0 1.2rem;
+            }
+
+            .hero h2 {
+                font-size: 1.8rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .lang-selector {
+                justify-content: center;
+            }
+
+            .content-section {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Ajustes específicos para uma impressão limpa em PDF */
+        @media print {
+            body {
+                background: #fff;
+                color: #000;
+            }
+
+            .content-section {
+                background: #fff;
+                border: none;
+                padding: 0;
+            }
+
+            .lang-selector,
+            .header {
+                display: none;
+            }
+
+            .instructions-content {
+                color: #000;
+            }
+
+            .instructions-content strong {
+                color: #000;
+                text-decoration: underline;
+            }
+
+            .hero h2 {
+                color: #000;
+            }
+
+            .hero-badge {
+                border: 1px solid #000;
+                color: #000;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>BINOTTO PDR</h1>
+                <p>automotive expertise • paintless dent repair</p>
+            </div>
+            <div class="lang-selector" id="languageSelector">
+                <button data-lang="pt" class="lang-btn active">🇵🇹 Português</button>
+                <button data-lang="it" class="lang-btn">🇮🇹 Italiano</button>
+                <button data-lang="fr" class="lang-btn">🇫🇷 Français</button>
+            </div>
+        </header>
+
+        <section class="hero">
+            <div class="hero-badge" id="heroBadge">🔒 Segurança e Privacidade</div>
+            <h2 id="heroTitle">Exclusão de Conta</h2>
+        </section>
+
+        <div class="content-section">
+            <div class="content-header">
+                <h3 id="contentTitle">Suporte ao Usuário</h3>
+                <i class="fas fa-user-minus" style="color:#f9b800; font-size:1.8rem;"></i>
+            </div>
+            <div class="instructions-content" id="instructionsContent">
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="footer-info">
+                <div><i class="fas fa-map-marker-alt"></i> Via provinciale, 47 · 15010 Prasco (AL) Italy</div>
+                <div><i class="fas fa-envelope"></i> <a href="mailto:admin@jbinotto.com">admin@jbinotto.com</a></div>
+            </div>
+            <div class="copyright">
+                © 2026 Binotto PDR. Todos os direitos reservados.
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        const translations = {
+            pt: {
+                heroBadge: "🔒 Segurança e Privacidade",
+                heroTitle: "Exclusão de Conta",
+                contentTitle: "📄 Instruções para Exclusão de Conta",
+                htmlContent: `
+                    <p>Se você deseja encerrar sua conta e excluir definitivamente todos os seus dados do aplicativo <strong>Binotto PDR</strong>, o processo pode ser realizado de forma simples e segura diretamente pelo aplicativo.</p>
+                    <p><strong>⚠️ Importante:</strong> A exclusão de conta é <strong>permanente e irreversível</strong>. Ao confirmar a exclusão, todos os seus dados cadastrais, histórico de perícias, fotos anexadas e configurações serão apagados definitivamente de nossos servidores seguros, em conformidade com as diretrizes de privacidade.</p>
+                    
+                    <p><strong>Passo a Passo para Exclusão:</strong></p>
+                    <ol>
+                        <li><strong>Acesse o Aplicativo:</strong> Abra o app Binotto PDR e faça <strong>login</strong> com suas credenciais de acesso.</li>
+                        <li><strong>Acesse as Configurações:</strong> Na tela principal do aplicativo, toque no ícone de menu ou navegue até a seção de <strong>Configurações</strong>.</li>
+                        <li><strong>Inicie o Processo:</strong> Toque no botão <strong>"Excluir Conta"</strong>.</li>
+                        <li><strong>Validação de Segurança:</strong> Para evitar exclusões acidentais, o aplicativo solicitará que você resolva um <strong>cálculo matemático simples</strong> (ex: 5 + 3). Digite o resultado correto.</li>
+                        <li><strong>Confirmação:</strong> Pronto! Após a validação do cálculo, sua conta e todos os dados vinculados serão completamente removidos do sistema.</li>
+                    </ol>
+                    
+                    <p><i>Caso encontre alguma dificuldade ou prefira solicitar a exclusão manualmente via suporte, envie um e-mail para <strong>admin@jbinotto.com</strong> a partir do endereço de e-mail cadastrado na conta.</i></p>
+                `
+            },
+            it: {
+                heroBadge: "🔒 Sicurezza e Privacy",
+                heroTitle: "Eliminazione dell'Account",
+                contentTitle: "📄 Istruzioni per l'Eliminazione dell'Account",
+                htmlContent: `
+                    <p>Se desideri chiudere il tuo account ed eliminare definitivamente tutti i tuoi dati dall'applicazione <strong>Binotto PDR</strong>, il processo può essere eseguito in modo semplice e sicuro direttamente dall'app.</p>
+                    <p><strong>⚠️ Importante:</strong> L'eliminazione dell'account è <strong>permanente e irreversibile</strong>. Una volta confermata, tutti i dati di registrazione, lo storico delle perizie, le foto allegate e le impostazioni verranno cancellati definitivamente dai nostri server sicuri, in conformità con le normative sulla privacy.</p>
+                    
+                    <p><strong>Passaggi per l'Eliminazione:</strong></p>
+                    <ol>
+                        <li><strong>Accedi all'Applicazione:</strong> Apri l'app Binotto PDR ed effettua il <strong>login</strong> con le tue credenziali.</li>
+                        <li><strong>Vai alle Impostazioni:</strong> Nella schermata principale dell'app, tocca l'icona del menu o naviga fino alla sezione <strong>Impostazioni</strong>.</li>
+                        <li><strong>Avvia la Procedura:</strong> Tocca il pulsante <strong>"Elimina Account"</strong>.</li>
+                        <li><strong>Convalida di Sicurezza:</strong> Per evitare eliminazioni accidentali, l'app ti chiederà di risolvere un <strong>semplice calcolo matematico</strong> (es: 5 + 3). Inserisci il risultato corretto.</li>
+                        <li><strong>Conferma:</strong> Fatto! Dopo la convalida del calcolo, il tuo account e tutti i dati correlati saranno completamente rimossi dal sistema.</li>
+                    </ol>
+                    
+                    <p><i>In caso di difficoltà o se preferisci richiedere l'eliminazione manualmente tramite il supporto, invia un'e-mail a <strong>admin@jbinotto.com</strong> dall'indirizzo e-mail registrato nel tuo account.</i></p>
+                `
+            },
+            fr: {
+                heroBadge: "🔒 Sécurité et Confidentialité",
+                heroTitle: "Suppression du Compte",
+                contentTitle: "📄 Instructions pour la Suppression du Compte",
+                htmlContent: `
+                    <p>Si vous souhaitez fermer votre compte et supprimer définitivement toutes vos données de l'application <strong>Binotto PDR</strong>, la procédure peut être effectuée simplement et en toute sécurité directement depuis l'application.</p>
+                    <p><strong>⚠️ Important:</strong> La suppression du compte est <strong>permanente et irréversible</strong>. Après confirmation, toutes vos données d'inscription, l'historique des expertises, les photos jointes et vos paramètres seront définitivement effacés de nos serveurs sécurisés, conformément aux règles de confidentialité.</p>
+                    
+                    <p><strong>Étapes pour la Suppression :</strong></p>
+                    <ol>
+                        <li><strong>Accédez à l'Application:</strong> Ouvrez l'application Binotto PDR et <strong>connectez-vous</strong> avec vos identifiants.</li>
+                        <li><strong>Allez dans les Paramètres:</strong> Sur l'écran principal de l'application, appuyez sur l'icône de menu ou navignez jusqu'à la section <strong>Paramètres</strong>.</li>
+                        <li><strong>Lancez la Procédure:</strong> Appuyez sur le bouton <strong>"Supprimer le Compte"</strong>.</li>
+                        <li><strong>Validation de Sécurité:</strong> Pour éviter toute suppression accidentelle, l'application vous demandera de résoudre un <strong>calcul mathématique simple</strong> (ex: 5 + 3). Saisissez le résultat correct.</li>
+                        <li><strong>Confirmation:</strong> C'est fait ! Après la validation du calcul, votre compte et toutes les données associées seront définitivement supprimés du système.</li>
+                    </ol>
+                    
+                    <p><i>Si vous rencontrez des difficultés ou si vous préférez demander la suppression manuellement via le support, envoyez un e-mail à <strong>admin@jbinotto.com</strong> depuis l'adresse e-mail associée à votre compte.</i></p>
+                `
+            }
+        };
+
+        let currentLang = 'pt';
+
+        function updateUI(lang) {
+            const data = translations[lang];
+            if (!data) return;
+
+            document.getElementById('heroBadge').innerText = data.heroBadge;
+            document.getElementById('heroTitle').innerText = data.heroTitle;
+            document.getElementById('contentTitle').innerHTML = data.contentTitle;
+            document.getElementById('instructionsContent').innerHTML = data.htmlContent;
+
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            currentLang = lang;
+        }
+
+        function initLanguageSwitcher() {
+            const btns = document.querySelectorAll('.lang-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const langCode = btn.getAttribute('data-lang');
+                    if (langCode !== currentLang) updateUI(langCode);
+                });
+            });
+        }
+
+        // Inicializa com português por padrão
+        updateUI('pt');
+        initLanguageSwitcher();
+    </script>
+</body>
+
+</html>
