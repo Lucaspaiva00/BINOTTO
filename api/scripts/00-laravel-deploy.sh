@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Running composer..."
-composer install --no-dev --working-dir=/var/www/html
+cd /var/www/html
+
+echo "Discovering packages..."
+php artisan package:discover --ansi || true
 
 echo "Caching config..."
 php artisan config:cache
