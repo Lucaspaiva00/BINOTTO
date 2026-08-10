@@ -71,7 +71,6 @@ services:
     name: binotto-web
     runtime: static
     rootDir: web
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
     routes:
