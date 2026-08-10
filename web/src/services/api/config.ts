@@ -1,6 +1,10 @@
 function normalizeApiBaseUrl(raw: string | undefined): string {
-  const base = (raw ?? "").trim().replace(/\/+$/, "");
-  if (!base) return "";
+  const fallback = import.meta.env.PROD
+    ? "https://binotto-api.onrender.com/api/admin"
+    : "http://127.0.0.1:8000/api/admin";
+
+  const base = (raw ?? "").trim().replace(/\/+$/, "") || fallback;
+
   if (base.endsWith("/api/admin")) return base;
   if (base.endsWith("/api")) return `${base}/admin`;
   return `${base}/api/admin`;
