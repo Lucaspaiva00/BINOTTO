@@ -5,7 +5,7 @@ services:
     rootDir: api
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     healthCheckPath: /up
     envVars:
       - key: APP_NAME
