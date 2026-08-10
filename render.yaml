@@ -51,7 +51,7 @@ services:
       - key: JWT_SECRET
         sync: false
       - key: FRONTEND_URL
-        sync: false
+        value: https://binotto-web.onrender.com
       - key: MAIL_MAILER
         sync: false
       - key: MAIL_HOST
@@ -79,4 +79,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
-        sync: false
+        value: https://binotto-api.onrender.com/api/admin

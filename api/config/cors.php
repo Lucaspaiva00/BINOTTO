@@ -1,7 +1,9 @@
 <?php
 
+$frontendUrl = rtrim((string) env('FRONTEND_URL', ''), '/');
+
 return [
-    'paths' => ['api/*', 'sanctum/csrf-cookie', 'up'],
+    'paths' => ['api/*', 'auth/*', 'sanctum/csrf-cookie', 'up', '*'],
 
     'allowed_methods' => ['*'],
 
@@ -10,10 +12,13 @@ return [
         'http://127.0.0.1:5173',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
-        env('FRONTEND_URL'),
+        'https://binotto-web.onrender.com',
+        $frontendUrl !== '' ? $frontendUrl : null,
     ])),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        '#^https://.*\.onrender\.com$#',
+    ],
 
     'allowed_headers' => ['*'],
 
