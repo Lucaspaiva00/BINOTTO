@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Admin\DeleteUsuarioRequest;
+use App\Http\Requests\Api\Admin\ToggleUsuarioStatusRequest;
 use App\Http\Requests\Api\Admin\UpdateUsuarioPasswordRequest;
 use App\Http\Requests\Api\Admin\UpdateUsuarioRequest;
 use App\Http\Resources\Api\Admin\UsuarioResource;
@@ -92,7 +93,8 @@ class UsuarioController extends Controller
                         ->orWhere('oficinas.nome_responsavel', 'like', "%{$busca}%")
                         ->orWhere('tecnicos.cpf', 'like', "%{$busca}%")
                         ->orWhere('tecnicos.cnpj', 'like', "%{$busca}%")
-                        ->orWhere('tecnicos.nome_completo', 'like', "%{$busca}%");
+                        ->orWhere('tecnicos.nome_completo', 'like', "%{$busca}%")
+                        ->orWhere('tecnicos.apelido', 'like', "%{$busca}%");
                 });
             })
             ->orderByRaw("
@@ -117,7 +119,7 @@ class UsuarioController extends Controller
         return response()->json(['data' => new UsuarioResource($usuario)]);
     }
 
-    public function toggleStatus(int $id)
+    public function toggleStatus(ToggleUsuarioStatusRequest $request, int $id)
     {
         $usuario = User::find($id);
 
@@ -125,7 +127,20 @@ class UsuarioController extends Controller
             return response()->json(['message' => __('auth.user_not_found')], 404);
         }
 
-        $usuario->update(['ativo' => !$usuario->ativo]);
+        try {
+            $this->usuarioService->toggleStatus(
+                $usuario,
+                $request->user(),
+                $request->validated('senha'),
+            );
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => __('main.admin_password_invalid'),
+                'errors' => $e->errors(),
+            ], 403);
+        }
+
+        $usuario->refresh();
 
         return response()->json([
             'message' => $usuario->ativo
@@ -173,6 +188,7 @@ class UsuarioController extends Controller
         if ($usuario->perfil === 'TECNICO' && $usuario->tecnico) {
             $usuario->tecnico->update(array_merge([
                 'nome_completo' => $data['nome_completo'] ?? $usuario->tecnico->nome_completo,
+                'apelido' => array_key_exists('apelido', $data) ? $data['apelido'] : $usuario->tecnico->apelido,
                 'cpf' => $data['documento'] ?? $usuario->tecnico->cpf,
                 'endereco_rua' => $data['rua'] ?? $usuario->tecnico->endereco_rua,
                 'endereco_numero' => $data['numero'] ?? $usuario->tecnico->endereco_numero,

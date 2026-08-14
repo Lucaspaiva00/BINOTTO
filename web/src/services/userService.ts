@@ -34,8 +34,14 @@ export const userService = {
     return data.data;
   },
 
-  async toggleStatus(id: number | string): Promise<{ message: string; data: AppUser }> {
-    const { data } = await api.patch<{ message: string; data: AppUser }>(`${BASE_URL}/${id}/status`);
+  async toggleStatus(
+    id: number | string,
+    senha?: string,
+  ): Promise<{ message: string; data: AppUser }> {
+    const { data } = await api.patch<{ message: string; data: AppUser }>(
+      `${BASE_URL}/${id}/status`,
+      senha ? { senha } : undefined,
+    );
     return data;
   },
 
@@ -59,10 +65,14 @@ export const userService = {
     return data.documents;
   },
 
-  async uploadDocument(id: number | string, file: File): Promise<OficinaDocument> {
+  async uploadDocument(
+    id: number | string,
+    file: File,
+    tipo = "doc_empresa",
+  ): Promise<OficinaDocument> {
     const formData = new FormData();
     formData.append("documento", file);
-    formData.append("tipo", "doc_empresa");
+    formData.append("tipo", tipo);
 
     const { data } = await api.post<{ message: string; document: OficinaDocument }>(
       `${BASE_URL}/${id}/documentos`,

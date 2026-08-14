@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\OficinaDocumento;
+use App\Models\TecnicoDocumento;
 use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
@@ -14,17 +15,34 @@ class OficinaDocumentoController extends Controller
 {
     public function index(int $usuarioId)
     {
-        $oficina = $this->resolveOficina($usuarioId);
+        $usuario = $this->resolveUsuario($usuarioId);
 
-        if (!$oficina) {
-            return response()->json(['message' => __('main.oficina_not_found')], 404);
+        if (!$usuario) {
+            return response()->json(['message' => __('auth.user_not_found')], 404);
         }
 
-        $documentos = OficinaDocumento::query()
-            ->where('oficina_id', $oficina->id)
-            ->where('tipo', 'doc_empresa')
-            ->latest()
-            ->get();
+        if ($usuario->perfil === 'OFICINA') {
+            if (!$usuario->oficina) {
+                return response()->json(['message' => __('main.oficina_not_found')], 404);
+            }
+
+            $documentos = OficinaDocumento::query()
+                ->where('oficina_id', $usuario->oficina->id)
+                ->where('tipo', 'doc_empresa')
+                ->latest()
+                ->get();
+        } elseif ($usuario->perfil === 'TECNICO') {
+            if (!$usuario->tecnico) {
+                return response()->json(['message' => __('main.tecnico_not_found')], 404);
+            }
+
+            $documentos = TecnicoDocumento::query()
+                ->where('tecnico_id', $usuario->tecnico->id)
+                ->latest()
+                ->get();
+        } else {
+            return response()->json(['message' => __('auth.user_not_found')], 404);
+        }
 
         return response()->json([
             'documents' => $documentos,
@@ -34,36 +52,67 @@ class OficinaDocumentoController extends Controller
     public function store(Request $request, int $usuarioId)
     {
         try {
-            $oficina = $this->resolveOficina($usuarioId);
+            $usuario = $this->resolveUsuario($usuarioId);
 
-            if (!$oficina) {
-                return response()->json(['message' => __('main.oficina_not_found')], 404);
+            if (!$usuario) {
+                return response()->json(['message' => __('auth.user_not_found')], 404);
             }
 
-            $data = $request->validate([
-                'documento' => [
-                    'required',
-                    'file',
-                    'max:10240',
-                    'mimes:pdf,jpg,jpeg,png',
-                ],
-                'tipo' => 'nullable|in:doc_empresa',
-            ]);
+            if ($usuario->perfil === 'OFICINA') {
+                if (!$usuario->oficina) {
+                    return response()->json(['message' => __('main.oficina_not_found')], 404);
+                }
 
-            $file = $request->file('documento');
-            $extension = $file->getClientOriginalExtension();
-            $fileName = Str::uuid() . '.' . $extension;
-            $path = $file->storeAs("oficinas/{$oficina->id}/documentos", $fileName, 'public');
+                $data = $request->validate([
+                    'documento' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+                    'tipo' => 'nullable|in:doc_empresa',
+                ]);
 
-            $documento = OficinaDocumento::create([
-                'oficina_id' => $oficina->id,
-                'nome' => $file->getClientOriginalName(),
-                'arquivo' => $path,
-                'url' => $path,
-                'mime_type' => $file->getMimeType(),
-                'tamanho' => $file->getSize(),
-                'tipo' => $data['tipo'] ?? 'doc_empresa',
-            ]);
+                $file = $request->file('documento');
+                $path = $file->storeAs(
+                    "oficinas/{$usuario->oficina->id}/documentos",
+                    Str::uuid() . '.' . $file->getClientOriginalExtension(),
+                    'public',
+                );
+
+                $documento = OficinaDocumento::create([
+                    'oficina_id' => $usuario->oficina->id,
+                    'nome' => $file->getClientOriginalName(),
+                    'arquivo' => $path,
+                    'url' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'tamanho' => $file->getSize(),
+                    'tipo' => $data['tipo'] ?? 'doc_empresa',
+                ]);
+            } elseif ($usuario->perfil === 'TECNICO') {
+                if (!$usuario->tecnico) {
+                    return response()->json(['message' => __('main.tecnico_not_found')], 404);
+                }
+
+                $data = $request->validate([
+                    'documento' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+                    'tipo' => 'required|in:identidade,passaporte,doc_empresa,doc_ext',
+                ]);
+
+                $file = $request->file('documento');
+                $path = $file->storeAs(
+                    "tecnicos/{$usuario->tecnico->id}/documentos",
+                    Str::uuid() . '.' . $file->getClientOriginalExtension(),
+                    'public',
+                );
+
+                $documento = TecnicoDocumento::create([
+                    'tecnico_id' => $usuario->tecnico->id,
+                    'nome' => $file->getClientOriginalName(),
+                    'arquivo' => $path,
+                    'url' => $path,
+                    'mime_type' => $file->getMimeType(),
+                    'tamanho' => $file->getSize(),
+                    'tipo' => $data['tipo'],
+                ]);
+            } else {
+                return response()->json(['message' => __('auth.user_not_found')], 404);
+            }
 
             return response()->json([
                 'message' => __('main.document_uploaded_success'),
@@ -84,15 +133,31 @@ class OficinaDocumentoController extends Controller
     public function destroy(int $usuarioId, int $documentoId)
     {
         try {
-            $oficina = $this->resolveOficina($usuarioId);
+            $usuario = $this->resolveUsuario($usuarioId);
 
-            if (!$oficina) {
-                return response()->json(['message' => __('main.oficina_not_found')], 404);
+            if (!$usuario) {
+                return response()->json(['message' => __('auth.user_not_found')], 404);
             }
 
-            $documento = OficinaDocumento::query()
-                ->where('oficina_id', $oficina->id)
-                ->find($documentoId);
+            if ($usuario->perfil === 'OFICINA') {
+                if (!$usuario->oficina) {
+                    return response()->json(['message' => __('main.oficina_not_found')], 404);
+                }
+
+                $documento = OficinaDocumento::query()
+                    ->where('oficina_id', $usuario->oficina->id)
+                    ->find($documentoId);
+            } elseif ($usuario->perfil === 'TECNICO') {
+                if (!$usuario->tecnico) {
+                    return response()->json(['message' => __('main.tecnico_not_found')], 404);
+                }
+
+                $documento = TecnicoDocumento::query()
+                    ->where('tecnico_id', $usuario->tecnico->id)
+                    ->find($documentoId);
+            } else {
+                return response()->json(['message' => __('auth.user_not_found')], 404);
+            }
 
             if (!$documento) {
                 return response()->json(['message' => __('main.document_not_found')], 404);
@@ -116,14 +181,8 @@ class OficinaDocumentoController extends Controller
         }
     }
 
-    private function resolveOficina(int $usuarioId)
+    private function resolveUsuario(int $usuarioId): ?User
     {
-        $usuario = User::with('oficina')->find($usuarioId);
-
-        if (!$usuario || $usuario->perfil !== 'OFICINA') {
-            return null;
-        }
-
-        return $usuario->oficina;
+        return User::with(['oficina', 'tecnico'])->find($usuarioId);
     }
 }

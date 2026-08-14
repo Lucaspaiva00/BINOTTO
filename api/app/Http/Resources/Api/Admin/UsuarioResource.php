@@ -16,6 +16,7 @@ class UsuarioResource extends JsonResource
             'id' => $this->id,
             'profile' => $this->perfil,
             'name' => $this->nomePerfil(),
+            'nickname' => $this->perfil === 'TECNICO' ? $this->tecnico?->apelido : null,
             'responsible' => $this->responsavelPerfil(),
             'document' => $this->documentoPerfil(),
             'email' => $this->email,

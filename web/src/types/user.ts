@@ -7,6 +7,7 @@ export interface AppUser {
   id: number;
   profile: UserType;
   name: string | null;
+  nickname: string | null;
   responsible: string | null;
   document: string | null;
   email: string;
@@ -50,6 +51,7 @@ export interface UserSelectionItem {
 
 export interface UpdateUserPayload {
   nome_completo?: string | null;
+  apelido?: string | null;
   nome_fantasia?: string | null;
   nome_responsavel?: string | null;
   razao_social?: string | null;
@@ -75,7 +77,8 @@ export interface UpdateUserPayload {
 
 export interface OficinaDocument {
   id: number;
-  oficina_id: number;
+  oficina_id?: number;
+  tecnico_id?: number;
   nome: string;
   arquivo: string;
   url: string;

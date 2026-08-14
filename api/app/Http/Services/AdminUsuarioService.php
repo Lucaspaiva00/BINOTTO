@@ -16,6 +16,19 @@ class AdminUsuarioService
         ]);
     }
 
+    public function toggleStatus(User $usuario, User $admin, ?string $senha): void
+    {
+        if (!$usuario->ativo) {
+            if (!$senha || !Hash::check($senha, $admin->senha)) {
+                throw ValidationException::withMessages([
+                    'senha' => [__('main.admin_password_invalid')],
+                ]);
+            }
+        }
+
+        $usuario->update(['ativo' => !$usuario->ativo]);
+    }
+
     public function deleteWithAdminPassword(User $usuario, User $admin, string $senha): void
     {
         if (!Hash::check($senha, $admin->senha)) {

@@ -16,6 +16,7 @@ class UpdateUsuarioRequest extends FormRequest
     {
         return [
             'nome_completo' => 'nullable|string|max:255',
+            'apelido' => 'nullable|string|max:100',
             'nome_fantasia' => 'nullable|string|max:255',
             'nome_responsavel' => 'nullable|string|max:255',
             'razao_social' => 'nullable|string|max:255',

@@ -53,6 +53,7 @@ class ProfileCompletionService
 
         return $this->filledPercent([
             $tecnico->nome_completo,
+            $tecnico->apelido,
             $user->email,
             $user->codigo_pais_telefone,
             $user->numero_telefone,
