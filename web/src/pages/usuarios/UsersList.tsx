@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Search, Eye, Wrench, UserRound } from "lucide-react";
+import { Search, Eye, Wrench, UserRound, Plus } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -138,6 +138,13 @@ export default function UsersList() {
 
   return (
     <AppLayout title="Usuários" subtitle={`${total} resultado(s)`}>
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => navigate("/usuarios/novo")}>
+          <Plus className="w-4 h-4 mr-1" />
+          Novo usuário
+        </Button>
+      </div>
+
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <Tabs
           value={type}

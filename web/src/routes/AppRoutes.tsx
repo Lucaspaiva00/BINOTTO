@@ -5,6 +5,7 @@ import { GuestRoute } from "./GuestRoute";
 import Login from "../pages/Login";
 // import Dashboard from "../pages/Dashboard"; // item Dashboard removido do menu, rota comentada abaixo
 import UsersList from "../pages/usuarios/UsersList";
+import UserNew from "../pages/usuarios/UserNew";
 import UserEdit from "../pages/usuarios/UserEdit";
 import Financeiro from "../pages/financeiro/Financeiro";
 import ServicosList from "../pages/servicos/ServicosList";
@@ -49,6 +50,15 @@ export default function AppRoutes() {
           element={
             <PrivateRoute>
               <UsersList />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/usuarios/novo"
+          element={
+            <PrivateRoute>
+              <UserNew />
             </PrivateRoute>
           }
         />

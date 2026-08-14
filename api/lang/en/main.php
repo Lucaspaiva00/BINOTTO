@@ -95,6 +95,8 @@ return [
     'support_email_send_error' => 'Unable to send the email.',
 
     'admin_user_created_success' => 'Administrator user created successfully.',
+    'admin_tecnico_created_success' => 'Technician created successfully.',
+    'admin_oficina_created_success' => 'Workshop created successfully.',
     'admin_user_updated_success' => 'User updated successfully.',
     'admin_user_activated_success' => 'User activated successfully.',
     'admin_user_deactivated_success' => 'User deactivated successfully.',

@@ -2,6 +2,7 @@ import { api } from "./api/client";
 import type { PaginatedResponse } from "@/types/api";
 import type {
   AppUser,
+  CreateUserPayload,
   ListUsersParams,
   OficinaDocument,
   SupportTicket,
@@ -26,6 +27,11 @@ export const userService = {
 
   async show(id: number | string): Promise<AppUser> {
     const { data } = await api.get<{ data: AppUser }>(`${BASE_URL}/${id}`);
+    return data.data;
+  },
+
+  async create(payload: CreateUserPayload): Promise<AppUser> {
+    const { data } = await api.post<{ message: string; data: AppUser }>(BASE_URL, payload);
     return data.data;
   },
 

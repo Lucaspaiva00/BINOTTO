@@ -36,6 +36,7 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
         Route::prefix('usuarios')->group(function () {
             Route::get('/selecao', [AdminUsuarioController::class, 'listSelecao']);
             Route::get('/', [AdminUsuarioController::class, 'index']);
+            Route::post('/', [AdminUsuarioController::class, 'store']);
             Route::get('/{id}', [AdminUsuarioController::class, 'show']);
             Route::put('/{id}', [AdminUsuarioController::class, 'update']);
             Route::patch('/{id}/status', [AdminUsuarioController::class, 'toggleStatus']);

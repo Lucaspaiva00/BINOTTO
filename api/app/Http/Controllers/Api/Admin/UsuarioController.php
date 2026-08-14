@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\Admin\DeleteUsuarioRequest;
+use App\Http\Requests\Api\Admin\StoreUsuarioRequest;
 use App\Http\Requests\Api\Admin\ToggleUsuarioStatusRequest;
 use App\Http\Requests\Api\Admin\UpdateUsuarioPasswordRequest;
 use App\Http\Requests\Api\Admin\UpdateUsuarioRequest;
@@ -106,6 +107,20 @@ class UsuarioController extends Controller
             ->paginate($request->integer('per_page', 20));
 
         return UsuarioResource::collection($usuarios);
+    }
+
+    public function store(StoreUsuarioRequest $request)
+    {
+        $usuario = $this->usuarioService->create($request->validated());
+
+        $messageKey = $request->input('perfil') === 'TECNICO'
+            ? 'main.admin_tecnico_created_success'
+            : 'main.admin_oficina_created_success';
+
+        return response()->json([
+            'message' => __($messageKey),
+            'data' => new UsuarioResource($usuario),
+        ], 201);
     }
 
     public function show(int $id)

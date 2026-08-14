@@ -95,6 +95,8 @@ return [
     'support_email_send_error' => 'Impossible d\'envoyer l\'e-mail.',
 
     'admin_user_created_success' => 'Utilisateur administrateur créé avec succès.',
+    'admin_tecnico_created_success' => 'Technicien créé avec succès.',
+    'admin_oficina_created_success' => 'Atelier créé avec succès.',
     'admin_user_updated_success' => 'Utilisateur mis à jour avec succès.',
     'admin_user_activated_success' => 'Utilisateur activé avec succès.',
     'admin_user_deactivated_success' => 'Utilisateur désactivé avec succès.',

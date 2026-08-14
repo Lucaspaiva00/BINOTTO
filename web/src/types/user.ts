@@ -49,6 +49,20 @@ export interface UserSelectionItem {
   name: string;
 }
 
+export interface CreateUserPayload {
+  perfil: UserType;
+  email: string;
+  codigo_pais_telefone: string;
+  numero_telefone: string;
+  iso_pais_telefone: string;
+  senha: string;
+  confirmar_senha: string;
+  nome_completo?: string;
+  apelido?: string | null;
+  nome_fantasia?: string;
+  nome_responsavel?: string;
+}
+
 export interface UpdateUserPayload {
   nome_completo?: string | null;
   apelido?: string | null;
