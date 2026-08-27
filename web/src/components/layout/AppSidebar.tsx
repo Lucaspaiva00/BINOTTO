@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 // import { LayoutDashboard } from "lucide-react"; // usado pelo item Dashboard, comentado abaixo
-import { Users, Wallet, ClipboardList, ShieldCheck, LogOut, X } from "lucide-react";
+import { Users, Wallet, ClipboardList, ShieldCheck, LogOut, X, ScanSearch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logos/binotto-logo-black.png";
@@ -9,6 +9,7 @@ const items = [
   // { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/usuarios", label: "Usuários", icon: Users },
   { to: "/servicos", label: "Serviços", icon: ClipboardList },
+  { to: "/pericias", label: "Perícias", icon: ScanSearch },
   { to: "/financeiro", label: "Financeiro", icon: Wallet },
   { to: "/administradores", label: "Administradores", icon: ShieldCheck },
 ];

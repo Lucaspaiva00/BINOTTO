@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Wrench, Building2, Cog } from "lucide-react";
+import { ArrowLeft, Wrench, Building2, Cog, Eye } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,12 @@ import { formatDateTime, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { getServiceLogFields } from "./serviceLogFields";
+import {
+  PERICIA_STATUS_CLASS,
+  PERICIA_STATUS_LABEL,
+  PERICIA_TIPO_LABEL,
+} from "@/utils/periciaStatus";
+import type { PericiaStatus } from "@/types/pericia";
 import type { Service, ServiceLog } from "@/types/service";
 import type { FinanceStatus, ReceivablePayload, PayablePayload } from "@/types/finance";
 import type { UserSelectionItem } from "@/types/user";
@@ -328,6 +334,44 @@ export default function ServicoDetail() {
           </div>
         ))}
       </div>
+
+      {service.inspections && service.inspections.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-6 mb-4">
+          <h2 className="text-base font-semibold text-foreground mb-4">Perícias</h2>
+          <div className="space-y-2">
+            {service.inspections.map((inspection) => (
+              <div
+                key={inspection.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium">#{inspection.id}</span>
+                  {inspection.licensePlate && (
+                    <span className="text-sm text-muted-foreground">{inspection.licensePlate}</span>
+                  )}
+                  {inspection.tipo && (
+                    <Badge variant="outline">{PERICIA_TIPO_LABEL[inspection.tipo as keyof typeof PERICIA_TIPO_LABEL]}</Badge>
+                  )}
+                  {inspection.status && (
+                    <Badge
+                      variant="outline"
+                      className={PERICIA_STATUS_CLASS[inspection.status as PericiaStatus]}
+                    >
+                      {PERICIA_STATUS_LABEL[inspection.status as PericiaStatus]}
+                    </Badge>
+                  )}
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/pericias/${inspection.id}`}>
+                    <Eye className="w-4 h-4 mr-1" />
+                    Ver perícia
+                  </Link>
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {service.logs && service.logs.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-6 mb-4">

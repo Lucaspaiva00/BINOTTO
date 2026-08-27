@@ -21,6 +21,14 @@ export interface ServiceLog {
   createdAt: string;
 }
 
+export interface ServiceInspectionSummary {
+  id: number;
+  status: string | null;
+  statusLabel: string | null;
+  tipo: string | null;
+  licensePlate: string | null;
+}
+
 export interface Service {
   id: number;
   status: ServiceStatus | null;
@@ -45,4 +53,5 @@ export interface Service {
   createdAt: string;
   updatedAt: string;
   logs?: ServiceLog[];
+  inspections?: ServiceInspectionSummary[];
 }

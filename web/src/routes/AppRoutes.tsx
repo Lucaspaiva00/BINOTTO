@@ -10,6 +10,8 @@ import UserEdit from "../pages/usuarios/UserEdit";
 import Financeiro from "../pages/financeiro/Financeiro";
 import ServicosList from "../pages/servicos/ServicosList";
 import ServicoDetail from "../pages/servicos/ServicoDetail";
+import PericiasList from "../pages/pericias/PericiasList";
+import PericiaDetail from "../pages/pericias/PericiaDetail";
 import AdministratorsList from "../pages/administradores/AdministratorsList";
 import AdministratorNew from "../pages/administradores/AdministratorNew";
 import AdministratorEdit from "../pages/administradores/AdministratorEdit";
@@ -95,6 +97,24 @@ export default function AppRoutes() {
           element={
             <PrivateRoute>
               <ServicoDetail />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/pericias"
+          element={
+            <PrivateRoute>
+              <PericiasList />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/pericias/:id"
+          element={
+            <PrivateRoute>
+              <PericiaDetail />
             </PrivateRoute>
           }
         />

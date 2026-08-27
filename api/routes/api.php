@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\ContaPagarController;
 use App\Http\Controllers\Api\Admin\ContaReceberController;
 use App\Http\Controllers\Api\Admin\FluxoCaixaController;
 use App\Http\Controllers\Api\Admin\LoginController;
+use App\Http\Controllers\Api\Admin\PericiaController as AdminPericiaController;
 use App\Http\Controllers\Api\Admin\ServicoController as AdminServicoController;
 use App\Http\Controllers\Api\Admin\OficinaDocumentoController as AdminOficinaDocumentoController;
 use App\Http\Controllers\Api\Admin\SuporteChamadoController as AdminSuporteChamadoController;
@@ -81,6 +82,12 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
         Route::prefix('servicos')->group(function () {
             Route::get('/', [AdminServicoController::class, 'index']);
             Route::get('/{id}', [AdminServicoController::class, 'show']);
+        });
+
+        Route::prefix('pericias')->group(function () {
+            Route::get('/', [AdminPericiaController::class, 'index']);
+            Route::get('/{id}/pdf', [AdminPericiaController::class, 'generatePdf']);
+            Route::get('/{id}', [AdminPericiaController::class, 'show']);
         });
     });
 });
