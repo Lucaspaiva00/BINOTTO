@@ -7,3 +7,9 @@ CLAUDE.md
 .env
 .env.local
 .env.homolog
+credentials.json
+credentials/
+*.jks
+upload_certificate.pem
+android/app/binotto.keystore
+google-service-account.json
