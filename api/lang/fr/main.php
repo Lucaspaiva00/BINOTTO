@@ -33,6 +33,7 @@ return [
     'service_not_found' => 'Service non trouvé.',
     'service_fetch_error' => 'Erreur lors de la récupération du service.',
     'service_address_required' => 'Pour demander un technicien, veuillez d\'abord remplir l\'adresse complète de votre atelier.',
+    'service_workshop_address_required' => 'L\'atelier sélectionné doit avoir une adresse complète pour demander un technicien.',
     'service_created_success' => 'Service créé avec succès.',
     'service_create_error' => 'Erreur lors de la création du service.',
     'service_not_editable' => 'Ce service ne peut plus être modifié.',

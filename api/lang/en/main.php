@@ -33,6 +33,7 @@ return [
     'service_not_found' => 'Service not found.',
     'service_fetch_error' => 'Error fetching service.',
     'service_address_required' => 'To request a technician, first complete your workshop full address.',
+    'service_workshop_address_required' => 'The selected workshop must have a complete address to request a technician.',
     'service_created_success' => 'Service created successfully.',
     'service_create_error' => 'Error creating service.',
     'service_not_editable' => 'This service can no longer be edited.',

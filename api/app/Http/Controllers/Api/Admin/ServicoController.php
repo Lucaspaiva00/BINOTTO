@@ -3,12 +3,23 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\Admin\StoreServicoRequest;
 use App\Http\Resources\Api\Admin\ServicoResource;
+use App\Http\Services\CriarServicoService;
+use App\Models\Oficina;
 use App\Models\Servico;
+use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class ServicoController extends Controller
 {
+    public function __construct(
+        private readonly CriarServicoService $criarServicoService,
+    ) {
+    }
+
     public function index(Request $request)
     {
         $servicos = Servico::with([
@@ -67,5 +78,46 @@ class ServicoController extends Controller
         }
 
         return response()->json(['data' => new ServicoResource($servico)]);
+    }
+
+    public function store(StoreServicoRequest $request)
+    {
+        try {
+            $oficina = Oficina::findOrFail($request->integer('oficina_id'));
+
+            $resultado = $this->criarServicoService->criar(
+                $oficina,
+                $request->user(),
+                [
+                    'moeda' => $request->input('moeda', 'EUR'),
+                    'observacoes' => $request->input('observacoes'),
+                    'data_inicio' => $request->input('data_inicio'),
+                    'data_fim' => $request->input('data_fim'),
+                    'quantidade' => $request->input('quantidade'),
+                    'quantidade_tipo' => $request->input('quantidade_tipo'),
+                    'descricaoLog' => 'Administrador criou o serviço',
+                ]
+            );
+
+            $servico = $resultado['servico']->load([
+                'oficina',
+                'tecnico',
+                'primeiroVeiculo',
+                'criadoPor.oficina',
+                'criadoPor.tecnico',
+            ]);
+
+            return response()->json(['data' => new ServicoResource($servico)], 201);
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            Log::error('Erro ao criar serviço (admin)', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json(['message' => __('main.service_create_error')], 500);
+        }
     }
 }

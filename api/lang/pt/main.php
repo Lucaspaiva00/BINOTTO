@@ -33,6 +33,7 @@ return [
     'service_not_found' => 'Serviço não encontrado.',
     'service_fetch_error' => 'Erro ao buscar serviço.',
     'service_address_required' => 'Para solicitar um técnico, primeiro preencha o endereço completo da sua oficina.',
+    'service_workshop_address_required' => 'A oficina selecionada precisa ter endereço completo para solicitar técnico.',
     'service_created_success' => 'Serviço criado com sucesso.',
     'service_create_error' => 'Erro ao criar serviço.',
     'service_not_editable' => 'Este serviço não pode mais ser editado.',

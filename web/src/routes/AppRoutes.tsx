@@ -9,6 +9,7 @@ import UserNew from "../pages/usuarios/UserNew";
 import UserEdit from "../pages/usuarios/UserEdit";
 import Financeiro from "../pages/financeiro/Financeiro";
 import ServicosList from "../pages/servicos/ServicosList";
+import ServicoNew from "../pages/servicos/ServicoNew";
 import ServicoDetail from "../pages/servicos/ServicoDetail";
 import PericiasList from "../pages/pericias/PericiasList";
 import PericiaNew from "../pages/pericias/PericiaNew";
@@ -89,6 +90,15 @@ export default function AppRoutes() {
           element={
             <PrivateRoute>
               <ServicosList />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/servicos/novo"
+          element={
+            <PrivateRoute>
+              <ServicoNew />
             </PrivateRoute>
           }
         />

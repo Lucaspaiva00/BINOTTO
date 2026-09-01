@@ -43,13 +43,14 @@ class UsuarioController extends Controller
                 ]);
         } else {
             $itens = Oficina::query()
-                ->select('id', 'usuario_id', 'nome_fantasia', 'razao_social')
+                ->select('id', 'usuario_id', 'nome_fantasia', 'razao_social', 'rua', 'numero', 'cidade', 'cep', 'estado', 'pais')
                 ->orderByRaw("COALESCE(NULLIF(razao_social, ''), nome_fantasia) ASC")
                 ->get()
                 ->map(fn ($oficina) => [
                     'id' => $oficina->id,
                     'userId' => $oficina->usuario_id,
                     'name' => $oficina->razao_social ?: $oficina->nome_fantasia,
+                    'canRequestTechnician' => $oficina->podeSolicitarTecnico(),
                 ]);
         }
 

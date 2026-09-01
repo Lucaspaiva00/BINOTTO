@@ -47,6 +47,7 @@ export interface UserSelectionItem {
   id: number;
   userId: number;
   name: string;
+  canRequestTechnician?: boolean;
 }
 
 export interface CreateUserPayload {

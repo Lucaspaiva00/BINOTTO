@@ -12,6 +12,16 @@ export interface ListServicesParams {
   busca?: string;
 }
 
+export interface CreateServicePayload {
+  oficina_id: number;
+  moeda?: string;
+  data_inicio?: string;
+  data_fim?: string;
+  quantidade_tipo?: "carros" | "dias";
+  quantidade?: number;
+  observacoes?: string;
+}
+
 export const serviceService = {
   async list(params?: ListServicesParams): Promise<PaginatedResponse<Service>> {
     const { data } = await api.get<PaginatedResponse<Service>>(BASE_URL, { params });
@@ -20,6 +30,11 @@ export const serviceService = {
 
   async show(id: number | string): Promise<Service> {
     const { data } = await api.get<{ data: Service }>(`${BASE_URL}/${id}`);
+    return data.data;
+  },
+
+  async create(payload: CreateServicePayload): Promise<Service> {
+    const { data } = await api.post<{ data: Service }>(BASE_URL, payload);
     return data.data;
   },
 };

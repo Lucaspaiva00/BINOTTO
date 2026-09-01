@@ -6,6 +6,7 @@ use App\Enums\PericiaStatusEnum;
 use App\Enums\ServicoLogTipoEnum;
 use App\Enums\ServicoStatusEnum;
 use App\Http\Controllers\Controller;
+use App\Http\Services\CriarServicoService;
 use App\Http\Services\PushNotificationService;
 use App\Models\DispositivoUsuario;
 use App\Models\Pericia;
@@ -20,11 +21,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class OficinaServicoController extends Controller
 {
     private PushNotificationService $pushNotificationService;
+    private CriarServicoService $criarServicoService;
 
     private $localeMap = [
         'pt-BR' => 'pt',
@@ -32,9 +35,12 @@ class OficinaServicoController extends Controller
         'it-IT' => 'it',
     ];
 
-    public function __construct(PushNotificationService $pushNotificationService)
-    {
+    public function __construct(
+        PushNotificationService $pushNotificationService,
+        CriarServicoService $criarServicoService,
+    ) {
         $this->pushNotificationService = $pushNotificationService;
+        $this->criarServicoService = $criarServicoService;
     }
 
     public function index(Request $request)
@@ -245,98 +251,31 @@ class OficinaServicoController extends Controller
     {
         try {
             $user = auth()->user();
-
             $oficina = $user->oficina;
-            $tecnicosPreferidos = $oficina?->tecnicos_preferidos ?? [];
-            $possuiPreferidos = !empty($tecnicosPreferidos);
 
-            if (!$oficina->podeSolicitarTecnico()) {
+            if (! $oficina) {
                 return response()->json([
                     'success' => false,
-                    'message' => __('main.service_address_required'),
+                    'message' => __('main.oficina_not_found'),
                 ], 422);
             }
 
-            DB::beginTransaction();
-
-            $servico = Servico::create([
-                'tecnico_label' => $oficina->cidade,
-                'oficina_id' => $oficina?->id,
-                'criado_por_usuario_id' => $user->id,
-                'data_inicio' => null,
-                'data_fim' => null,
-                'status' => ServicoStatusEnum::EM_BREVE,
-                'tecnicos_preferidos_notificados' => $tecnicosPreferidos,
-                'disponivel_para_todos' => !$possuiPreferidos,
-                'liberado_para_todos_em' => $possuiPreferidos ? now()->addHours(1) : now(),
+            $resultado = $this->criarServicoService->criar($oficina, $user, [
                 'moeda' => $request->moeda ?? 'EUR',
             ]);
-
-            ServicoLog::create([
-                'servico_id' => $servico->id,
-                'oficina_id' => $oficina?->id,
-                'tipo' => ServicoLogTipoEnum::SERVICO_CRIADO,
-                'descricao' => 'Oficina criou o serviço',
-                'payload' => [
-                    'moeda' => $servico->moeda,
-                    'disponivel_para_todos' => $servico->disponivel_para_todos,
-                    'tecnicos_preferidos_notificados' => $servico->tecnicos_preferidos_notificados,
-                    'cidade_oficina' => $oficina->cidade,
-                    'pais_oficina' => $oficina->pais,
-                ],
-            ]);
-
-            DB::commit();
-
-            // Busca técnicos alvo
-            $tecnicosQuery = Tecnico::query();
-
-            /* REGRA: se a oficina tiver técnicos preferidos, notificar apenas eles. 
-            Caso contrário, notificar todos os técnicos. */
-            if (!empty($tecnicosPreferidos)) {
-                $tecnicosQuery->whereIn('id', $tecnicosPreferidos);
-            }
-
-            $tecnicos = $tecnicosQuery->get();
-
-            // Coleta todos os tokens dos dispositivos
-            $devices = DispositivoUsuario::whereIn('usuario_id', $tecnicos->pluck('usuario_id'))
-                ->get(['token', 'idioma'])
-                ->unique('token')
-                ->filter(fn($d) => !empty($d->token));
-
-            // Envia notificação
-            try {
-                foreach ($devices as $device) {
-                    $locale = $this->localeMap[$device->idioma] ?? 'pt';
-
-                    $this->pushNotificationService->sendToToken($device->token, [
-                        'title' => __('notifications.service_created_title', [], $locale),
-                        'body'  => __('notifications.service_created_body', [], $locale),
-                        'data' => [
-                            'type' => 'SERVICE_CREATED',
-                            'target_role' => 'TECHNICIAN',
-                            'servico_id' => (string) $servico->id,
-                        ],
-                    ]);
-                }
-            } catch (Exception $e) {
-                Log::error('Erro ao enviar notificação push', [
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                ]);
-            }
 
             return response()->json([
                 'success' => true,
                 'message' => __('main.service_created_success'),
-                'possuiPreferidos' => $possuiPreferidos,
-                'data' => $servico,
+                'possuiPreferidos' => $resultado['possuiPreferidos'],
+                'data' => $resultado['servico'],
             ], 201);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?: __('main.service_address_required'),
+            ], 422);
         } catch (Exception $e) {
-            DB::rollBack();
-
             Log::error('Erro ao criar serviço', [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),

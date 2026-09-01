@@ -81,6 +81,7 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
 
         Route::prefix('servicos')->group(function () {
             Route::get('/', [AdminServicoController::class, 'index']);
+            Route::post('/', [AdminServicoController::class, 'store']);
             Route::get('/{id}', [AdminServicoController::class, 'show']);
         });
 
