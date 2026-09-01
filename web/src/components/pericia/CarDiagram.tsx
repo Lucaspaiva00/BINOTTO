@@ -7,6 +7,7 @@ interface CarDiagramProps {
   partsState: Record<string, PartInspection>;
   selectedPartId: string | null;
   onSelectPart: (partId: string) => void;
+  canEdit?: boolean;
 }
 
 function partTextColor(item?: PartInspection): string {
@@ -23,14 +24,14 @@ function borderRadiusStyle(radius?: CarPartLayout["radius"]) {
   };
 }
 
-export function CarDiagram({ partsState, selectedPartId, onSelectPart }: CarDiagramProps) {
+export function CarDiagram({ partsState, selectedPartId, onSelectPart, canEdit = false }: CarDiagramProps) {
   return (
     <div className="relative mx-auto w-full max-w-75 aspect-300/400 bg-muted/40 rounded-2xl border border-border">
       {CAR_PART_LAYOUTS.map((layout) => {
         const state = partsState[layout.id];
         const part = CAR_PARTS.find((p) => p.id === layout.id);
         const selected = selectedPartId === layout.id;
-        const canOpen = state && state.repairType !== "SEM_DANO";
+        const canOpen = canEdit || (state && state.repairType !== "SEM_DANO");
 
         if (!part) return null;
 

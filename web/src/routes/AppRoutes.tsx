@@ -11,6 +11,7 @@ import Financeiro from "../pages/financeiro/Financeiro";
 import ServicosList from "../pages/servicos/ServicosList";
 import ServicoDetail from "../pages/servicos/ServicoDetail";
 import PericiasList from "../pages/pericias/PericiasList";
+import PericiaNew from "../pages/pericias/PericiaNew";
 import PericiaDetail from "../pages/pericias/PericiaDetail";
 import AdministratorsList from "../pages/administradores/AdministratorsList";
 import AdministratorNew from "../pages/administradores/AdministratorNew";
@@ -106,6 +107,15 @@ export default function AppRoutes() {
           element={
             <PrivateRoute>
               <PericiasList />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/pericias/novo"
+          element={
+            <PrivateRoute>
+              <PericiaNew />
             </PrivateRoute>
           }
         />

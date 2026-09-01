@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { PartInspection, RepairType } from "@/types/carParts";
+import type { PartInspection, PartPhoto, RepairType } from "@/types/carParts";
 import { PhotoLightbox } from "@/components/pericia/PhotoGallery";
 import { useState } from "react";
 
@@ -16,6 +16,10 @@ interface PartDetailDialogProps {
   partId: string | null;
   value: PartInspection | null;
   onOpenChange: (open: boolean) => void;
+}
+
+function photoSrc(photo: PartPhoto): string {
+  return photo instanceof File ? URL.createObjectURL(photo) : photo;
 }
 
 export function PartDetailDialog({ open, partId, value, onOpenChange }: PartDetailDialogProps) {
@@ -74,19 +78,22 @@ export function PartDetailDialog({ open, partId, value, onOpenChange }: PartDeta
                   Fotos ({value.photos.length}/2)
                 </p>
                 <div className="grid grid-cols-2 gap-2">
-                  {value.photos.map((photo, index) => (
+                  {value.photos.map((photo, index) => {
+                    const src = photoSrc(photo);
+                    return (
                     <button
-                      key={`${photo}-${index}`}
+                      key={`${index}-${src}`}
                       type="button"
                       onClick={() => {
-                        setLightboxSrc(photo);
+                        setLightboxSrc(src);
                         setLightboxOpen(true);
                       }}
                       className="rounded-lg overflow-hidden border border-border aspect-4/3"
                     >
-                      <img src={photo} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
+                      <img src={src} alt={`Foto ${index + 1}`} className="w-full h-full object-cover" />
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

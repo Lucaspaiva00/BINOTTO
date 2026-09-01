@@ -6,13 +6,15 @@ export type RepairType =
   | "ALUMINIO_PINTURA"
   | "SEM_DANO";
 
+export type PartPhoto = File | string;
+
 export interface PartInspection {
   repairType: RepairType;
   dentCount: number;
   impactsOver25: number;
   impactsUnder25: number;
   notes: string;
-  photos: string[];
+  photos: PartPhoto[];
 }
 
 export interface CarPart {
@@ -32,4 +34,19 @@ export interface CarPartLayout {
     bl?: number;
     br?: number;
   };
+}
+
+export interface CreatePericiaPayload {
+  workshopId: number;
+  technicianId?: number | null;
+  licensePlate: string;
+  chassis: string;
+  model: string;
+  tipo: "simples" | "completa";
+  includeValue: boolean;
+  suggestedPrice?: number | null;
+  inspectionValue?: number | null;
+  photos: Record<string, File | null>;
+  completePhotos: Record<string, File | null>;
+  partsState: Record<string, PartInspection>;
 }

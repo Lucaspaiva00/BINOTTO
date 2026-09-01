@@ -36,4 +36,11 @@ export const periciaService = {
 
     return { blob: response.data, filename };
   },
+
+  async create(formData: FormData): Promise<Pericia> {
+    const { data } = await api.post<{ data: Pericia }>(BASE_URL, formData, {
+      headers: { "Content-Type": undefined },
+    });
+    return data.data;
+  },
 };

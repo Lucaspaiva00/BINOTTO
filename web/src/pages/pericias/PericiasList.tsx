@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Eye, Search, ScanSearch } from "lucide-react";
+import { Eye, Plus, Search, ScanSearch } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,12 @@ export default function PericiasList() {
 
   return (
     <AppLayout title="Perícias" subtitle={`${total} perícia(s) encontrada(s)`}>
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => navigate("/pericias/novo")}>
+          <Plus className="w-4 h-4 mr-2" />
+          Nova perícia
+        </Button>
+      </div>
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">
         <div className="relative flex-1 min-w-55">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
