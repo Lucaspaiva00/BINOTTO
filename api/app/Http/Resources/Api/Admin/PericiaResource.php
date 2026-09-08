@@ -12,6 +12,7 @@ class PericiaResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'publicNumber' => $this->numero_publico,
             'status' => $this->status?->value,
             'statusLabel' => $this->status?->label(),
             'tipo' => $this->tipo,
