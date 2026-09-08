@@ -145,7 +145,7 @@ export default function PericiasList() {
         <Table className="min-w-225">
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>Perícia</TableHead>
               <TableHead>Oficina</TableHead>
               <TableHead>Técnico</TableHead>
               <TableHead>Placa</TableHead>
@@ -174,7 +174,15 @@ export default function PericiasList() {
             ) : (
               pericias.map((p) => (
                 <TableRow key={p.id}>
-                  <TableCell className="font-medium">{p.id}</TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/pericias/${p.id}`)}
+                      className="font-medium text-[hsl(var(--app-accent))] hover:underline"
+                    >
+                      {p.publicNumber || `#${p.id}`}
+                    </button>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{p.workshop ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{p.technician ?? "—"}</TableCell>
                   <TableCell>{p.licensePlate ?? "—"}</TableCell>
