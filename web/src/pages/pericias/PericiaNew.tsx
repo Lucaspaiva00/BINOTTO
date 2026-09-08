@@ -34,6 +34,7 @@ import { periciaService } from "@/services/periciaService";
 import { buildPericiaFormData, createInitialPartsState } from "@/utils/buildPericiaFormData";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
+import { VEHICLE_MODELS, resolveVehicleProfile } from "@/constants/vehicleCatalog";
 import type { PartInspection, RepairType } from "@/types/carParts";
 import type { UserSelectionItem } from "@/types/user";
 
@@ -304,6 +305,11 @@ export default function PericiaNew() {
               placeholder="Volkswagen Gol"
             />
             {errors.model && <p className="text-xs text-destructive">{errors.model}</p>}
+            <Select value="" onValueChange={setModel}>
+              <SelectTrigger className="mt-2"><SelectValue placeholder="Selecionar modelo comum" /></SelectTrigger>
+              <SelectContent>{VEHICLE_MODELS.map((vehicle) => <SelectItem key={vehicle} value={vehicle}>{vehicle}</SelectItem>)}</SelectContent>
+            </Select>
+            {model && <p className="text-xs text-muted-foreground">Perfil 3D identificado: {resolveVehicleProfile(model).label}</p>}
           </div>
         </section>
 
@@ -336,6 +342,7 @@ export default function PericiaNew() {
               setPartDialogOpen(true);
             }}
             canEdit
+            vehicleModel={model}
           />
 
           <div className="flex flex-wrap gap-3">
