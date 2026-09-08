@@ -17,6 +17,7 @@ export interface Pericia {
   publicNumber: string;
   status: PericiaStatus | null;
   statusLabel: string | null;
+  deadline: string | null;
   tipo: PericiaTipo | null;
   licensePlate: string | null;
   model: string | null;
