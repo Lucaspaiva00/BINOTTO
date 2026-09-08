@@ -122,7 +122,7 @@ export default function PericiaDetail() {
 
   return (
     <AppLayout
-      title={`Perícia #${pericia.id}`}
+      title={pericia.publicNumber || `Perícia #${pericia.id}`}
       subtitle={[pericia.licensePlate, pericia.model].filter(Boolean).join(" · ") || undefined}
     >
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -153,6 +153,7 @@ export default function PericiaDetail() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        <SummaryCard label="Número da perícia" value={pericia.publicNumber || `#${pericia.id}`} />
         <SummaryCard label="Oficina" value={pericia.workshop} />
         <SummaryCard label="Técnico" value={pericia.technician} />
         <SummaryCard label="Placa" value={pericia.licensePlate} />
