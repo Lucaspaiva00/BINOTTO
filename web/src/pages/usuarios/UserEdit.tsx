@@ -9,11 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { userService } from "@/services/userService";
 import type { AppUser } from "@/types/user";
 import OficinaProfileTab from "./components/OficinaProfileTab";
+import OficinaCompanyTab from "./components/OficinaCompanyTab";
 import OficinaDocumentsTab from "./components/OficinaDocumentsTab";
 import OficinaSupportTab from "./components/OficinaSupportTab";
 import TecnicoProfileTab from "./components/TecnicoProfileTab";
 import TecnicoDocumentsTab from "./components/TecnicoDocumentsTab";
-import UsuarioSuspendTab from "./components/UsuarioSuspendTab";
 
 export default function UserEdit() {
   const navigate = useNavigate();
@@ -78,7 +78,7 @@ export default function UserEdit() {
 
   return (
     <AppLayout title="Editar usuário" subtitle={displayName}>
-      <Button variant="ghost" size="sm" onClick={() => navigate("/usuarios")} className="mb-4">
+      <Button type="button" variant="ghost" size="sm" onClick={() => navigate("/usuarios", { replace: true })} className="mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para usuários
       </Button>
 
@@ -109,22 +109,20 @@ export default function UserEdit() {
         <Tabs value={tab} onValueChange={setTab} className="mt-6">
           <TabsList>
             <TabsTrigger value="perfil">Perfil</TabsTrigger>
+            {!isTech && <TabsTrigger value="empresa">Empresa</TabsTrigger>}
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
-            <TabsTrigger value="suporte">Suporte</TabsTrigger>
-            <TabsTrigger value="suspenso">Suspenso</TabsTrigger>
+            {!isTech && <TabsTrigger value="suporte">Suporte</TabsTrigger>}
           </TabsList>
           <TabsContent value="perfil" className="mt-6">
             {isTech ? (
               <TecnicoProfileTab
                 user={user}
                 onUserUpdated={handleUserUpdated}
-                onDeleted={() => navigate("/usuarios")}
               />
             ) : (
               <OficinaProfileTab
                 user={user}
                 onUserUpdated={handleUserUpdated}
-                onDeleted={() => navigate("/usuarios")}
               />
             )}
           </TabsContent>
@@ -135,12 +133,8 @@ export default function UserEdit() {
               <OficinaDocumentsTab userId={user.id} />
             )}
           </TabsContent>
-          <TabsContent value="suporte" className="mt-6">
-            <OficinaSupportTab userId={user.id} />
-          </TabsContent>
-          <TabsContent value="suspenso" className="mt-6">
-            <UsuarioSuspendTab user={user} onUserUpdated={handleUserUpdated} />
-          </TabsContent>
+          {!isTech && <TabsContent value="empresa" className="mt-6"><OficinaCompanyTab user={user} onUserUpdated={handleUserUpdated} /></TabsContent>}
+          {!isTech && <TabsContent value="suporte" className="mt-6"><OficinaSupportTab userId={user.id} /></TabsContent>}
         </Tabs>
       </div>
     </AppLayout>

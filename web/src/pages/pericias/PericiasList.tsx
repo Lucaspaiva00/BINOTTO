@@ -14,17 +14,12 @@ import { periciaService } from "@/services/periciaService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateTime } from "@/utils/date";
-import {
-  PERICIA_STATUS_CLASS,
-  PERICIA_STATUS_LABEL,
-  PERICIA_TIPO_LABEL,
-} from "@/utils/periciaStatus";
-import type { Pericia, PericiaStatus, PericiaTipo } from "@/types/pericia";
+import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
+import type { Pericia, PericiaStatus } from "@/types/pericia";
 
 const PER_PAGE = 20;
 
 type StatusFilter = "all" | PericiaStatus;
-type TipoFilter = "all" | PericiaTipo;
 
 function displayValue(pericia: Pericia): number | null {
   return pericia.tipo === "completa" ? pericia.inspectionValue : pericia.suggestedPrice;
@@ -35,7 +30,6 @@ export default function PericiasList() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
-  const [tipo, setTipo] = useState<TipoFilter>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [pericias, setPericias] = useState<Pericia[]>([]);
@@ -64,7 +58,6 @@ export default function PericiasList() {
           page,
           per_page: PER_PAGE,
           status: status === "all" ? undefined : status,
-          tipo: tipo === "all" ? undefined : tipo,
           data_inicial: startDate || undefined,
           data_final: endDate || undefined,
           busca: debouncedSearch.trim() || undefined,
@@ -86,7 +79,7 @@ export default function PericiasList() {
     return () => {
       cancelled = true;
     };
-  }, [page, status, tipo, startDate, endDate, debouncedSearch]);
+  }, [page, status, startDate, endDate, debouncedSearch]);
 
   return (
     <AppLayout title="Perícias" subtitle={`${total} perícia(s) encontrada(s)`}>
@@ -127,23 +120,6 @@ export default function PericiasList() {
           </SelectContent>
         </Select>
 
-        <Select
-          value={tipo}
-          onValueChange={(v) => {
-            setTipo(v as TipoFilter);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Tipo" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="simples">{PERICIA_TIPO_LABEL.simples}</SelectItem>
-            <SelectItem value="completa">{PERICIA_TIPO_LABEL.completa}</SelectItem>
-          </SelectContent>
-        </Select>
-
         <DateInput
           value={startDate}
           onChange={(e) => {
@@ -174,7 +150,6 @@ export default function PericiasList() {
               <TableHead>Técnico</TableHead>
               <TableHead>Placa</TableHead>
               <TableHead>Modelo</TableHead>
-              <TableHead>Tipo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Data</TableHead>
@@ -185,13 +160,13 @@ export default function PericiasList() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10">
+              <TableCell colSpan={10} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : pericias.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+              <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
                   <ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />
                   Nenhuma perícia encontrada.
                 </TableCell>
@@ -204,9 +179,6 @@ export default function PericiasList() {
                   <TableCell className="text-muted-foreground">{p.technician ?? "—"}</TableCell>
                   <TableCell>{p.licensePlate ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{p.model ?? "—"}</TableCell>
-                  <TableCell>
-                    {p.tipo ? PERICIA_TIPO_LABEL[p.tipo] : "—"}
-                  </TableCell>
                   <TableCell>
                     {p.status ? (
                       <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>

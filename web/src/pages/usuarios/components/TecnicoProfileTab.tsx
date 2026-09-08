@@ -39,10 +39,9 @@ const FIELD_MAP: Record<string, string> = {
 type Props = {
   user: AppUser;
   onUserUpdated: (user: AppUser) => void;
-  onDeleted: () => void;
 };
 
-export default function TecnicoProfileTab({ user, onUserUpdated, onDeleted }: Props) {
+export default function TecnicoProfileTab({ user, onUserUpdated }: Props) {
   const [name, setName] = useState(user.name ?? "");
   const [nickname, setNickname] = useState(user.nickname ?? "");
   const [email, setEmail] = useState(user.email);
@@ -66,9 +65,8 @@ export default function TecnicoProfileTab({ user, onUserUpdated, onDeleted }: Pr
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deletePassword, setDeletePassword] = useState("");
-  const [deleting, setDeleting] = useState(false);
+  const [suspendOpen, setSuspendOpen] = useState(false);
+  const [suspending, setSuspending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -131,21 +129,17 @@ export default function TecnicoProfileTab({ user, onUserUpdated, onDeleted }: Pr
     }
   }
 
-  async function handleDelete() {
-    if (!deletePassword.trim()) {
-      toast.error("Informe a senha do administrador");
-      return;
-    }
-
-    setDeleting(true);
+  async function handleSuspend() {
+    setSuspending(true);
     try {
-      const { message } = await userService.delete(user.id, deletePassword);
+      const { message, data } = await userService.toggleStatus(user.id);
       toast.success(message);
-      onDeleted();
+      onUserUpdated(data);
+      setSuspendOpen(false);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
-      setDeleting(false);
+      setSuspending(false);
     }
   }
 
@@ -239,43 +233,34 @@ export default function TecnicoProfileTab({ user, onUserUpdated, onDeleted }: Pr
       </div>
 
       <div className="mt-8 pt-6 border-t border-border">
-        <h3 className="font-semibold text-destructive">Excluir</h3>
+        <h3 className="font-semibold text-destructive">Suspender acesso</h3>
         <p className="text-xs text-muted-foreground mt-1 mb-4">
-          Remove o técnico do sistema. Será solicitada a senha do administrador.
+          Impede o acesso do técnico ao aplicativo sem apagar seu cadastro ou histórico.
         </p>
-        <Button type="button" variant="destructive" onClick={() => setDeleteOpen(true)}>
-          Excluir
+        <Button type="button" variant="destructive" onClick={() => setSuspendOpen(true)}>
+          Suspender técnico
         </Button>
       </div>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialog open={suspendOpen} onOpenChange={setSuspendOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir técnico?</AlertDialogTitle>
+            <AlertDialogTitle>Suspender técnico?</AlertDialogTitle>
             <AlertDialogDescription>
-              Digite a senha do administrador para confirmar a exclusão.
+              O técnico perderá acesso ao aplicativo até ser reativado.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="space-y-2 py-2">
-            <Label>Senha do administrador</Label>
-            <Input
-              type="password"
-              value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
-              autoComplete="current-password"
-            />
-          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={suspending}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={(e) => {
                 e.preventDefault();
-                handleDelete();
+                handleSuspend();
               }}
-              disabled={deleting}
+              disabled={suspending}
             >
-              {deleting ? "Excluindo..." : "Excluir"}
+              {suspending ? "Suspendendo..." : "Suspender"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

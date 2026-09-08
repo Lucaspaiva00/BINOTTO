@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
@@ -63,26 +65,36 @@ interface PhotoGalleryProps {
 export function PhotoGallery({ title, slots, photos = {} }: PhotoGalleryProps) {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   function openPhoto(src: string) {
     setLightboxSrc(src);
     setLightboxOpen(true);
   }
 
+  function scroll(direction: "previous" | "next") {
+    carouselRef.current?.scrollBy({ left: direction === "next" ? 320 : -320, behavior: "smooth" });
+  }
+
   return (
     <section className="bg-card border border-border rounded-2xl p-4">
-      <h3 className="text-sm font-semibold mb-3">{title}</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <div className="flex gap-1">
+          <Button type="button" size="icon" variant="outline" className="h-8 w-8" aria-label="Fotos anteriores" onClick={() => scroll("previous")}><ChevronLeft className="w-4 h-4" /></Button>
+          <Button type="button" size="icon" variant="outline" className="h-8 w-8" aria-label="Próximas fotos" onClick={() => scroll("next")}><ChevronRight className="w-4 h-4" /></Button>
+        </div>
+      </div>
+      <div ref={carouselRef} className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2">
         {slots.map((slot) => (
-          <PhotoThumbnail
-            key={slot.key}
+          <div key={slot.key} className="w-44 shrink-0 snap-start"><PhotoThumbnail
             label={slot.label}
             src={photos[slot.key]}
             onClick={() => {
               const src = photos[slot.key];
               if (src) openPhoto(src);
             }}
-          />
+          /></div>
         ))}
       </div>
 

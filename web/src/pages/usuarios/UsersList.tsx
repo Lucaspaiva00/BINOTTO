@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Search, Eye, Wrench, UserRound, Plus } from "lucide-react";
+import { Search, Wrench, UserRound, Plus } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,24 +10,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { userService } from "@/services/userService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { COMMON_COUNTRIES } from "@/constants/countries";
@@ -37,15 +19,6 @@ type TypeFilter = "all" | UserType;
 type StatusFilter = "all" | UserStatus;
 
 const PER_PAGE = 20;
-
-function ReadOnlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value}</p>
-    </div>
-  );
-}
 
 export default function UsersList() {
   const navigate = useNavigate();
@@ -63,9 +36,6 @@ export default function UsersList() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const [selectedUser, setSelectedUser] = useState<AppUser | null>(null);
-  const [viewOpen, setViewOpen] = useState(false);
-  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -119,22 +89,6 @@ export default function UsersList() {
       cancelled = true;
     };
   }, [page, type, status, country, debouncedCity, debouncedQuery]);
-
-  function openView(user: AppUser) {
-    setSelectedUser(user);
-    setViewOpen(true);
-  }
-
-  function handleRequestEdit() {
-    setConfirmEditOpen(true);
-  }
-
-  function confirmEdit() {
-    if (!selectedUser) return;
-    setConfirmEditOpen(false);
-    setViewOpen(false);
-    navigate(`/usuarios/${selectedUser.id}`);
-  }
 
   return (
     <AppLayout title="Usuários" subtitle={`${total} resultado(s)`}>
@@ -222,6 +176,7 @@ export default function UsersList() {
           <TableHeader>
             <TableRow>
               <TableHead className="w-12" />
+              <TableHead>ID</TableHead>
               <TableHead>Nome</TableHead>
               <TableHead>{type === "TECNICO" ? "Apelido" : type === "OFICINA" ? "Responsável" : "Responsável / Apelido"}</TableHead>
               <TableHead>Cidade</TableHead>
@@ -234,13 +189,13 @@ export default function UsersList() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10">
+                <TableCell colSpan={9} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhum usuário encontrado.
                 </TableCell>
               </TableRow>
@@ -256,6 +211,7 @@ export default function UsersList() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell className="font-medium">#{u.id}</TableCell>
                   <TableCell>
                     <div className="font-medium text-foreground">{u.name ?? "—"}</div>
                   </TableCell>
@@ -279,13 +235,8 @@ export default function UsersList() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Visualizar usuário"
-                      onClick={() => openView(u)}
-                    >
-                      <Eye className="w-4 h-4" />
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/usuarios/${u.id}`)}>
+                      Gerenciar
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -320,78 +271,6 @@ export default function UsersList() {
           </div>
         )}
       </div>
-
-      <Dialog
-        open={viewOpen}
-        onOpenChange={(open) => {
-          setViewOpen(open);
-          if (!open) setSelectedUser(null);
-        }}
-      >
-        <DialogContent className="max-w-md">
-          {selectedUser && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{selectedUser.name ?? "Usuário"}</DialogTitle>
-                <DialogDescription>
-                  {selectedUser.profile === "TECNICO" ? "Técnico" : "Oficina"} · visualização
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-                <ReadOnlyField label="Nome" value={selectedUser.name ?? "—"} />
-                {selectedUser.profile === "TECNICO" ? (
-                  <ReadOnlyField label="Apelido" value={selectedUser.nickname ?? "—"} />
-                ) : (
-                  <ReadOnlyField label="Responsável" value={selectedUser.responsible ?? "—"} />
-                )}
-                <ReadOnlyField label="Cidade" value={selectedUser.city ?? "—"} />
-                <ReadOnlyField label="País" value={selectedUser.country ?? "—"} />
-                <ReadOnlyField
-                  label="Preenchimento"
-                  value={
-                    selectedUser.profileCompletionPercent != null
-                      ? `${selectedUser.profileCompletionPercent}%`
-                      : "—"
-                  }
-                />
-                <ReadOnlyField
-                  label="Status"
-                  value={selectedUser.status === "ativo" ? "Ativo" : "Suspenso"}
-                />
-              </div>
-
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => setViewOpen(false)}>
-                  Fechar
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-[hsl(var(--app-accent))] hover:bg-[hsl(var(--app-accent-light))] text-black font-semibold"
-                  onClick={handleRequestEdit}
-                >
-                  Solicitar edição
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <AlertDialog open={confirmEditOpen} onOpenChange={setConfirmEditOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar edição?</AlertDialogTitle>
-            <AlertDialogDescription>
-              O cadastro pode estar incorreto. Deseja realmente editar este usuário?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmEdit}>Sim, editar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </AppLayout>
   );
 }
