@@ -199,6 +199,7 @@ export default function PericiaDetail() {
             partsState={partsState}
             selectedPartId={selectedPartId}
             onSelectPart={handleSelectPart}
+            vehicleModel={pericia.model}
           />
           <div className="flex flex-wrap gap-3 mt-4">
             {(Object.keys(REPAIR_TYPE_LABEL) as RepairType[]).map((type) => (
