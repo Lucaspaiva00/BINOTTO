@@ -4,8 +4,9 @@ import { Html, OrbitControls } from "@react-three/drei";
 import { getCarPartLabel } from "@/constants/carParts";
 import { getRepairTypeColor } from "@/constants/repairTypes";
 import type { PartInspection } from "@/types/carParts";
+import { resolveVehicleProfile } from "@/constants/vehicleCatalog";
 
-interface CarDiagramProps { partsState: Record<string, PartInspection>; selectedPartId: string | null; onSelectPart: (partId: string) => void; canEdit?: boolean; }
+interface CarDiagramProps { partsState: Record<string, PartInspection>; selectedPartId: string | null; onSelectPart: (partId: string) => void; canEdit?: boolean; vehicleModel?: string | null; }
 type Panel = { id: string; position: [number, number, number]; size: [number, number, number] };
 
 // Painéis independentes permitem registrar a avaria por peça, sem depender de imagem gerada por IA.
@@ -30,7 +31,8 @@ function VehiclePanel({ panel, state, selected, canOpen, onSelect }: { panel: Pa
 }
 
 function Vehicle(props: CarDiagramProps) {
-  return <group rotation={[0, -.42, 0]}>
+  const profile = resolveVehicleProfile(props.vehicleModel);
+  return <group rotation={[0, -.42, 0]} scale={profile.scale}>
     <mesh position={[0, .44, 0]}><boxGeometry args={[1.95, .62, 4.28]} /><meshStandardMaterial color="#242a34" metalness={.55} roughness={.34} /></mesh>
     <mesh position={[0, 1.01, .12]}><boxGeometry args={[1.62, .66, 1.82]} /><meshStandardMaterial color="#17202c" metalness={.7} roughness={.18} transparent opacity={.88} /></mesh>
     {PANELS.map((panel) => { const state = props.partsState[panel.id]; const canOpen = props.canEdit || (state && state.repairType !== "SEM_DANO"); return <VehiclePanel key={panel.id} panel={panel} state={state} selected={props.selectedPartId === panel.id} canOpen={Boolean(canOpen)} onSelect={() => props.onSelectPart(panel.id)} />; })}
@@ -39,5 +41,6 @@ function Vehicle(props: CarDiagramProps) {
 }
 
 export function CarDiagram(props: CarDiagramProps) {
-  return <div className="h-100 w-full overflow-hidden rounded-xl border border-border bg-linear-to-b from-slate-950 to-slate-800"><Canvas camera={{ position: [5.5, 4.5, 6], fov: 42 }} dpr={[1, 2]}><ambientLight intensity={1.35} /><directionalLight position={[5, 7, 4]} intensity={2.4} /><directionalLight position={[-4, 3, -3]} intensity={1.2} /><Vehicle {...props} /><OrbitControls makeDefault enablePan={false} minDistance={5.2} maxDistance={9} minPolarAngle={.45} maxPolarAngle={1.45} /></Canvas><p className="pointer-events-none -mt-8 px-3 text-center text-xs text-slate-300">Arraste para girar · clique em uma peça para ver o reparo</p></div>;
+  const profile = resolveVehicleProfile(props.vehicleModel);
+  return <div className="h-100 w-full overflow-hidden rounded-xl border border-border bg-linear-to-b from-slate-950 to-slate-800"><div className="absolute z-10 m-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white">Perfil 3D: {profile.label}</div><Canvas camera={{ position: [5.5, 4.5, 6], fov: 42 }} dpr={[1, 2]}><ambientLight intensity={1.35} /><directionalLight position={[5, 7, 4]} intensity={2.4} /><directionalLight position={[-4, 3, -3]} intensity={1.2} /><Vehicle {...props} /><OrbitControls makeDefault enablePan={false} minDistance={5.2} maxDistance={9} minPolarAngle={.45} maxPolarAngle={1.45} /></Canvas><p className="pointer-events-none -mt-8 px-3 text-center text-xs text-slate-300">Arraste para girar · clique em uma peça para ver o reparo</p></div>;
 }
