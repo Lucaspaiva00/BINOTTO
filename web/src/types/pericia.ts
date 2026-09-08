@@ -14,6 +14,7 @@ export interface PericiaRepair {
 
 export interface Pericia {
   id: number;
+  publicNumber: string;
   status: PericiaStatus | null;
   statusLabel: string | null;
   tipo: PericiaTipo | null;
