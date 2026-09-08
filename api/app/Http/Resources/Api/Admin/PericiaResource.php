@@ -15,6 +15,7 @@ class PericiaResource extends JsonResource
             'publicNumber' => $this->numero_publico,
             'status' => $this->status?->value,
             'statusLabel' => $this->status?->label(),
+            'deadline' => $this->prazo?->toDateString(),
             'tipo' => $this->tipo,
             'licensePlate' => $this->placa,
             'model' => $this->marca_modelo,
