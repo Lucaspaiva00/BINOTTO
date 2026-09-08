@@ -43,6 +43,7 @@ class Pericia extends Model
 
     protected $appends = [
         'esta_concluida',
+        'numero_publico',
     ];
 
     public function oficina(): BelongsTo
@@ -63,5 +64,13 @@ class Pericia extends Model
     public function getEstaConcluidaAttribute(): bool
     {
         return !is_null($this->concluida_em);
+    }
+
+    /** Referência legível para operação e cliente. */
+    public function getNumeroPublicoAttribute(): string
+    {
+        $data = $this->created_at ?? now();
+
+        return sprintf('PER-%s-%06d', $data->format('Ym'), $this->id);
     }
 }
