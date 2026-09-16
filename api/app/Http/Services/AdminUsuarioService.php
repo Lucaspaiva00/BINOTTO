@@ -33,6 +33,7 @@ class AdminUsuarioService
                 'email' => $email,
                 'codigo_pais_telefone' => $data['codigo_pais_telefone'],
                 'numero_telefone' => $data['numero_telefone'],
+                'telefone_titular' => $data['telefone_titular'] ?? null,
                 'iso_pais_telefone' => $data['iso_pais_telefone'],
                 'whatsapp' => $whatsapp,
                 'senha' => Hash::make($data['senha']),

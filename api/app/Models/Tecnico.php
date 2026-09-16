@@ -19,6 +19,7 @@ class Tecnico extends Model
         'nacionalidade_secundaria',
         'disponibilidade_geografica',
         'telefone_secundario',
+        'telefone_secundario_titular',
         'codigo_pais_telefone_secundario',
         'iso_pais_telefone_secundario',
         'data_nascimento',
@@ -33,10 +34,16 @@ class Tecnico extends Model
         'endereco_estado',
         'endereco_cep',
         'pais_atual',
+        'idiomas',
+        'banco_nome',
+        'banco_iban',
+        'banco_swift',
+        'banco_endereco',
     ];
 
     protected $casts = [
         'disponibilidade_geografica' => 'array',
+        'idiomas' => 'array',
     ];
 
     // Relacionamentos

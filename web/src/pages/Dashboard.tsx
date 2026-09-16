@@ -1,174 +1,64 @@
-import type { ComponentType } from "react";
-import {
-  Wrench,
-  Building2,
-  ClipboardCheck,
-  Search,
-  ArrowUpRight,
-  ArrowDownRight,
-  UserPlus,
-  Store,
-} from "lucide-react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Wrench, Building2, ClipboardCheck, Search, ArrowRight, ScanSearch } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import {
-  kpis,
-  growthSeries,
-  servicesByCountry,
-  recentActivity,
-  type ActivityKind,
-} from "@/data/dashboardMock";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { periciaService } from "@/services/periciaService";
+import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
+import { formatDateTime } from "@/utils/date";
+import type { Pericia } from "@/types/pericia";
+import { kpis } from "@/data/dashboardMock";
 
-interface KpiCardProps {
-  label: string;
-  value: number | string;
-  delta: number;
-  icon: ComponentType<{ className?: string }>;
-}
-
-function KpiCard({ label, value, delta, icon: Icon }: KpiCardProps) {
-  const positive = delta >= 0;
-
-  return (
-    <div className="bg-card border border-border rounded-2xl p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="text-3xl font-bold text-foreground mt-2">{value}</p>
-        </div>
-        <div className="w-11 h-11 rounded-xl bg-[hsl(var(--app-accent))]/15 text-[hsl(var(--app-accent))] flex items-center justify-center shrink-0">
-          <Icon className="w-5 h-5" />
-        </div>
-      </div>
-      <div
-        className={`mt-3 inline-flex items-center gap-1 text-xs font-medium ${
-          positive ? "text-emerald-500" : "text-red-500"
-        }`}
-      >
-        {positive ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-        {Math.abs(delta).toFixed(1)}%
-        <span className="text-muted-foreground font-normal ml-1">vs mês anterior</span>
-      </div>
-    </div>
-  );
-}
-
-const activityMeta: Record<ActivityKind, { label: string; icon: ComponentType<{ className?: string }> }> = {
-  novo_tecnico: { label: "Novo técnico cadastrado", icon: UserPlus },
-  nova_oficina: { label: "Nova oficina cadastrada", icon: Store },
-  servico_concluido: { label: "Serviço concluído", icon: ClipboardCheck },
-  pericia_criada: { label: "Perícia criada", icon: Search },
-};
+const cards = [
+  { label: "Técnicos ativos", value: kpis.techniciansActive, icon: Wrench },
+  { label: "Oficinas ativas", value: kpis.workshopsActive, icon: Building2 },
+  { label: "Serviços no mês", value: kpis.servicesMonth, icon: ClipboardCheck },
+  { label: "Perícias no mês", value: kpis.inspectionsMonth, icon: Search },
+];
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [pericias, setPericias] = useState<Pericia[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    periciaService.list({ per_page: 6, page: 1 })
+      .then((response) => { if (!cancelled) setPericias(response.data); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
-    <AppLayout title="Dashboard" subtitle="Visão geral do aplicativo">
-      {/* KPIs */}
+    <AppLayout title="Dashboard" subtitle="Visão geral do painel administrativo">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard label="Técnicos ativos" value={kpis.techniciansActive} delta={kpis.techniciansDelta} icon={Wrench} />
-        <KpiCard label="Oficinas ativas" value={kpis.workshopsActive} delta={kpis.workshopsDelta} icon={Building2} />
-        <KpiCard label="Serviços no mês" value={kpis.servicesMonth} delta={kpis.servicesDelta} icon={ClipboardCheck} />
-        <KpiCard label="Perícias no mês" value={kpis.inspectionsMonth} delta={kpis.inspectionsDelta} icon={Search} />
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-foreground">Crescimento de usuários</h3>
-          <p className="text-xs text-muted-foreground mb-4">Últimos 6 meses</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={growthSeries}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="tecnicos"
-                  name="Técnicos"
-                  stroke="hsl(var(--app-accent))"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="oficinas"
-                  name="Oficinas"
-                  stroke="hsl(0 0% 80%)"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+        {cards.map(({ label, value, icon: Icon }) => (
+          <div key={label} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold">{value}</p></div><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--app-accent))]/15"><Icon className="h-5 w-5" /></div></div>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-foreground">Serviços por país</h3>
-          <p className="text-xs text-muted-foreground mb-4">Mês atual</p>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={servicesByCountry} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                <YAxis dataKey="country" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={40} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: 8,
-                  }}
-                />
-                <Bar dataKey="servicos" fill="hsl(var(--app-accent))" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+      <section className="mt-5 rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-5">
+          <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent"><ScanSearch className="h-5 w-5" /></div><div><h2 className="font-semibold">Perícias</h2><p className="text-sm text-muted-foreground">Acompanhamento rápido das perícias mais recentes.</p></div></div>
+          <Button variant="outline" onClick={() => navigate("/pericias")}>Ver todas <ArrowRight className="ml-2 h-4 w-4" /></Button>
+        </div>
+        {loading ? <div className="p-10"><Spinner className="mx-auto h-6 w-6" /></div> : pericias.length === 0 ? <p className="p-8 text-center text-sm text-muted-foreground">Nenhuma perícia cadastrada.</p> : (
+          <div className="divide-y divide-border">
+            {pericias.map((p) => (
+              <button key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="flex w-full items-center gap-4 p-4 text-left hover:bg-accent/50">
+                <div className="min-w-20 font-semibold">{p.publicNumber || `#${p.id}`}</div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{p.workshop ?? "Oficina não informada"}</p><p className="truncate text-xs text-muted-foreground">{p.licensePlate ?? "Sem placa"} · {p.model ?? "Sem modelo"}</p></div>
+                {p.status && <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge>}
+                <span className="hidden text-xs text-muted-foreground md:block">{formatDateTime(p.createdAt)}</span>
+              </button>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* Recent activity */}
-      <div className="bg-card border border-border rounded-2xl p-5 mt-4">
-        <h3 className="text-sm font-semibold text-foreground mb-4">Atividade recente</h3>
-        <ul className="divide-y divide-border">
-          {recentActivity.map((activity) => {
-            const meta = activityMeta[activity.kind];
-            const Icon = meta.icon;
-            return (
-              <li key={activity.id} className="flex items-center gap-3 py-3">
-                <div className="w-9 h-9 rounded-lg bg-accent flex items-center justify-center text-foreground shrink-0">
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground truncate">{meta.label}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {activity.name} · {activity.country}
-                  </p>
-                </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{activity.timeAgo}</span>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+        )}
+      </section>
     </AppLayout>
   );
 }

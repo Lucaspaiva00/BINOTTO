@@ -90,8 +90,8 @@ class OficinaDocumentoController extends Controller
                 }
 
                 $data = $request->validate([
-                    'documento' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
-                    'tipo' => 'required|in:identidade,passaporte,doc_empresa,doc_ext',
+                    'documento' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png,pfx,p12'],
+                    'tipo' => 'required|in:identidade,passaporte,doc_empresa,doc_ext,certificado_a1',
                 ]);
 
                 $file = $request->file('documento');

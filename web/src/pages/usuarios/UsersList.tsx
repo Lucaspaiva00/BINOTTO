@@ -30,19 +30,16 @@ export default function UsersList() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
-
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
-
 
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedQuery(query);
       setPage(1);
     }, 400);
-
     return () => clearTimeout(timeout);
   }, [query]);
 
@@ -51,7 +48,6 @@ export default function UsersList() {
       setDebouncedCity(city);
       setPage(1);
     }, 400);
-
     return () => clearTimeout(timeout);
   }, [city]);
 
@@ -60,7 +56,6 @@ export default function UsersList() {
 
     async function loadUsers() {
       setLoading(true);
-
       try {
         const response = await userService.list({
           page,
@@ -72,7 +67,6 @@ export default function UsersList() {
           busca: debouncedQuery.trim() || undefined,
         });
         if (cancelled) return;
-
         setUsers(response.data);
         setLastPage(response.meta.last_page);
         setTotal(response.meta.total);
@@ -84,7 +78,6 @@ export default function UsersList() {
     }
 
     loadUsers();
-
     return () => {
       cancelled = true;
     };
@@ -122,13 +115,11 @@ export default function UsersList() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-35">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
+            <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos status</SelectItem>
               <SelectItem value="ativo">Ativos</SelectItem>
-              <SelectItem value="desativado">Desativados</SelectItem>
+              <SelectItem value="desativado">Suspensos</SelectItem>
             </SelectContent>
           </Select>
 
@@ -139,40 +130,29 @@ export default function UsersList() {
               setPage(1);
             }}
           >
-            <SelectTrigger className="w-full sm:w-35">
-              <SelectValue placeholder="País" />
-            </SelectTrigger>
+            <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="País" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos países</SelectItem>
-              {COMMON_COUNTRIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
+              {COMMON_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
 
-          <Input
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="Cidade"
-            className="w-full sm:w-40"
-          />
+          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cidade" className="w-full sm:w-40" />
 
-          <div className="relative w-full sm:w-55">
+          <div className="relative w-full sm:w-60">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar nome, responsável, doc"
+              placeholder="Buscar nome, ID ou documento"
               className="pl-9 w-full"
             />
           </div>
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl mt-4 overflow-hidden">
-        <Table>
+      <div className="bg-card border border-border rounded-2xl mt-4 overflow-x-auto">
+        <Table className="min-w-235">
           <TableHeader>
             <TableRow>
               <TableHead className="w-12" />
@@ -183,62 +163,34 @@ export default function UsersList() {
               <TableHead>País</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Cadastro</TableHead>
-              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-10">
-                  <Spinner className="w-6 h-6 mx-auto" />
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
             ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
-                  Nenhum usuário encontrado.
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhum usuário encontrado.</TableCell></TableRow>
             ) : (
               users.map((u) => (
-                <TableRow key={u.id}>
+                <TableRow key={u.id} onClick={() => navigate(`/usuarios/${u.id}`)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell>
                     <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-muted-foreground">
-                      {u.profile === "OFICINA" ? (
-                        <Wrench className="w-4 h-4" />
-                      ) : (
-                        <UserRound className="w-4 h-4" />
-                      )}
+                      {u.profile === "OFICINA" ? <Wrench className="w-4 h-4" /> : <UserRound className="w-4 h-4" />}
                     </div>
                   </TableCell>
                   <TableCell className="font-medium">#{u.id}</TableCell>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{u.name ?? "—"}</div>
-                  </TableCell>
-                  <TableCell>
-                    {u.profile === "TECNICO" ? (u.nickname ?? "—") : (u.responsible ?? "—")}
-                  </TableCell>
+                  <TableCell><div className="font-medium text-foreground">{u.name ?? "—"}</div></TableCell>
+                  <TableCell>{u.profile === "TECNICO" ? (u.nickname ?? "—") : (u.responsible ?? "—")}</TableCell>
                   <TableCell>{u.city ?? "—"}</TableCell>
                   <TableCell>{u.country ?? "—"}</TableCell>
                   <TableCell>
                     {u.status === "ativo" ? (
-                      <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 border-transparent">
-                        Ativo
-                      </Badge>
+                      <Badge className="bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/15 border-transparent">Ativo</Badge>
                     ) : (
-                      <Badge variant="secondary">Desativado</Badge>
+                      <Badge variant="secondary">Suspenso</Badge>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <span className="text-sm font-medium">
-                      {u.profileCompletionPercent != null ? `${u.profileCompletionPercent}%` : "—"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/usuarios/${u.id}`)}>
-                      Gerenciar
-                    </Button>
-                  </TableCell>
+                  <TableCell><span className="text-sm font-medium">{u.profileCompletionPercent != null ? `${u.profileCompletionPercent}%` : "—"}</span></TableCell>
                 </TableRow>
               ))
             )}
@@ -247,26 +199,10 @@ export default function UsersList() {
 
         {!loading && users.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              Página {page} de {lastPage}
-            </p>
+            <p className="text-xs text-muted-foreground">Página {page} de {lastPage}</p>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= lastPage}
-                onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-              >
-                Próxima
-              </Button>
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
+              <Button size="sm" variant="outline" disabled={page >= lastPage} onClick={() => setPage((p) => Math.min(lastPage, p + 1))}>Próxima</Button>
             </div>
           </div>
         )}

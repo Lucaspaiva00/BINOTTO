@@ -11,6 +11,7 @@ const SECTIONS = [
   { tipo: "identidade", title: "Identidade", limit: 2 },
   { tipo: "passaporte", title: "Passaporte", limit: 2 },
   { tipo: "doc_empresa", title: "CNPJ", limit: 5 },
+  { tipo: "certificado_a1", title: "Certificado A1", limit: 2 },
   { tipo: "doc_ext", title: "Documentos extras", limit: 5 },
 ] as const;
 
@@ -96,7 +97,7 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                   inputRefs.current[section.tipo] = el;
                 }}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept={section.tipo === "certificado_a1" ? ".pfx,.p12,.pdf" : ".pdf,.jpg,.jpeg,.png"}
                 className="hidden"
                 onChange={(e) => handleUpload(section.tipo, e.target.files?.[0])}
               />

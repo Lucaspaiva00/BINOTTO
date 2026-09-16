@@ -88,6 +88,8 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
         Route::prefix('pericias')->group(function () {
             Route::get('/', [AdminPericiaController::class, 'index']);
             Route::post('/', [AdminPericiaController::class, 'store']);
+            Route::put('/{id}', [AdminPericiaController::class, 'update']);
+            Route::patch('/{id}/iniciar-reparacoes', [AdminPericiaController::class, 'iniciarReparacoes']);
             Route::get('/{id}/pdf', [AdminPericiaController::class, 'generatePdf']);
             Route::get('/{id}', [AdminPericiaController::class, 'show']);
         });

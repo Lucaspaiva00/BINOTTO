@@ -9,11 +9,13 @@ import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { userService } from "@/services/userService";
 import { serviceService } from "@/services/serviceService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import type { UserSelectionItem } from "@/types/user";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const CURRENCIES = ["EUR", "BRL", "CHF", "GBP"] as const;
 
@@ -43,6 +45,7 @@ export default function ServicoNew() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const { markDirty, markSaved } = useUnsavedChanges();
 
   const selectedWorkshop = workshops.find((w) => String(w.id) === workshopId);
   const workshopMissingAddress = selectedWorkshop?.canRequestTechnician === false;
@@ -107,7 +110,8 @@ export default function ServicoNew() {
         observacoes: notes.trim() || undefined,
       });
 
-      toast.success("Serviço criado.");
+      toast.success("Solicitação criada.");
+      markSaved();
       navigate(`/servicos/${created.id}`);
     } catch (error) {
       const validationErrors = getApiValidationErrors(error);
@@ -126,8 +130,8 @@ export default function ServicoNew() {
   }
 
   return (
-    <AppLayout title="Novo serviço" subtitle="Cadastro administrativo">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <AppLayout title="Criar solicitação" subtitle="Cadastro administrativo">
+      <form onSubmit={handleSubmit} onChange={markDirty} className="flex flex-col gap-4">
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => navigate("/servicos")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -136,24 +140,19 @@ export default function ServicoNew() {
         </div>
 
         <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-2xl flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            O serviço entra como Em breve. A oficina completa fotos e perícia no aplicativo.
-          </p>
-
           <div className="flex flex-col gap-2">
             <Label>Oficina</Label>
-            <Select value={workshopId} onValueChange={setWorkshopId} disabled={loadingOptions}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecionar oficina" />
-              </SelectTrigger>
-              <SelectContent>
-                {workshops.map((workshop) => (
-                  <SelectItem key={workshop.id} value={String(workshop.id)}>
-                    {workshop.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              value={workshopId}
+              onChange={(value) => { setWorkshopId(value); markDirty(); }}
+              disabled={loadingOptions}
+              placeholder="Digite ou selecione a oficina"
+              options={workshops.map((workshop) => ({
+                value: String(workshop.id),
+                label: workshop.name,
+                disabled: workshop.canRequestTechnician === false,
+              }))}
+            />
             {errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}
             {workshopMissingAddress && !errors.workshopId && (
               <p className="text-xs text-destructive">Esta oficina não tem endereço completo.</p>
@@ -163,7 +162,7 @@ export default function ServicoNew() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label>Moeda</Label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <Select value={currency} onValueChange={(value) => { setCurrency(value); markDirty(); }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -181,7 +180,7 @@ export default function ServicoNew() {
               <Label>Unidade</Label>
               <Select
                 value={quantityType}
-                onValueChange={(v) => setQuantityType(v as "none" | "carros" | "dias")}
+                onValueChange={(v) => { setQuantityType(v as "none" | "carros" | "dias"); markDirty(); }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Opcional" />
@@ -234,7 +233,7 @@ export default function ServicoNew() {
 
           <div className="flex justify-end">
             <Button type="submit" disabled={submitting || loadingOptions || workshopMissingAddress}>
-              {submitting ? "Salvando..." : "Criar serviço"}
+              {submitting ? "Salvando..." : "Criar solicitação"}
             </Button>
           </div>
         </section>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Eye, Plus, Search, ScanSearch } from "lucide-react";
+import { Play, Plus, Search, ScanSearch } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,10 @@ import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatu
 import type { Pericia, PericiaStatus } from "@/types/pericia";
 
 const PER_PAGE = 20;
-
 type StatusFilter = "all" | PericiaStatus;
 
 function displayValue(pericia: Pericia): number | null {
-  return pericia.tipo === "completa" ? pericia.inspectionValue : pericia.suggestedPrice;
+  return pericia.inspectionValue ?? pericia.suggestedPrice ?? null;
 }
 
 export default function PericiasList() {
@@ -37,22 +36,17 @@ export default function PericiasList() {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [startingId, setStartingId] = useState<number | null>(null);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 400);
-
+    const timeout = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
     return () => clearTimeout(timeout);
   }, [search]);
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadPericias() {
       setLoading(true);
-
       try {
         const response = await periciaService.list({
           page,
@@ -63,7 +57,6 @@ export default function PericiasList() {
           busca: debouncedSearch.trim() || undefined,
         });
         if (cancelled) return;
-
         setPericias(response.data);
         setLastPage(response.meta.last_page);
         setTotal(response.meta.total);
@@ -73,182 +66,90 @@ export default function PericiasList() {
         if (!cancelled) setLoading(false);
       }
     }
-
     loadPericias();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [page, status, startDate, endDate, debouncedSearch]);
+
+  async function startRepairs(pericia: Pericia) {
+    setStartingId(pericia.id);
+    try {
+      const updated = await periciaService.startRepairs(pericia.id);
+      toast.success("Reparações iniciadas.");
+      navigate(updated.serviceId ? `/servicos/${updated.serviceId}` : "/servicos");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setStartingId(null);
+    }
+  }
 
   return (
     <AppLayout title="Perícias" subtitle={`${total} perícia(s) encontrada(s)`}>
       <div className="flex justify-end mb-4">
-        <Button onClick={() => navigate("/pericias/novo")}>
-          <Plus className="w-4 h-4 mr-2" />
-          Nova perícia
-        </Button>
+        <Button onClick={() => navigate("/pericias/novo")}><Plus className="w-4 h-4 mr-2" />Nova perícia</Button>
       </div>
+
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">
         <div className="relative flex-1 min-w-55">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por oficina ou placa"
-            className="pl-9"
-          />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nº da perícia, oficina ou placa" className="pl-9" />
         </div>
 
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v as StatusFilter);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
+        <Select value={status} onValueChange={(v) => { setStatus(v as StatusFilter); setPage(1); }}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os status</SelectItem>
-            {(Object.keys(PERICIA_STATUS_LABEL) as PericiaStatus[]).map((k) => (
-              <SelectItem key={k} value={k}>
-                {PERICIA_STATUS_LABEL[k]}
-              </SelectItem>
-            ))}
+            {(Object.keys(PERICIA_STATUS_LABEL) as PericiaStatus[]).map((k) => <SelectItem key={k} value={k}>{PERICIA_STATUS_LABEL[k]}</SelectItem>)}
           </SelectContent>
         </Select>
 
-        <DateInput
-          value={startDate}
-          onChange={(e) => {
-            setStartDate(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-          aria-label="Data inicial"
-        />
-
-        <DateInput
-          value={endDate}
-          onChange={(e) => {
-            setEndDate(e.target.value);
-            setPage(1);
-          }}
-          className="w-40"
-          aria-label="Data final"
-        />
+        <DateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-40" aria-label="Data inicial" />
+        <DateInput value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-40" aria-label="Data final" />
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-225">
+        <Table className="min-w-215">
           <TableHeader>
             <TableRow>
-              <TableHead>Perícia</TableHead>
-              <TableHead>Oficina</TableHead>
-              <TableHead>Técnico</TableHead>
-              <TableHead>Placa</TableHead>
-              <TableHead>Modelo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Serviço</TableHead>
-              <TableHead className="text-right sticky right-0 bg-card">Ações</TableHead>
+              <TableHead>Perícia</TableHead><TableHead>Oficina</TableHead><TableHead>Técnico</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead>Status</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead>Serviço</TableHead><TableHead className="text-right sticky right-0 bg-card">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-              <TableCell colSpan={10} className="text-center py-10">
-                  <Spinner className="w-6 h-6 mx-auto" />
-                </TableCell>
-              </TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
             ) : pericias.length === 0 ? (
-              <TableRow>
-              <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
-                  <ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />
-                  Nenhuma perícia encontrada.
+              <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
+            ) : pericias.map((p) => (
+              <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
+                <TableCell className="font-semibold text-[hsl(var(--app-accent))]">{p.publicNumber || `#${p.id}`}</TableCell>
+                <TableCell className="text-muted-foreground">{p.workshop ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{p.technician ?? "—"}</TableCell>
+                <TableCell>{p.licensePlate ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{p.model ?? "—"}</TableCell>
+                <TableCell>{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
+                <TableCell>{formatCurrency(displayValue(p))}</TableCell>
+                <TableCell className="text-muted-foreground">{formatDateTime(p.createdAt)}</TableCell>
+                <TableCell>{p.serviceId ? <Button variant="link" className="h-auto p-0" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>#{p.serviceId}</Button> : "—"}</TableCell>
+                <TableCell className="text-right sticky right-0 bg-card">
+                  {p.status !== "em_execucao" && p.status !== "concluida" ? (
+                    <Button size="sm" variant="outline" disabled={startingId === p.id} onClick={(event) => { event.stopPropagation(); startRepairs(p); }}>
+                      <Play className="w-4 h-4 mr-1" />{startingId === p.id ? "Iniciando..." : "Iniciar reparações"}
+                    </Button>
+                  ) : p.serviceId ? (
+                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>Ver serviço</Button>
+                  ) : null}
                 </TableCell>
               </TableRow>
-            ) : (
-              pericias.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/pericias/${p.id}`)}
-                      className="font-medium text-[hsl(var(--app-accent))] hover:underline"
-                    >
-                      {p.publicNumber || `#${p.id}`}
-                    </button>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.workshop ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.technician ?? "—"}</TableCell>
-                  <TableCell>{p.licensePlate ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{p.model ?? "—"}</TableCell>
-                  <TableCell>
-                    {p.status ? (
-                      <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>
-                        {PERICIA_STATUS_LABEL[p.status]}
-                      </Badge>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>{formatCurrency(displayValue(p))}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDateTime(p.createdAt)}</TableCell>
-                  <TableCell>
-                    {p.serviceId ? (
-                      <Button
-                        variant="link"
-                        className="h-auto p-0"
-                        onClick={() => navigate(`/servicos/${p.serviceId}`)}
-                      >
-                        #{p.serviceId}
-                      </Button>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right sticky right-0 bg-card">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Ver perícia"
-                      onClick={() => navigate(`/pericias/${p.id}`)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
 
         {!loading && pericias.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              Página {page} de {lastPage}
-            </p>
+            <p className="text-xs text-muted-foreground">Página {page} de {lastPage}</p>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Anterior
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={page >= lastPage}
-                onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-              >
-                Próxima
-              </Button>
+              <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
+              <Button size="sm" variant="outline" disabled={page >= lastPage} onClick={() => setPage((p) => Math.min(lastPage, p + 1))}>Próxima</Button>
             </div>
           </div>
         )}

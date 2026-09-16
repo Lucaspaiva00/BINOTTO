@@ -7,11 +7,14 @@ use App\Http\Resources\Api\Admin\PericiaResource;
 use App\Http\Services\PericiaStorageService;
 use App\Enums\PericiaStatusEnum;
 use App\Models\Pericia;
+use App\Models\Servico;
+use App\Enums\ServicoStatusEnum;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Hash;
 
 class PericiaController extends Controller
 {
@@ -69,8 +72,10 @@ class PericiaController extends Controller
                     })
                         ->orWhereRaw("REPLACE(UPPER(placa), '-', '') LIKE ?", ["%{$plate}%"]);
 
-                    if (is_numeric($term)) {
-                        $q->orWhere('id', $term);
+                    $numberTerm = ltrim($term, '#');
+                    if (ctype_digit($numberTerm)) {
+                        $number = (int) $numberTerm;
+                        $q->orWhere('id', $number >= 1000 ? $number - 999 : $number);
                     }
                 });
             })
@@ -160,6 +165,121 @@ class PericiaController extends Controller
         }
     }
 
+
+    public function update(Request $request, int $id)
+    {
+        $pericia = Pericia::with(['servico.primeiroVeiculo'])->find($id);
+        if (! $pericia) {
+            return response()->json(['message' => 'Perícia não encontrada.'], 404);
+        }
+
+        $data = $request->validate([
+            'senha' => ['required', 'string'],
+            'oficina_id' => ['required', 'exists:oficinas,id'],
+            'tecnico_id' => ['nullable', 'exists:tecnicos,id'],
+            'placa' => ['required', 'string', 'max:20'],
+            'chassi' => ['required', 'string', 'max:30'],
+            'marca_modelo' => ['required', 'string', 'max:255'],
+            'valor_pericia' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if (! Hash::check($data['senha'], $request->user()->senha)) {
+            return response()->json([
+                'message' => 'Senha do administrador inválida.',
+                'errors' => ['senha' => ['Senha do administrador inválida.']],
+            ], 403);
+        }
+
+        DB::transaction(function () use ($pericia, $data) {
+            $pericia->update([
+                'oficina_id' => $data['oficina_id'],
+                'tecnico_id' => $data['tecnico_id'] ?? null,
+                'placa' => strtoupper($data['placa']),
+                'chassi' => strtoupper($data['chassi']),
+                'marca_modelo' => $data['marca_modelo'],
+                'valor_pericia' => $data['valor_pericia'] ?? null,
+            ]);
+
+            // Se a perícia já originou um serviço, mantém os dados principais sincronizados.
+            if ($pericia->servico) {
+                $pericia->servico->update([
+                    'oficina_id' => $data['oficina_id'],
+                    'tecnico_id' => $data['tecnico_id'] ?? null,
+                ]);
+
+                if ($pericia->servico->primeiroVeiculo) {
+                    $pericia->servico->primeiroVeiculo->update([
+                        'placa' => strtoupper($data['placa']),
+                        'chassi' => strtoupper($data['chassi']),
+                        'marca_modelo' => $data['marca_modelo'],
+                    ]);
+                }
+            }
+        });
+
+        return response()->json(['data' => new PericiaResource($pericia->fresh()->load(['oficina:id,nome_fantasia', 'tecnico:id,nome_completo', 'servico:id']))]);
+    }
+
+    public function iniciarReparacoes(Request $request, int $id)
+    {
+        $pericia = Pericia::with('servico')->find($id);
+        if (! $pericia) {
+            return response()->json(['message' => 'Perícia não encontrada.'], 404);
+        }
+
+        DB::transaction(function () use ($pericia, $request) {
+            $servico = $pericia->servico;
+
+            if (! $servico) {
+                $servico = Servico::create([
+                    'oficina_id' => $pericia->oficina_id,
+                    'tecnico_id' => $pericia->tecnico_id,
+                    'criado_por_usuario_id' => $request->user()->id,
+                    'quantidade_tipo' => 'carros',
+                    'quantidade' => 1,
+                    'moeda' => $pericia->moeda ?: 'EUR',
+                    'status' => ServicoStatusEnum::EM_EXECUCAO,
+                    'observacoes' => 'Serviço iniciado a partir da perícia '.$pericia->numero_publico,
+                    'disponivel_para_todos' => false,
+                    'liberado_para_todos_em' => now(),
+                ]);
+                $pericia->servico_id = $servico->id;
+
+                // O serviço nasce com o veículo da perícia para já aparecer completo na tela de Serviços.
+                $servico->veiculos()->create([
+                    'placa' => $pericia->placa,
+                    'chassi' => $pericia->chassi,
+                    'marca_modelo' => $pericia->marca_modelo,
+                    'reparos_execucao' => $pericia->reparos_necessarios,
+                    'preco_total' => 0,
+                ]);
+            } else {
+                $servico->update([
+                    'status' => ServicoStatusEnum::EM_EXECUCAO,
+                    'tecnico_id' => $servico->tecnico_id ?: $pericia->tecnico_id,
+                ]);
+
+                if (! $servico->veiculos()->exists()) {
+                    $servico->veiculos()->create([
+                        'placa' => $pericia->placa,
+                        'chassi' => $pericia->chassi,
+                        'marca_modelo' => $pericia->marca_modelo,
+                        'reparos_execucao' => $pericia->reparos_necessarios,
+                        'preco_total' => 0,
+                    ]);
+                }
+            }
+
+            $pericia->status = PericiaStatusEnum::EM_EXECUCAO;
+            $pericia->save();
+        });
+
+        return response()->json([
+            'message' => 'Reparações iniciadas.',
+            'data' => new PericiaResource($pericia->fresh()->load(['oficina:id,nome_fantasia', 'tecnico:id,nome_completo', 'servico:id'])),
+        ]);
+    }
+
     public function show(int $id)
     {
         $pericia = Pericia::with([
@@ -193,7 +313,7 @@ class PericiaController extends Controller
                 'generatedAt' => now(),
             ]);
 
-            return $pdf->download("pericia-{$pericia->id}.pdf");
+            return $pdf->download("pericia-{$pericia->numero_publico}.pdf");
         } catch (Exception $e) {
             Log::error('Erro ao gerar pdf da perícia (admin)', [
                 'message' => $e->getMessage(),

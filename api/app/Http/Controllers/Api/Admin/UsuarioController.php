@@ -89,7 +89,11 @@ class UsuarioController extends Controller
             })
             ->when($request->input('busca'), function ($query, $busca) {
                 $query->where(function ($sub) use ($busca) {
-                    $sub->where('usuarios.email', 'like', "%{$busca}%")
+                    if (is_numeric($busca)) {
+                        $sub->orWhere('usuarios.id', (int) $busca);
+                    }
+
+                    $sub->orWhere('usuarios.email', 'like', "%{$busca}%")
                         ->orWhere('oficinas.cnpj', 'like', "%{$busca}%")
                         ->orWhere('oficinas.nome_fantasia', 'like', "%{$busca}%")
                         ->orWhere('oficinas.nome_responsavel', 'like', "%{$busca}%")
@@ -175,67 +179,139 @@ class UsuarioController extends Controller
         }
 
         $data = $request->validated();
+        $userUpdates = [];
 
-        $whatsapp = $data['codigo_pais_telefone'] . $data['numero_telefone'];
-
-        if (User::where('whatsapp', $whatsapp)->where('id', '!=', $usuario->id)->exists()) {
-            return response()->json(['message' => __('main.user_whatsapp_already_registered')], 422);
+        if (array_key_exists('email', $data)) {
+            $userUpdates['email'] = strtolower($data['email']);
         }
 
-        $usuario->update([
-            'email' => strtolower($data['email']),
-            'codigo_pais_telefone' => $data['codigo_pais_telefone'],
-            'numero_telefone' => $data['numero_telefone'],
-            'iso_pais_telefone' => $data['iso_pais_telefone'] ?? $usuario->iso_pais_telefone,
-            'whatsapp' => $whatsapp,
-            'ativo' => $data['status'],
-        ]);
+        $phoneChanged = array_key_exists('codigo_pais_telefone', $data)
+            || array_key_exists('numero_telefone', $data);
 
-        $telefoneSecundario = [
-            'telefone_secundario' => $data['telefone_secundario'] ?? null,
-            'codigo_pais_telefone_secundario' => !empty($data['telefone_secundario'])
-                ? ($data['codigo_pais_telefone_secundario'] ?? null)
-                : null,
-            'iso_pais_telefone_secundario' => !empty($data['telefone_secundario'])
-                ? ($data['iso_pais_telefone_secundario'] ?? null)
-                : null,
+        if ($phoneChanged) {
+            $countryCode = $data['codigo_pais_telefone'] ?? $usuario->codigo_pais_telefone;
+            $phoneNumber = $data['numero_telefone'] ?? $usuario->numero_telefone;
+            $whatsapp = $countryCode . $phoneNumber;
+
+            if (User::where('whatsapp', $whatsapp)->where('id', '!=', $usuario->id)->exists()) {
+                return response()->json(['message' => __('main.user_whatsapp_already_registered')], 422);
+            }
+
+            $userUpdates['codigo_pais_telefone'] = $countryCode;
+            $userUpdates['numero_telefone'] = $phoneNumber;
+            $userUpdates['whatsapp'] = $whatsapp;
+        }
+
+        if (array_key_exists('iso_pais_telefone', $data)) {
+            $userUpdates['iso_pais_telefone'] = $data['iso_pais_telefone'];
+        }
+
+        if (array_key_exists('telefone_titular', $data)) {
+            $userUpdates['telefone_titular'] = $data['telefone_titular'];
+        }
+
+        if (array_key_exists('status', $data)) {
+            $userUpdates['ativo'] = $data['status'];
+        }
+
+        if ($userUpdates) {
+            $usuario->update($userUpdates);
+        }
+
+        $secondaryPhoneKeys = [
+            'telefone_secundario',
+            'codigo_pais_telefone_secundario',
+            'iso_pais_telefone_secundario',
+            'telefone_secundario_titular',
         ];
+        $secondaryPhoneChanged = collect($secondaryPhoneKeys)->contains(
+            fn ($key) => array_key_exists($key, $data)
+        );
+
+        $telefoneSecundario = [];
+        if ($secondaryPhoneChanged) {
+            $secondaryNumber = $data['telefone_secundario'] ?? null;
+            $telefoneSecundario = [
+                'telefone_secundario' => $secondaryNumber,
+                'codigo_pais_telefone_secundario' => !empty($secondaryNumber)
+                    ? ($data['codigo_pais_telefone_secundario'] ?? null)
+                    : null,
+                'iso_pais_telefone_secundario' => !empty($secondaryNumber)
+                    ? ($data['iso_pais_telefone_secundario'] ?? null)
+                    : null,
+                'telefone_secundario_titular' => !empty($secondaryNumber)
+                    ? ($data['telefone_secundario_titular'] ?? null)
+                    : null,
+            ];
+        }
 
         if ($usuario->perfil === 'TECNICO' && $usuario->tecnico) {
-            $usuario->tecnico->update(array_merge([
-                'nome_completo' => $data['nome_completo'] ?? $usuario->tecnico->nome_completo,
-                'apelido' => array_key_exists('apelido', $data) ? $data['apelido'] : $usuario->tecnico->apelido,
-                'cpf' => $data['documento'] ?? $usuario->tecnico->cpf,
-                'endereco_rua' => $data['rua'] ?? $usuario->tecnico->endereco_rua,
-                'endereco_numero' => $data['numero'] ?? $usuario->tecnico->endereco_numero,
-                'endereco_complemento' => $data['complemento'] ?? $usuario->tecnico->endereco_complemento,
-                'endereco_cidade' => $data['cidade'],
-                'endereco_estado' => $data['estado'] ?? $usuario->tecnico->endereco_estado,
-                'endereco_cep' => $data['cep'] ?? $usuario->tecnico->endereco_cep,
-                'pais_atual' => $data['pais'] ?? $usuario->tecnico->pais_atual,
-            ], $telefoneSecundario));
+            $tecnicoUpdates = $telefoneSecundario;
+            $map = [
+                'nome_completo' => 'nome_completo',
+                'apelido' => 'apelido',
+                'documento' => 'cpf',
+                'nome_fantasia_empresa' => 'nome_fantasia_empresa',
+                'razao_social_empresa' => 'razao_social_empresa',
+                'cnpj_empresa' => 'cnpj',
+                'rua' => 'endereco_rua',
+                'numero' => 'endereco_numero',
+                'complemento' => 'endereco_complemento',
+                'cidade' => 'endereco_cidade',
+                'estado' => 'endereco_estado',
+                'cep' => 'endereco_cep',
+                'pais' => 'pais_atual',
+            ];
+
+            foreach ($map as $input => $column) {
+                if (array_key_exists($input, $data)) {
+                    $tecnicoUpdates[$column] = $data[$input];
+                }
+            }
+
+            foreach (['idiomas', 'banco_nome', 'banco_iban', 'banco_swift', 'banco_endereco'] as $field) {
+                if (array_key_exists($field, $data)) {
+                    $tecnicoUpdates[$field] = $data[$field];
+                }
+            }
+
+            if ($tecnicoUpdates) {
+                $usuario->tecnico->update($tecnicoUpdates);
+            }
         }
 
         if ($usuario->perfil === 'OFICINA' && $usuario->oficina) {
-            $usuario->oficina->update(array_merge([
-                'nome_fantasia' => $data['nome_fantasia']
-                    ?? $data['nome_completo']
-                    ?? $usuario->oficina->nome_fantasia,
-                'nome_responsavel' => $data['nome_responsavel'] ?? $usuario->oficina->nome_responsavel,
-                'razao_social' => $data['razao_social'] ?? $usuario->oficina->razao_social,
-                'cnpj' => $data['documento'] ?? $usuario->oficina->cnpj,
-                'email_secundario' => isset($data['email_secundario'])
-                    ? ($data['email_secundario'] ? strtolower($data['email_secundario']) : null)
-                    : $usuario->oficina->email_secundario,
-                'rua' => $data['rua'] ?? $usuario->oficina->rua,
-                'numero' => $data['numero'] ?? $usuario->oficina->numero,
-                'complemento' => $data['complemento'] ?? $usuario->oficina->complemento,
-                'cidade' => $data['cidade'],
-                'estado' => $data['estado'] ?? $usuario->oficina->estado,
-                'cep' => $data['cep'] ?? $usuario->oficina->cep,
-                'pais' => $data['pais'] ?? $usuario->oficina->pais,
-                'prazo_pagamento' => $data['prazo_pagamento'] ?? $usuario->oficina->prazo_pagamento,
-            ], $telefoneSecundario));
+            $oficinaUpdates = $telefoneSecundario;
+            $map = [
+                'nome_fantasia' => 'nome_fantasia',
+                'nome_responsavel' => 'nome_responsavel',
+                'razao_social' => 'razao_social',
+                'documento' => 'cnpj',
+                'rua' => 'rua',
+                'numero' => 'numero',
+                'complemento' => 'complemento',
+                'cidade' => 'cidade',
+                'estado' => 'estado',
+                'cep' => 'cep',
+                'pais' => 'pais',
+                'prazo_pagamento' => 'prazo_pagamento',
+            ];
+
+            foreach ($map as $input => $column) {
+                if (array_key_exists($input, $data)) {
+                    $oficinaUpdates[$column] = $data[$input];
+                }
+            }
+
+            if (array_key_exists('email_secundario', $data)) {
+                $oficinaUpdates['email_secundario'] = $data['email_secundario']
+                    ? strtolower($data['email_secundario'])
+                    : null;
+            }
+
+            if ($oficinaUpdates) {
+                $usuario->oficina->update($oficinaUpdates);
+            }
         }
 
         return response()->json([

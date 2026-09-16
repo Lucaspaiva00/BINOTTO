@@ -5,6 +5,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { PhoneInput, type PhoneValue } from "@/components/ui/phone-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { userService } from "@/services/userService";
@@ -22,6 +23,7 @@ const FIELD_MAP: Record<string, string> = {
   codigo_pais_telefone: "phone",
   numero_telefone: "phone",
   iso_pais_telefone: "phone",
+  telefone_titular: "phoneOwner",
   senha: "password",
   confirmar_senha: "confirm",
 };
@@ -35,14 +37,16 @@ export default function UserNew() {
   const [responsible, setResponsible] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState<PhoneValue>({
-    codigo_pais_telefone: "+55",
+    codigo_pais_telefone: "+39",
     numero_telefone: "",
-    iso_pais_telefone: "BR",
+    iso_pais_telefone: "IT",
   });
+  const [phoneOwner, setPhoneOwner] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const { markDirty, markSaved } = useUnsavedChanges();
 
   const isTech = profile === "TECNICO";
 
@@ -57,6 +61,7 @@ export default function UserNew() {
     if (!email.trim()) e.email = "Informe o e-mail.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "E-mail inválido.";
     if (!phone.numero_telefone.trim()) e.phone = "Informe o telefone.";
+    if (!phoneOwner.trim()) e.phoneOwner = "Informe de quem é este telefone.";
     if (!password) e.password = "Informe a senha.";
     else if (password.length < 6) e.password = "Senha deve ter ao menos 6 caracteres.";
     if (confirm !== password) e.confirm = "As senhas não conferem.";
@@ -77,6 +82,7 @@ export default function UserNew() {
         email: email.trim().toLowerCase(),
         codigo_pais_telefone: phone.codigo_pais_telefone,
         numero_telefone: phone.numero_telefone,
+        telefone_titular: phoneOwner.trim(),
         iso_pais_telefone: phone.iso_pais_telefone,
         senha: password,
         confirmar_senha: confirm,
@@ -92,6 +98,7 @@ export default function UserNew() {
       });
 
       toast.success(isTech ? "Técnico criado" : "Oficina criada");
+      markSaved();
       navigate(`/usuarios/${user.id}`);
     } catch (error) {
       const validationErrors = getApiValidationErrors(error);
@@ -117,11 +124,12 @@ export default function UserNew() {
     >
       <form
         onSubmit={handleSubmit}
+        onChange={markDirty}
         className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-xl mx-auto space-y-5"
       >
         <div className="space-y-2">
           <Label>Tipo</Label>
-          <Select value={profile} onValueChange={(v) => setProfile(v as UserType)}>
+          <Select value={profile} onValueChange={(v) => { setProfile(v as UserType); markDirty(); }}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -173,6 +181,12 @@ export default function UserNew() {
         </div>
 
         <PhoneInput label="Telefone" value={phone} onChange={setPhone} error={errors.phone} />
+
+        <div className="space-y-2">
+          <Label htmlFor="phoneOwner">De quem é este telefone?</Label>
+          <Input id="phoneOwner" value={phoneOwner} onChange={(e) => setPhoneOwner(e.target.value)} placeholder={isTech ? "Ex.: Próprio / Técnico" : "Ex.: Responsável / Recepção"} />
+          {errors.phoneOwner && <p className="text-xs text-destructive">{errors.phoneOwner}</p>}
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="password">Senha</Label>

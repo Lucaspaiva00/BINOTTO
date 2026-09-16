@@ -21,7 +21,9 @@ export interface Pericia {
   tipo: PericiaTipo | null;
   licensePlate: string | null;
   model: string | null;
+  workshopId?: number | null;
   workshop: string | null;
+  technicianId?: number | null;
   technician: string | null;
   serviceId: number | null;
   currency: string | null;

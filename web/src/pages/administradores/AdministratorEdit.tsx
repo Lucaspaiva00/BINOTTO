@@ -13,6 +13,7 @@ import { adminService } from "@/services/adminService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import type { Administrator } from "@/types/admin";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const FIELD_MAP: Record<string, string> = {
   nome: "name",
@@ -38,6 +39,7 @@ export default function AdministratorEdit() {
   const [active, setActive] = useState(true);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +55,7 @@ export default function AdministratorEdit() {
         setName(data.name);
         setEmail(data.email);
         setActive(data.status === "ativo");
+        markSaved();
       } catch {
         if (!cancelled) setNotFound(true);
       } finally {
@@ -80,7 +83,7 @@ export default function AdministratorEdit() {
   if (notFound || !administrator) {
     return (
       <AppLayout title="Administrador não encontrado">
-        <Button variant="outline" onClick={() => navigate("/administradores")}>
+        <Button variant="outline" onClick={() => { if (confirmDiscard()) navigate("/administradores"); }}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
       </AppLayout>
@@ -127,6 +130,7 @@ export default function AdministratorEdit() {
       }
 
       toast.success("Administrador atualizado", { description: `As alterações de ${name} foram salvas.` });
+      markSaved();
       navigate("/administradores");
     } catch (error) {
       const validationErrors = getApiValidationErrors(error);
@@ -149,6 +153,7 @@ export default function AdministratorEdit() {
     <AppLayout title="Editar administrador" subtitle={administrator.email}>
       <form
         onSubmit={handleSubmit}
+        onChange={markDirty}
         className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-xl mx-auto space-y-5"
       >
         <div className="space-y-2">
@@ -198,12 +203,12 @@ export default function AdministratorEdit() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">{active ? "Ativo" : "Desativado"}</span>
-            <Switch checked={active} onCheckedChange={setActive} />
+            <Switch checked={active} onCheckedChange={(value) => { setActive(value); markDirty(); }} />
           </div>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={() => navigate("/administradores")}>
+          <Button type="button" variant="outline" onClick={() => { if (confirmDiscard()) navigate("/administradores"); }}>
             Cancelar
           </Button>
           <Button type="submit" disabled={submitting}>

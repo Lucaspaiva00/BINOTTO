@@ -444,7 +444,7 @@ export function Receivables() {
               </TableRow>
             ) : (
               items.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell>
                     <OriginBadge origin={r.origin} />
                   </TableCell>
@@ -470,7 +470,7 @@ export function Receivables() {
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(r)}>
+                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>
                         <Pencil className="w-4 h-4" />
                       </Button>
                       <AlertDialog>

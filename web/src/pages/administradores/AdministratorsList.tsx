@@ -87,7 +87,7 @@ export default function AdministratorsList() {
               </TableRow>
             ) : (
               administrators.map((a) => (
-                <TableRow key={a.id}>
+                <TableRow key={a.id} onClick={(e) => { e.stopPropagation(); navigate(`/administradores/${a.id}/editar`); }} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="font-medium text-foreground">
                     {a.name} {user?.id === a.id && <span className="text-muted-foreground font-normal">(você)</span>}
                   </TableCell>
@@ -106,7 +106,7 @@ export default function AdministratorsList() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDateTime(a.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => navigate(`/administradores/${a.id}/editar`)}>
+                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); navigate(`/administradores/${a.id}/editar`); }}>
                       <Pencil className="w-4 h-4 mr-1" />
                       Editar
                     </Button>

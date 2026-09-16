@@ -34,9 +34,9 @@ class ServicoResource extends JsonResource
             'updatedAt' => $this->updated_at,
             'inspections' => $this->whenLoaded('pericias', fn () => $this->pericias->map(fn ($pericia) => [
                 'id' => $pericia->id,
+                'publicNumber' => $pericia->numero_publico,
                 'status' => $pericia->status?->value,
                 'statusLabel' => $pericia->status?->label(),
-                'tipo' => $pericia->tipo,
                 'licensePlate' => $pericia->placa,
             ])),
             'logs' => $this->whenLoaded('logs', fn () => $this->logs->map(fn ($log) => [

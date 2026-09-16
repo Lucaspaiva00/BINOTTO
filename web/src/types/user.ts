@@ -14,12 +14,15 @@ export interface AppUser {
   phoneCountryCode: string | null;
   phoneCountryIso: string | null;
   phoneNumber: string | null;
+  phoneOwner?: string | null;
   secondaryPhoneCountryCode?: string | null;
   secondaryPhoneCountryIso?: string | null;
   secondaryPhoneNumber?: string | null;
+  secondaryPhoneOwner?: string | null;
   secondaryEmail?: string | null;
   tradeName?: string | null;
   companyName?: string | null;
+  companyDocument?: string | null;
   street?: string | null;
   number?: string | null;
   complement?: string | null;
@@ -28,6 +31,11 @@ export interface AppUser {
   zip?: string | null;
   country: string | null;
   paymentTerm: string | null;
+  languages?: Array<{ idioma: string; nivel: "basico" | "intermediario" | "avancado" | "fluente" | "nativo" }>;
+  bankName?: string | null;
+  bankIban?: string | null;
+  bankSwift?: string | null;
+  bankAddress?: string | null;
   profileCompletionPercent?: number | null;
   status: UserStatus;
   createdAt: string;
@@ -55,6 +63,7 @@ export interface CreateUserPayload {
   email: string;
   codigo_pais_telefone: string;
   numero_telefone: string;
+  telefone_titular: string;
   iso_pais_telefone: string;
   senha: string;
   confirmar_senha: string;
@@ -71,23 +80,33 @@ export interface UpdateUserPayload {
   nome_responsavel?: string | null;
   razao_social?: string | null;
   documento?: string | null;
-  email: string;
+  nome_fantasia_empresa?: string | null;
+  razao_social_empresa?: string | null;
+  cnpj_empresa?: string | null;
+  email?: string;
   email_secundario?: string | null;
-  codigo_pais_telefone: string;
-  numero_telefone: string;
+  codigo_pais_telefone?: string;
+  numero_telefone?: string;
+  telefone_titular?: string | null;
   iso_pais_telefone?: string | null;
   telefone_secundario?: string | null;
+  telefone_secundario_titular?: string | null;
   codigo_pais_telefone_secundario?: string | null;
   iso_pais_telefone_secundario?: string | null;
   rua?: string | null;
   numero?: string | null;
   complemento?: string | null;
-  cidade: string;
+  cidade?: string | null;
   estado?: string | null;
   cep?: string | null;
-  pais: string;
-  status: boolean;
+  pais?: string | null;
+  status?: boolean;
   prazo_pagamento?: string | null;
+  idiomas?: Array<{ idioma: string; nivel: "basico" | "intermediario" | "avancado" | "fluente" | "nativo" }> | null;
+  banco_nome?: string | null;
+  banco_iban?: string | null;
+  banco_swift?: string | null;
+  banco_endereco?: string | null;
 }
 
 export interface OficinaDocument {

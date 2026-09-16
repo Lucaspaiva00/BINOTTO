@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImagePlus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PhotoLightbox } from "@/components/pericia/PhotoGallery";
 import { cn } from "@/lib/utils";
@@ -19,28 +19,22 @@ export function PhotoUploadSlot({ label, file, onChange }: PhotoUploadSlotProps)
       setPreview(null);
       return;
     }
-
     const url = URL.createObjectURL(file);
     setPreview(url);
-
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
   return (
-    <div className="rounded-xl border border-border overflow-hidden">
-      <div className="aspect-4/3 bg-muted relative">
+    <div className="rounded-2xl border border-border overflow-hidden bg-card">
+      <div className="aspect-video bg-muted relative">
         {preview ? (
-          <button
-            type="button"
-            className="w-full h-full"
-            onClick={() => setLightboxOpen(true)}
-          >
-            <img src={preview} alt={label} className="w-full h-full object-cover" />
+          <button type="button" className="w-full h-full" onClick={() => setLightboxOpen(true)}>
+            <img src={preview} alt={label} className="w-full h-full object-contain" />
           </button>
         ) : (
           <label className={cn("flex flex-col items-center justify-center h-full cursor-pointer hover:bg-muted/80 transition-colors")}>
-            <ImagePlus className="w-6 h-6 text-muted-foreground mb-2" />
-            <span className="text-xs text-muted-foreground px-2 text-center">Adicionar foto</span>
+            <ImagePlus className="w-8 h-8 text-muted-foreground mb-2" />
+            <span className="text-sm text-muted-foreground px-2 text-center">Adicionar foto</span>
             <input
               type="file"
               accept="image/*"
@@ -51,11 +45,11 @@ export function PhotoUploadSlot({ label, file, onChange }: PhotoUploadSlotProps)
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-2 py-2">
-        <p className="text-xs font-medium text-foreground">{label}</p>
+      <div className="flex items-center justify-between gap-2 px-3 py-3">
+        <p className="text-sm font-medium text-foreground">{label}</p>
         {file && (
-          <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={() => onChange(null)}>
-            <Trash2 className="w-3.5 h-3.5" />
+          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onChange(null)}>
+            <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
@@ -73,16 +67,53 @@ interface PhotoUploadGridProps {
 }
 
 export function PhotoUploadGrid({ title, slots, photos, onChange }: PhotoUploadGridProps) {
+  const [index, setIndex] = useState(0);
+  const current = slots[index] ?? slots[0];
+
+  if (!current) return null;
+
+  function previous() {
+    setIndex((value) => (value - 1 + slots.length) % slots.length);
+  }
+
+  function next() {
+    setIndex((value) => (value + 1) % slots.length);
+  }
+
   return (
     <section className="bg-card border border-border rounded-2xl p-4">
-      <h3 className="text-sm font-semibold mb-3">{title}</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {slots.map((slot) => (
-          <PhotoUploadSlot
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-sm font-semibold">{title}</h3>
+          <p className="text-xs text-muted-foreground mt-1">{index + 1} de {slots.length}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button type="button" size="icon" variant="outline" onClick={previous} disabled={slots.length < 2} aria-label="Foto anterior">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button type="button" size="icon" variant="outline" onClick={next} disabled={slots.length < 2} aria-label="Próxima foto">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      <PhotoUploadSlot
+        label={current.label}
+        file={photos[current.key] ?? null}
+        onChange={(file) => onChange(current.key, file)}
+      />
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {slots.map((slot, itemIndex) => (
+          <button
             key={slot.key}
-            label={slot.label}
-            file={photos[slot.key] ?? null}
-            onChange={(file) => onChange(slot.key, file)}
+            type="button"
+            onClick={() => setIndex(itemIndex)}
+            title={slot.label}
+            className={cn(
+              "h-2 rounded-full transition-all",
+              itemIndex === index ? "w-6 bg-foreground" : photos[slot.key] ? "w-2 bg-emerald-500" : "w-2 bg-muted-foreground/35",
+            )}
           />
         ))}
       </div>

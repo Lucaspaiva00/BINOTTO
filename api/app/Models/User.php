@@ -24,6 +24,7 @@ class User extends Authenticatable implements JWTSubject
         'codigo_pais_telefone',
         'iso_pais_telefone', 
         'numero_telefone',
+        'telefone_titular',
         'whatsapp',
         'perfil',
         'pre_cadastro',

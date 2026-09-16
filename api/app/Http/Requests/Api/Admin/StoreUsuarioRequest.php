@@ -19,6 +19,7 @@ class StoreUsuarioRequest extends FormRequest
             'email' => 'required|email|unique:usuarios,email',
             'codigo_pais_telefone' => 'required|string|max:5',
             'numero_telefone' => 'required|string|max:15',
+            'telefone_titular' => 'required|string|max:120',
             'iso_pais_telefone' => 'required|string|max:2',
             'senha' => 'required|string|min:6',
             'confirmar_senha' => 'required|string|min:6|same:senha',

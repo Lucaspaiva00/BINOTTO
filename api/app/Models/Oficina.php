@@ -19,6 +19,7 @@ class Oficina extends Model
         'razao_social',
         'email_secundario',
         'telefone_secundario',
+        'telefone_secundario_titular',
         'codigo_pais_telefone_secundario',
         'iso_pais_telefone_secundario',
         'numero',

@@ -37,6 +37,16 @@ export const periciaService = {
     return { blob: response.data, filename };
   },
 
+  async update(id: number | string, payload: { senha: string; oficina_id: number; tecnico_id?: number | null; placa: string; chassi: string; marca_modelo: string; valor_pericia?: number | null }): Promise<Pericia> {
+    const { data } = await api.put<{ data: Pericia }>(`${BASE_URL}/${id}`, payload);
+    return data.data;
+  },
+
+  async startRepairs(id: number | string): Promise<Pericia> {
+    const { data } = await api.patch<{ data: Pericia }>(`${BASE_URL}/${id}/iniciar-reparacoes`);
+    return data.data;
+  },
+
   async create(formData: FormData): Promise<Pericia> {
     const { data } = await api.post<{ data: Pericia }>(BASE_URL, formData, {
       headers: { "Content-Type": undefined },

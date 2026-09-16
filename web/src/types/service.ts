@@ -23,9 +23,9 @@ export interface ServiceLog {
 
 export interface ServiceInspectionSummary {
   id: number;
+  publicNumber: string;
   status: string | null;
   statusLabel: string | null;
-  tipo: string | null;
   licensePlate: string | null;
 }
 

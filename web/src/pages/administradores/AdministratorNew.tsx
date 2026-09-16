@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { adminService } from "@/services/adminService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
 const FIELD_MAP: Record<string, string> = {
   nome: "name",
@@ -24,6 +25,7 @@ export default function AdministratorNew() {
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   function validate() {
     const e: Record<string, string> = {};
@@ -52,6 +54,7 @@ export default function AdministratorNew() {
       });
 
       toast.success("Administrador criado", { description: `${name} foi adicionado com sucesso.` });
+      markSaved();
       navigate("/administradores");
     } catch (error) {
       const validationErrors = getApiValidationErrors(error);
@@ -74,6 +77,7 @@ export default function AdministratorNew() {
     <AppLayout title="Novo administrador" subtitle="Cadastro simples de acesso ao painel">
       <form
         onSubmit={handleSubmit}
+        onChange={markDirty}
         className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-xl mx-auto space-y-5"
       >
         <div className="space-y-2">
@@ -119,7 +123,7 @@ export default function AdministratorNew() {
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={() => navigate("/administradores")}>
+          <Button type="button" variant="outline" onClick={() => { if (confirmDiscard()) navigate("/administradores"); }}>
             Cancelar
           </Button>
           <Button type="submit" disabled={submitting}>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Eye, Plus, Search, ClipboardList } from "lucide-react";
+import { Plus, Search, ClipboardList } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,11 +74,11 @@ export default function ServicosList() {
   }, [page, status, country, debouncedSearch]);
 
   return (
-    <AppLayout title="Serviços" subtitle={`${total} serviço(s) encontrado(s)`}>
+    <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
       <div className="flex justify-end mb-4">
         <Button onClick={() => navigate("/servicos/novo")}>
           <Plus className="w-4 h-4 mr-2" />
-          Novo serviço
+          Criar solicitação
         </Button>
       </div>
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">
@@ -142,26 +142,25 @@ export default function ServicosList() {
               <TableHead>Local</TableHead>
               <TableHead>País</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right sticky right-0 bg-card">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={5} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : services.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
                   <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-60" />
                   Nenhum serviço encontrado.
                 </TableCell>
               </TableRow>
             ) : (
               services.map((s) => (
-                <TableRow key={s.id}>
+                <TableRow key={s.id} onClick={() => navigate(`/servicos/${s.id}`)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="font-medium text-foreground">
                     {s.createdBy ?? "—"}
                     <div className="text-xs text-muted-foreground">ID: {s.id}</div>
@@ -177,16 +176,6 @@ export default function ServicosList() {
                     ) : (
                       "—"
                     )}
-                  </TableCell>
-                  <TableCell className="text-right sticky right-0 bg-card">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Ver serviço"
-                      onClick={() => navigate(`/servicos/${s.id}`)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))

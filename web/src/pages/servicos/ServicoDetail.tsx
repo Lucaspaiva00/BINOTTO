@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { DateInput } from "@/components/ui/date-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { serviceService } from "@/services/serviceService";
 import { receivableService } from "@/services/receivableService";
@@ -21,11 +22,7 @@ import { formatDateTime, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { getServiceLogFields } from "./serviceLogFields";
-import {
-  PERICIA_STATUS_CLASS,
-  PERICIA_STATUS_LABEL,
-  PERICIA_TIPO_LABEL,
-} from "@/utils/periciaStatus";
+import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
 import type { PericiaStatus } from "@/types/pericia";
 import type { Service, ServiceLog } from "@/types/service";
 import type { FinanceStatus, ReceivablePayload, PayablePayload } from "@/types/finance";
@@ -345,12 +342,9 @@ export default function ServicoDetail() {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium">#{inspection.id}</span>
+                  <span className="text-sm font-medium">{inspection.publicNumber || `#${inspection.id}`}</span>
                   {inspection.licensePlate && (
                     <span className="text-sm text-muted-foreground">{inspection.licensePlate}</span>
-                  )}
-                  {inspection.tipo && (
-                    <Badge variant="outline">{PERICIA_TIPO_LABEL[inspection.tipo as keyof typeof PERICIA_TIPO_LABEL]}</Badge>
                   )}
                   {inspection.status && (
                     <Badge
@@ -443,21 +437,12 @@ export default function ServicoDetail() {
               </div>
               <div className="col-span-2 space-y-2">
                 <Label>Oficina (quem pagou)</Label>
-                <Select
+                <SearchableSelect
                   value={receivableForm.workshopId}
-                  onValueChange={(v) => setReceivableForm({ ...receivableForm, workshopId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workshops.map((w) => (
-                      <SelectItem key={w.id} value={String(w.id)}>
-                        {w.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => setReceivableForm({ ...receivableForm, workshopId: v })}
+                  placeholder="Digite ou selecione a oficina"
+                  options={workshops.map((w) => ({ value: String(w.id), label: w.name }))}
+                />
                 {receivableErrors.workshopId && (
                   <p className="text-xs text-destructive">{receivableErrors.workshopId}</p>
                 )}
@@ -577,21 +562,12 @@ export default function ServicoDetail() {
               </div>
               <div className="space-y-2">
                 <Label>Oficina (quem pagou)</Label>
-                <Select
+                <SearchableSelect
                   value={payableForm.workshopId}
-                  onValueChange={(v) => setPayableForm({ ...payableForm, workshopId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workshops.map((w) => (
-                      <SelectItem key={w.id} value={String(w.id)}>
-                        {w.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(v) => setPayableForm({ ...payableForm, workshopId: v })}
+                  placeholder="Digite ou selecione a oficina"
+                  options={workshops.map((w) => ({ value: String(w.id), label: w.name }))}
+                />
                 {payableErrors.workshopId && <p className="text-xs text-destructive">{payableErrors.workshopId}</p>}
               </div>
               <div className="space-y-2">

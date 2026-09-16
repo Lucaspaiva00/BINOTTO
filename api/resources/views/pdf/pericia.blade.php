@@ -209,10 +209,10 @@
         <div class="section-title">{{ __('pdf.inspection_data') }}</div>
         <table class="info-table">
             <tr>
+                <td class="label">Nº da perícia</td>
+                <td>{{ $pericia->numero_publico }}</td>
                 <td class="label">{{ __('pdf.plate') }}</td>
                 <td>{{ $pericia->placa }}</td>
-                <td class="label">{{ __('pdf.type') }}</td>
-                <td>{{ __('pdf.' . $pericia->tipo) }}</td>
             </tr>
             <tr>
                 <td class="label">{{ __('pdf.chassis') }}</td>
