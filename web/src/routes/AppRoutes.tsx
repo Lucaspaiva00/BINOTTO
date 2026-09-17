@@ -10,6 +10,7 @@ import UserEdit from "../pages/usuarios/UserEdit";
 import Financeiro from "../pages/financeiro/Financeiro";
 import ServicosList from "../pages/servicos/ServicosList";
 import ServicoNew from "../pages/servicos/ServicoNew";
+import ServicoCreate from "../pages/servicos/ServicoCreate";
 import ServicoDetail from "../pages/servicos/ServicoDetail";
 import PericiasList from "../pages/pericias/PericiasList";
 import PericiaNew from "../pages/pericias/PericiaNew";
@@ -35,6 +36,7 @@ export default function AppRoutes() {
         <Route path="/financeiro" element={protectedPage(<Financeiro />)} />
         <Route path="/servicos" element={protectedPage(<ServicosList />)} />
         <Route path="/servicos/novo" element={protectedPage(<ServicoNew />)} />
+        <Route path="/servicos/criar" element={protectedPage(<ServicoCreate />)} />
         <Route path="/servicos/:id" element={protectedPage(<ServicoDetail />)} />
         <Route path="/pericias" element={protectedPage(<PericiasList />)} />
         <Route path="/pericias/novo" element={protectedPage(<PericiaNew />)} />

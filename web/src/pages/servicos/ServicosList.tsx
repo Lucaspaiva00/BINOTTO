@@ -75,10 +75,14 @@ export default function ServicosList() {
 
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => navigate("/servicos/novo")}>
-          <Plus className="w-4 h-4 mr-2" />
+      <div className="flex flex-wrap justify-end gap-2 mb-4">
+        <Button variant="outline" onClick={() => navigate("/servicos/novo")}>
+          <ClipboardList className="w-4 h-4 mr-2" />
           Criar solicitação
+        </Button>
+        <Button onClick={() => navigate("/servicos/criar")}>
+          <Plus className="w-4 h-4 mr-2" />
+          Criar serviço
         </Button>
       </div>
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">

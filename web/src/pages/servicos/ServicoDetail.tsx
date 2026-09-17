@@ -1,32 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Wrench, Building2, Cog, Eye } from "lucide-react";
+import { ArrowLeft, Building2, Cog, Eye, Save, Wrench } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
-import { DateInput } from "@/components/ui/date-input";
-import { CurrencyInput } from "@/components/ui/currency-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { serviceService } from "@/services/serviceService";
-import { receivableService } from "@/services/receivableService";
-import { payableService } from "@/services/payableService";
 import { userService } from "@/services/userService";
 import { SERVICE_STATUS_CLASS, SERVICE_STATUS_LABEL } from "@/utils/serviceStatus";
-import { formatDateTime, todayISO } from "@/utils/date";
+import { formatDateTime } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
-import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { getServiceLogFields } from "./serviceLogFields";
 import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
+import { createInitialPartsState } from "@/utils/normalizeReparos";
+import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import type { PericiaStatus } from "@/types/pericia";
-import type { Service, ServiceLog } from "@/types/service";
-import type { FinanceStatus, ReceivablePayload, PayablePayload } from "@/types/finance";
+import type { PartInspection, RepairType } from "@/types/carParts";
+import type { Service, ServiceLog, ServiceVehicleRepair } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
+import {
+  ServiceAdminForm,
+  formatEditableDecimal,
+  parseDecimalInput,
+  type ServiceAdminFormState,
+} from "./ServiceAdminForm";
 
 function formatLogDateTime(iso: string) {
   const d = new Date(iso);
@@ -40,337 +38,167 @@ function logActor(log: ServiceLog): { name: string; role: string; icon: typeof W
   return { name: "Sistema", role: "Sistema", icon: Cog };
 }
 
-interface ReceivableForm {
-  workshopId: string;
-  description: string;
-  serviceValue: number;
-  platformValue: number;
-  paidBy: string;
-  entryDate: string;
-  dueDate: string;
-  status: FinanceStatus;
+function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): Record<string, PartInspection> {
+  const result = createInitialPartsState();
+  for (const repair of repairs) {
+    const id = repair.peca;
+    if (!id || !result[id]) continue;
+    result[id] = {
+      ...result[id],
+      repairType: (repair.tipoReparo ?? "SEM_DANO") as RepairType,
+      dentCount: repair.quantidadeAmassados ?? 0,
+      impactsOver25: repair.quantidadeImpactosMaior25 ?? 0,
+      impactsUnder25: repair.quantidadeImpactosMenor25 ?? 0,
+      notes: repair.observacoes ?? "",
+      photos: repair.fotos ?? [],
+    };
+  }
+  return result;
 }
 
-interface PayableForm {
-  technicianId: string;
-  workshopId: string;
-  description: string;
-  amountDue: number;
-  amountPaid: number;
-  entryDate: string;
-  dueDate: string;
-  status: FinanceStatus;
+function formFromService(service: Service): ServiceAdminFormState {
+  const compensationType = service.technicianPercentage !== null
+    ? "porcentagem"
+    : service.technicianAmount !== null
+      ? "valor"
+      : "none";
+
+  return {
+    workshopId: service.workshopId ? String(service.workshopId) : "",
+    status: service.status ?? "aguardando",
+    technicianId: service.technicianId ? String(service.technicianId) : "",
+    plate: service.licensePlate ?? "",
+    chassis: service.chassis ?? "",
+    model: service.model ?? "",
+    price: formatEditableDecimal(service.totalAmount),
+    compensationType,
+    compensationValue: formatEditableDecimal(
+      compensationType === "porcentagem" ? service.technicianPercentage : service.technicianAmount,
+    ),
+    notes: service.notes ?? "",
+  };
 }
-
-const RECEIVABLE_FIELD_MAP: Record<string, string> = {
-  oficina_id: "workshopId",
-  descricao: "description",
-  valor_servico: "serviceValue",
-  valor_plataforma: "platformValue",
-  quem_pagou: "paidBy",
-  data_lancamento: "entryDate",
-  data_vencimento: "dueDate",
-  status: "status",
-};
-
-const PAYABLE_FIELD_MAP: Record<string, string> = {
-  descricao: "description",
-  tecnico_id: "technicianId",
-  oficina_id: "workshopId",
-  valor_a_pagar: "amountDue",
-  valor_pago: "amountPaid",
-  data_lancamento: "entryDate",
-  data_vencimento: "dueDate",
-  status: "status",
-};
 
 export default function ServicoDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-
   const [service, setService] = useState<Service | null>(null);
+  const [form, setForm] = useState<ServiceAdminFormState | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [technicians, setTechnicians] = useState<UserSelectionItem[]>([]);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
-
-  const [receivableOpen, setReceivableOpen] = useState(false);
-  const [receivableForm, setReceivableForm] = useState<ReceivableForm | null>(null);
-  const [receivableErrors, setReceivableErrors] = useState<Record<string, string>>({});
-  const [savingReceivable, setSavingReceivable] = useState(false);
-
-  const [payableOpen, setPayableOpen] = useState(false);
-  const [payableForm, setPayableForm] = useState<PayableForm | null>(null);
-  const [payableErrors, setPayableErrors] = useState<Record<string, string>>({});
-  const [savingPayable, setSavingPayable] = useState(false);
+  const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadService() {
+    async function load() {
       setLoading(true);
       setNotFound(false);
-
       try {
-        const data = await serviceService.show(id);
+        const [data, techs, shops] = await Promise.all([
+          serviceService.show(id),
+          userService.listForSelection("TECNICO"),
+          userService.listForSelection("OFICINA"),
+        ]);
         if (cancelled) return;
-
         setService(data);
+        setForm(formFromService(data));
+        setTechnicians(techs);
+        setWorkshops(shops);
+        markSaved();
       } catch {
         if (!cancelled) setNotFound(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+    load();
+    return () => { cancelled = true; };
+  }, [id, markSaved]);
 
-    loadService();
+  const partsState = useMemo(() => normalizeServiceRepairs(service?.vehicleRepairs ?? []), [service?.vehicleRepairs]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOptions() {
-      try {
-        const [techs, shops] = await Promise.all([
-          userService.listForSelection("TECNICO"),
-          userService.listForSelection("OFICINA"),
-        ]);
-        if (cancelled) return;
-
-        setTechnicians(techs);
-        setWorkshops(shops);
-      } catch (error) {
-        if (!cancelled) toast.error(getApiErrorMessage(error));
-      }
-    }
-
-    loadOptions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  function openReceivable() {
-    if (!service) return;
-
-    const workshopId = workshops.find((w) => w.name === service.workshop)?.id;
-
-    setReceivableErrors({});
-    setReceivableForm({
-      workshopId: workshopId ? String(workshopId) : "",
-      description: `Serviço ${service.id}`,
-      serviceValue: 0,
-      platformValue: service.totalAmount,
-      paidBy: "",
-      entryDate: todayISO(),
-      dueDate: todayISO(),
-      status: "pendente",
-    });
-    setReceivableOpen(true);
+  function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
+    setForm((current) => current ? { ...current, [field]: value } : current);
+    markDirty();
   }
 
-  function openPayable() {
-    if (!service) return;
+  async function save() {
+    if (!form) return;
+    const next: Record<string, string> = {};
+    const price = parseDecimalInput(form.price);
+    const compensation = parseDecimalInput(form.compensationValue);
+    if (!form.workshopId) next.workshopId = "Selecione a oficina.";
+    if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero.";
+    if (form.compensationType !== "none" && (!Number.isFinite(compensation) || compensation < 0)) next.compensationValue = "Informe um valor válido.";
+    if (form.compensationType === "porcentagem" && compensation > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
 
-    const technicianId = technicians.find((t) => t.name === service.technician)?.id;
-    const workshopId = workshops.find((w) => w.name === service.workshop)?.id;
-
-    setPayableErrors({});
-    setPayableForm({
-      technicianId: technicianId ? String(technicianId) : "",
-      workshopId: workshopId ? String(workshopId) : "",
-      description: `Serviço ${service.id}`,
-      amountDue: 0,
-      amountPaid: service.totalAmount,
-      entryDate: todayISO(),
-      dueDate: todayISO(),
-      status: "pendente",
-    });
-    setPayableOpen(true);
-  }
-
-  async function saveReceivable() {
-    if (!receivableForm) return;
-
-    setSavingReceivable(true);
-    setReceivableErrors({});
-
+    setSaving(true);
     try {
-      const payload: ReceivablePayload = {
-        origem: "aplicativo",
-        oficina_id: receivableForm.workshopId ? Number(receivableForm.workshopId) : null,
-        servico_id: service?.id ?? null,
-        descricao: receivableForm.description,
-        valor_servico: receivableForm.serviceValue,
-        valor_plataforma: receivableForm.platformValue,
-        quem_pagou: receivableForm.paidBy || null,
-        data_lancamento: receivableForm.entryDate,
-        data_vencimento: receivableForm.dueDate,
-        status: receivableForm.status,
-      };
-
-      await receivableService.create(payload);
-      toast.success("Conta a receber criada.");
-      setReceivableOpen(false);
+      const updated = await serviceService.update(id, {
+        oficina_id: Number(form.workshopId),
+        tecnico_id: form.technicianId ? Number(form.technicianId) : null,
+        status: form.status,
+        placa: form.plate.trim() || null,
+        chassi: form.chassis.trim() || null,
+        marca_modelo: form.model.trim() || null,
+        valor_total: price,
+        remuneracao_tipo: form.compensationType === "none" ? null : form.compensationType,
+        remuneracao_tecnico: form.compensationType === "none" ? null : compensation,
+        observacoes: form.notes.trim() || null,
+      });
+      setService(updated);
+      setForm(formFromService(updated));
+      markSaved();
+      toast.success("Serviço atualizado.");
     } catch (error) {
-      const validationErrors = getApiValidationErrors(error);
-
-      if (validationErrors) {
-        const mapped: Record<string, string> = {};
-        for (const [field, message] of Object.entries(validationErrors)) {
-          mapped[RECEIVABLE_FIELD_MAP[field] ?? field] = message;
-        }
-        setReceivableErrors(mapped);
-      } else {
-        toast.error(getApiErrorMessage(error));
-      }
+      toast.error(getApiErrorMessage(error));
     } finally {
-      setSavingReceivable(false);
+      setSaving(false);
     }
   }
 
-  async function savePayable() {
-    if (!payableForm) return;
-
-    setSavingPayable(true);
-    setPayableErrors({});
-
-    try {
-      const payload: PayablePayload = {
-        origem: "aplicativo",
-        servico_id: service?.id ?? null,
-        tecnico_id: payableForm.technicianId ? Number(payableForm.technicianId) : null,
-        oficina_id: payableForm.workshopId ? Number(payableForm.workshopId) : null,
-        descricao: payableForm.description,
-        valor_a_pagar: payableForm.amountDue,
-        valor_pago: payableForm.amountPaid,
-        data_lancamento: payableForm.entryDate,
-        data_vencimento: payableForm.dueDate,
-        status: payableForm.status,
-      };
-
-      await payableService.create(payload);
-      toast.success("Conta a pagar criada.");
-      setPayableOpen(false);
-    } catch (error) {
-      const validationErrors = getApiValidationErrors(error);
-
-      if (validationErrors) {
-        const mapped: Record<string, string> = {};
-        for (const [field, message] of Object.entries(validationErrors)) {
-          mapped[PAYABLE_FIELD_MAP[field] ?? field] = message;
-        }
-        setPayableErrors(mapped);
-      } else {
-        toast.error(getApiErrorMessage(error));
-      }
-    } finally {
-      setSavingPayable(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <AppLayout title="Serviço">
-        <div className="flex justify-center py-16">
-          <Spinner className="w-8 h-8" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (notFound || !service) {
-    return (
-      <AppLayout title="Serviço" subtitle="Não encontrado">
-        <Button variant="outline" onClick={() => navigate("/servicos")}>
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Voltar
-        </Button>
-      </AppLayout>
-    );
-  }
+  if (loading) return <AppLayout title="Serviço"><div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div></AppLayout>;
+  if (notFound || !service || !form) return <AppLayout title="Serviço" subtitle="Não encontrado"><Button variant="outline" onClick={() => navigate("/servicos")}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button></AppLayout>;
 
   return (
-    <AppLayout
-      title={`Serviço ${service.id}`}
-      subtitle={[service.workshop, service.workshopCity, service.workshopCountry].filter(Boolean).join(" · ")}
-    >
-      <div className="flex items-center justify-between mb-6">
-        <Button variant="outline" onClick={() => navigate("/servicos")}>
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Voltar
-        </Button>
-
+    <AppLayout title={`Serviço ${service.id}`} subtitle={[service.workshop, service.workshopCity, service.workshopCountry].filter(Boolean).join(" · ")}>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <Button variant="outline" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
         <div className="flex items-center gap-2">
-          <Button onClick={openReceivable}>Conta a Receber</Button>
-          <Button onClick={openPayable}>Conta a Pagar</Button>
-          {service.status && (
-            <Badge variant="outline" className={SERVICE_STATUS_CLASS[service.status]}>
-              {SERVICE_STATUS_LABEL[service.status]}
-            </Badge>
-          )}
+          {service.status && <Badge variant="outline" className={SERVICE_STATUS_CLASS[service.status]}>{SERVICE_STATUS_LABEL[service.status]}</Badge>}
+          <Button onClick={save} disabled={saving}><Save className="w-4 h-4 mr-2" />{saving ? "Salvando..." : "Salvar alterações"}</Button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-        {[
-          { label: "Criado por", value: service.createdBy },
-          { label: "Oficina", value: service.workshop },
-          { label: "Local", value: [service.workshopCity, service.workshopCountry].filter(Boolean).join(" · ") },
-          { label: "Técnico", value: service.technician },
-        ].map((c) => (
-          <div key={c.label} className="bg-card border border-border rounded-2xl p-4">
-            <p className="text-xs text-muted-foreground mb-1">{c.label}</p>
-            <p className="text-sm font-medium text-foreground">{c.value || "—"}</p>
-          </div>
-        ))}
-      </div>
+      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors} />
 
       {service.inspections && service.inspections.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-6 mb-4">
+        <section className="bg-card border border-border rounded-2xl p-6 mt-4">
           <h2 className="text-base font-semibold text-foreground mb-4">Perícias</h2>
           <div className="space-y-2">
             {service.inspections.map((inspection) => (
-              <div
-                key={inspection.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
-              >
+              <div key={inspection.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{inspection.publicNumber || `#${inspection.id}`}</span>
-                  {inspection.licensePlate && (
-                    <span className="text-sm text-muted-foreground">{inspection.licensePlate}</span>
-                  )}
-                  {inspection.status && (
-                    <Badge
-                      variant="outline"
-                      className={PERICIA_STATUS_CLASS[inspection.status as PericiaStatus]}
-                    >
-                      {PERICIA_STATUS_LABEL[inspection.status as PericiaStatus]}
-                    </Badge>
-                  )}
+                  {inspection.licensePlate && <span className="text-sm text-muted-foreground">{inspection.licensePlate}</span>}
+                  {inspection.status && <Badge variant="outline" className={PERICIA_STATUS_CLASS[inspection.status as PericiaStatus]}>{PERICIA_STATUS_LABEL[inspection.status as PericiaStatus]}</Badge>}
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/pericias/${inspection.id}`}>
-                    <Eye className="w-4 h-4 mr-1" />
-                    Ver perícia
-                  </Link>
-                </Button>
+                <Button variant="outline" size="sm" asChild><Link to={`/pericias/${inspection.id}`}><Eye className="w-4 h-4 mr-1" />Ver perícia</Link></Button>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {service.logs && service.logs.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-6 mb-4">
+        <section className="bg-card border border-border rounded-2xl p-6 mt-4">
           <h2 className="text-base font-semibold text-foreground mb-6">Histórico do serviço</h2>
-
           <div className="relative pl-8">
             <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
             <div className="space-y-8">
@@ -378,259 +206,25 @@ export default function ServicoDetail() {
                 const actor = logActor(log);
                 const Icon = actor.icon;
                 const payloadFields = getServiceLogFields(log);
-
                 return (
                   <div key={log.id} className="relative">
-                    <div className="absolute top-0 left-0 -translate-x-1/2 w-8 h-8 rounded-full bg-[hsl(var(--app-accent))] text-black flex items-center justify-center">
-                      <Icon className="w-4 h-4" />
-                    </div>
+                    <div className="absolute top-0 left-0 -translate-x-1/2 w-8 h-8 rounded-full bg-[hsl(var(--app-accent))] text-black flex items-center justify-center"><Icon className="w-4 h-4" /></div>
                     <div className="ml-4">
                       <p className="text-xs text-muted-foreground">{formatLogDateTime(log.createdAt)}</p>
-                      <p className="text-sm font-medium text-foreground mt-0.5">
-                        {log.description ?? log.type ?? "Evento"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {actor.name} · {actor.role}
-                      </p>
+                      <p className="text-sm font-medium text-foreground mt-0.5">{log.description ?? log.type ?? "Evento"}</p>
+                      <p className="text-xs text-muted-foreground">{actor.name} · {actor.role}</p>
                       {log.reason && <p className="text-xs text-muted-foreground mt-1">Motivo: {log.reason}</p>}
-
-                      {payloadFields.length > 0 && (
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          {payloadFields.map((f) => (
-                            <div key={f.label} className="bg-muted/40 border border-border rounded-lg px-3 py-2">
-                              <p className="text-[11px] text-muted-foreground">{f.label}</p>
-                              <p className="text-sm text-foreground">{f.value}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {payloadFields.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{payloadFields.map((field) => <div key={field.label} className="bg-muted/40 border border-border rounded-lg px-3 py-2"><p className="text-[11px] text-muted-foreground">{field.label}</p><p className="text-sm text-foreground">{field.value}</p></div>)}</div>}
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
+        </section>
       )}
 
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span>Criado em {formatDateTime(service.createdAt)}</span>
-        <span>Atualizado em {formatDateTime(service.updatedAt)}</span>
-      </div>
-
-      <Dialog open={receivableOpen} onOpenChange={setReceivableOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Conta a Receber</DialogTitle>
-          </DialogHeader>
-          {receivableForm && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-2">
-                <Label>Descrição do serviço</Label>
-                <Input
-                  value={receivableForm.description}
-                  onChange={(e) => setReceivableForm({ ...receivableForm, description: e.target.value })}
-                />
-                {receivableErrors.description && (
-                  <p className="text-xs text-destructive">{receivableErrors.description}</p>
-                )}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Oficina (quem pagou)</Label>
-                <SearchableSelect
-                  value={receivableForm.workshopId}
-                  onChange={(v) => setReceivableForm({ ...receivableForm, workshopId: v })}
-                  placeholder="Digite ou selecione a oficina"
-                  options={workshops.map((w) => ({ value: String(w.id), label: w.name }))}
-                />
-                {receivableErrors.workshopId && (
-                  <p className="text-xs text-destructive">{receivableErrors.workshopId}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Valor do serviço</Label>
-                <CurrencyInput
-                  value={receivableForm.serviceValue}
-                  onChange={(value) => setReceivableForm({ ...receivableForm, serviceValue: value })}
-                />
-                {receivableErrors.serviceValue && (
-                  <p className="text-xs text-destructive">{receivableErrors.serviceValue}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Valor recebido pela plataforma</Label>
-                <CurrencyInput
-                  value={receivableForm.platformValue}
-                  onChange={(value) => setReceivableForm({ ...receivableForm, platformValue: value })}
-                  disabled
-                />
-                {receivableErrors.platformValue && (
-                  <p className="text-xs text-destructive">{receivableErrors.platformValue}</p>
-                )}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Quem pagou</Label>
-                <Input
-                  value={receivableForm.paidBy}
-                  onChange={(e) => setReceivableForm({ ...receivableForm, paidBy: e.target.value })}
-                  placeholder="Plataforma ou nome da oficina"
-                />
-                {receivableErrors.paidBy && <p className="text-xs text-destructive">{receivableErrors.paidBy}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Data do lançamento</Label>
-                <DateInput
-                  value={receivableForm.entryDate}
-                  onChange={(e) => setReceivableForm({ ...receivableForm, entryDate: e.target.value })}
-                />
-                {receivableErrors.entryDate && (
-                  <p className="text-xs text-destructive">{receivableErrors.entryDate}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Data de vencimento</Label>
-                <DateInput
-                  value={receivableForm.dueDate}
-                  onChange={(e) => setReceivableForm({ ...receivableForm, dueDate: e.target.value })}
-                />
-                {receivableErrors.dueDate && <p className="text-xs text-destructive">{receivableErrors.dueDate}</p>}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={receivableForm.status}
-                  onValueChange={(v) => setReceivableForm({ ...receivableForm, status: v as FinanceStatus })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="confirmado">Confirmado / Recebido</SelectItem>
-                  </SelectContent>
-                </Select>
-                {receivableErrors.status && <p className="text-xs text-destructive">{receivableErrors.status}</p>}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReceivableOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveReceivable} disabled={savingReceivable}>
-              {savingReceivable ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={payableOpen} onOpenChange={setPayableOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Conta a Pagar</DialogTitle>
-          </DialogHeader>
-          {payableForm && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2 space-y-2">
-                <Label>Descrição do serviço</Label>
-                <Input
-                  value={payableForm.description}
-                  onChange={(e) => setPayableForm({ ...payableForm, description: e.target.value })}
-                />
-                {payableErrors.description && <p className="text-xs text-destructive">{payableErrors.description}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Técnico (quem recebeu)</Label>
-                <Select
-                  value={payableForm.technicianId}
-                  onValueChange={(v) => setPayableForm({ ...payableForm, technicianId: v })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {technicians.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {payableErrors.technicianId && (
-                  <p className="text-xs text-destructive">{payableErrors.technicianId}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Oficina (quem pagou)</Label>
-                <SearchableSelect
-                  value={payableForm.workshopId}
-                  onChange={(v) => setPayableForm({ ...payableForm, workshopId: v })}
-                  placeholder="Digite ou selecione a oficina"
-                  options={workshops.map((w) => ({ value: String(w.id), label: w.name }))}
-                />
-                {payableErrors.workshopId && <p className="text-xs text-destructive">{payableErrors.workshopId}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Valor a pagar</Label>
-                <CurrencyInput
-                  value={payableForm.amountDue}
-                  onChange={(value) => setPayableForm({ ...payableForm, amountDue: value })}
-                />
-                {payableErrors.amountDue && <p className="text-xs text-destructive">{payableErrors.amountDue}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Valor pago pela plataforma</Label>
-                <CurrencyInput
-                  value={payableForm.amountPaid}
-                  onChange={(value) => setPayableForm({ ...payableForm, amountPaid: value })}
-                  disabled
-                />
-                {payableErrors.amountPaid && <p className="text-xs text-destructive">{payableErrors.amountPaid}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Data do lançamento</Label>
-                <DateInput
-                  value={payableForm.entryDate}
-                  onChange={(e) => setPayableForm({ ...payableForm, entryDate: e.target.value })}
-                />
-                {payableErrors.entryDate && <p className="text-xs text-destructive">{payableErrors.entryDate}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label>Data de vencimento</Label>
-                <DateInput
-                  value={payableForm.dueDate}
-                  onChange={(e) => setPayableForm({ ...payableForm, dueDate: e.target.value })}
-                />
-                {payableErrors.dueDate && <p className="text-xs text-destructive">{payableErrors.dueDate}</p>}
-              </div>
-              <div className="col-span-2 space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={payableForm.status}
-                  onValueChange={(v) => setPayableForm({ ...payableForm, status: v as FinanceStatus })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="confirmado">Confirmado / Pago</SelectItem>
-                  </SelectContent>
-                </Select>
-                {payableErrors.status && <p className="text-xs text-destructive">{payableErrors.status}</p>}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPayableOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={savePayable} disabled={savingPayable}>
-              {savingPayable ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-4"><span>Criado em {formatDateTime(service.createdAt)}</span><span>Atualizado em {formatDateTime(service.updatedAt)}</span></div>
     </AppLayout>
   );
 }

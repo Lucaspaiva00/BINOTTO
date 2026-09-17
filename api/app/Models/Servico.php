@@ -34,6 +34,7 @@ class Servico extends Model
         'aceito_em',
         'observacoes',
         'preco_tecnico',
+        'percentual_tecnico',
         'tecnicos_preferidos_notificados',
         'disponivel_para_todos', 
         'liberado_para_todos_em',
@@ -48,6 +49,7 @@ class Servico extends Model
         'ids_tecnico_recusa' => 'array',
         'status' => ServicoStatusEnum::class,
         'preco_tecnico' => 'decimal:2',
+        'percentual_tecnico' => 'decimal:2',
         'tecnicos_preferidos_notificados' => 'array',
         'disponivel_para_todos' => 'boolean',
     ];

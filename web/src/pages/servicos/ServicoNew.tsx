@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardList } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,11 +17,8 @@ import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import type { UserSelectionItem } from "@/types/user";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 
-const CURRENCIES = ["EUR", "BRL", "CHF", "GBP"] as const;
-
 const FIELD_MAP: Record<string, string> = {
   oficina_id: "workshopId",
-  moeda: "currency",
   data_inicio: "startDate",
   data_fim: "endDate",
   quantidade_tipo: "quantityType",
@@ -31,18 +28,14 @@ const FIELD_MAP: Record<string, string> = {
 
 export default function ServicoNew() {
   const navigate = useNavigate();
-
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(true);
-
   const [workshopId, setWorkshopId] = useState("");
-  const [currency, setCurrency] = useState("EUR");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [quantityType, setQuantityType] = useState<"none" | "carros" | "dias">("none");
+  const [quantityType, setQuantityType] = useState<"carros" | "dias">("carros");
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const { markDirty, markSaved } = useUnsavedChanges();
@@ -52,42 +45,25 @@ export default function ServicoNew() {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadOptions() {
-      setLoadingOptions(true);
-      try {
-        const shops = await userService.listForSelection("OFICINA");
-        if (cancelled) return;
-        setWorkshops(shops);
-      } catch (error) {
-        if (!cancelled) toast.error(getApiErrorMessage(error));
-      } finally {
-        if (!cancelled) setLoadingOptions(false);
-      }
-    }
-
-    loadOptions();
-
-    return () => {
-      cancelled = true;
-    };
+    userService.listForSelection("OFICINA")
+      .then((shops) => { if (!cancelled) setWorkshops(shops); })
+      .catch((error) => { if (!cancelled) toast.error(getApiErrorMessage(error)); })
+      .finally(() => { if (!cancelled) setLoadingOptions(false); });
+    return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (quantityType === "carros") setQuantity("1");
+  }, [quantityType]);
 
   function validate() {
     const next: Record<string, string> = {};
     if (!workshopId) next.workshopId = "Selecione a oficina.";
-    if (workshopMissingAddress) {
-      next.workshopId = "A oficina precisa ter endereço completo.";
-    }
-    if (startDate && endDate && endDate < startDate) {
-      next.endDate = "Data final deve ser igual ou posterior à inicial.";
-    }
-    if (quantityType !== "none") {
-      const parsed = Number(quantity);
-      if (!Number.isInteger(parsed) || parsed < 1) {
-        next.quantity = "Informe uma quantidade válida.";
-      }
-    }
+    if (workshopMissingAddress) next.workshopId = "A oficina precisa ter endereço completo.";
+    if (!startDate) next.startDate = "Informe a data inicial.";
+    if (startDate && endDate && endDate < startDate) next.endDate = "Data final deve ser igual ou posterior à inicial.";
+    const parsed = Number(quantity);
+    if (!Number.isInteger(parsed) || parsed < 1) next.quantity = "Informe uma quantidade válida.";
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -95,21 +71,18 @@ export default function ServicoNew() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-
     setSubmitting(true);
     setErrors({});
 
     try {
-      const created = await serviceService.create({
+      const created = await serviceService.createRequest({
         oficina_id: Number(workshopId),
-        moeda: currency,
-        data_inicio: startDate || undefined,
-        data_fim: endDate || undefined,
-        quantidade_tipo: quantityType === "none" ? undefined : quantityType,
-        quantidade: quantityType === "none" ? undefined : Number(quantity),
+        data_inicio: startDate,
+        data_fim: endDate || startDate,
+        quantidade_tipo: quantityType,
+        quantidade: Number(quantity),
         observacoes: notes.trim() || undefined,
       });
-
       toast.success("Solicitação criada.");
       markSaved();
       navigate(`/servicos/${created.id}`);
@@ -117,125 +90,67 @@ export default function ServicoNew() {
       const validationErrors = getApiValidationErrors(error);
       if (validationErrors) {
         const mapped: Record<string, string> = {};
-        for (const [field, message] of Object.entries(validationErrors)) {
-          mapped[FIELD_MAP[field] ?? field] = message;
-        }
+        for (const [field, message] of Object.entries(validationErrors)) mapped[FIELD_MAP[field] ?? field] = message;
         setErrors(mapped);
-      } else {
-        toast.error(getApiErrorMessage(error));
-      }
+      } else toast.error(getApiErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <AppLayout title="Criar solicitação" subtitle="Cadastro administrativo">
-      <form onSubmit={handleSubmit} onChange={markDirty} className="flex flex-col gap-4">
+    <AppLayout title="Criar solicitação" subtitle="Fluxo equivalente à solicitação do aplicativo">
+      <form onSubmit={handleSubmit} onChange={markDirty} className="flex flex-col gap-4 max-w-4xl">
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => navigate("/servicos")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
+            <ArrowLeft className="w-4 h-4 mr-2" />Voltar
           </Button>
         </div>
 
-        <section className="bg-card border border-border rounded-2xl p-4 sm:p-6 max-w-2xl flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
+        <section className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-5">
+          <div className="flex items-start gap-3 border-b border-border pb-4">
+            <div className="rounded-xl bg-[hsl(var(--app-accent))]/15 p-2"><ClipboardList className="h-5 w-5" /></div>
+            <div><h2 className="font-semibold">Solicitar serviço para uma oficina</h2><p className="text-sm text-muted-foreground">Selecione a oficina e informe o período e a quantidade, como no fluxo do app.</p></div>
+          </div>
+
+          <div className="space-y-2">
             <Label>Oficina</Label>
             <SearchableSelect
               value={workshopId}
               onChange={(value) => { setWorkshopId(value); markDirty(); }}
               disabled={loadingOptions}
               placeholder="Digite ou selecione a oficina"
-              options={workshops.map((workshop) => ({
-                value: String(workshop.id),
-                label: workshop.name,
-                disabled: workshop.canRequestTechnician === false,
-              }))}
+              options={workshops.map((workshop) => ({ value: String(workshop.id), label: workshop.name, disabled: workshop.canRequestTechnician === false }))}
             />
             {errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}
-            {workshopMissingAddress && !errors.workshopId && (
-              <p className="text-xs text-destructive">Esta oficina não tem endereço completo.</p>
-            )}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label>Moeda</Label>
-              <Select value={currency} onValueChange={(value) => { setCurrency(value); markDirty(); }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((code) => (
-                    <SelectItem key={code} value={code}>
-                      {code}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div className="rounded-xl border border-border p-4">
+            <div className="flex items-center gap-2 mb-3"><CalendarDays className="h-4 w-4" /><h3 className="text-sm font-semibold">Período</h3></div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="startDate">Data inicial</Label><DateInput id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} />{errors.startDate && <p className="text-xs text-destructive">{errors.startDate}</p>}</div>
+              <div className="space-y-2"><Label htmlFor="endDate">Data final</Label><DateInput id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} />{errors.endDate && <p className="text-xs text-destructive">{errors.endDate}</p>}</div>
             </div>
+          </div>
 
-            <div className="flex flex-col gap-2">
+          <div className="grid gap-4 md:grid-cols-[220px_1fr]">
+            <div className="space-y-2">
               <Label>Unidade</Label>
-              <Select
-                value={quantityType}
-                onValueChange={(v) => { setQuantityType(v as "none" | "carros" | "dias"); markDirty(); }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Opcional" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Não informar</SelectItem>
-                  <SelectItem value="carros">Carros</SelectItem>
-                  <SelectItem value="dias">Dias</SelectItem>
-                </SelectContent>
+              <Select value={quantityType} onValueChange={(v) => { setQuantityType(v as "carros" | "dias"); markDirty(); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="carros">Carros</SelectItem><SelectItem value="dias">Dias</SelectItem></SelectContent>
               </Select>
             </div>
-          </div>
-
-          {quantityType !== "none" && (
-            <div className="flex flex-col gap-2 max-w-40">
+            <div className="space-y-2">
               <Label htmlFor="quantity">Quantidade</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-              />
+              <Input id="quantity" inputMode="numeric" value={quantity} disabled={quantityType === "carros"} onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, ""))} />
               {errors.quantity && <p className="text-xs text-destructive">{errors.quantity}</p>}
             </div>
-          )}
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="startDate">Data início</Label>
-              <DateInput id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="endDate">Data fim</Label>
-              <DateInput id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-              {errors.endDate && <p className="text-xs text-destructive">{errors.endDate}</p>}
-            </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="notes">Observações</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Opcional"
-              rows={4}
-            />
-          </div>
+          <div className="space-y-2"><Label htmlFor="notes">Observações</Label><Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" rows={4} /></div>
 
-          <div className="flex justify-end">
-            <Button type="submit" disabled={submitting || loadingOptions || workshopMissingAddress}>
-              {submitting ? "Salvando..." : "Criar solicitação"}
-            </Button>
-          </div>
+          <div className="flex justify-end"><Button type="submit" disabled={submitting || loadingOptions || workshopMissingAddress}>{submitting ? "Salvando..." : "Criar solicitação"}</Button></div>
         </section>
       </form>
     </AppLayout>

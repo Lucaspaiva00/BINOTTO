@@ -57,7 +57,7 @@ export default function PericiaEdit() {
     if (!workshopId || !plate.trim() || !chassis.trim() || !model.trim()) { toast.error("Preencha os campos obrigatórios."); return; }
     setSaving(true);
     try {
-      const updated = await periciaService.update(id, { senha: password, oficina_id: Number(workshopId), tecnico_id: technicianId === "none" ? null : Number(technicianId), placa: plate, chassi: chassis, marca_modelo: model, valor_pericia: value || null });
+      const updated = await periciaService.update(id, { senha: password, oficina_id: Number(workshopId), tecnico_id: technicianId === "none" ? null : Number(technicianId), placa: plate, chassi: chassis, marca_modelo: model, valor_pericia: value });
       markSaved(); toast.success(`Perícia ${updated.publicNumber || `#${updated.id}`} atualizada.`); navigate(`/pericias/${id}`);
     } catch (error) { toast.error(getApiErrorMessage(error)); } finally { setSaving(false); }
   }

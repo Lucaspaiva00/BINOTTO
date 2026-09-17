@@ -82,7 +82,9 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
         Route::prefix('servicos')->group(function () {
             Route::get('/', [AdminServicoController::class, 'index']);
             Route::post('/', [AdminServicoController::class, 'store']);
+            Route::post('/direto', [AdminServicoController::class, 'storeDirect']);
             Route::get('/{id}', [AdminServicoController::class, 'show']);
+            Route::put('/{id}', [AdminServicoController::class, 'update']);
         });
 
         Route::prefix('pericias')->group(function () {

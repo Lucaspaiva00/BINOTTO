@@ -12,15 +12,31 @@ export interface ListServicesParams {
   busca?: string;
 }
 
-export interface CreateServicePayload {
+export interface CreateServiceRequestPayload {
   oficina_id: number;
-  moeda?: string;
-  data_inicio?: string;
+  data_inicio: string;
   data_fim?: string;
-  quantidade_tipo?: "carros" | "dias";
-  quantidade?: number;
+  quantidade_tipo: "carros" | "dias";
+  quantidade: number;
   observacoes?: string;
 }
+
+export interface AdminServicePayload {
+  oficina_id: number;
+  tecnico_id?: number | null;
+  status: ServiceStatus;
+  data_inicio?: string | null;
+  data_fim?: string | null;
+  placa?: string | null;
+  chassi?: string | null;
+  marca_modelo?: string | null;
+  valor_total?: number | null;
+  remuneracao_tipo?: "valor" | "porcentagem" | null;
+  remuneracao_tecnico?: number | null;
+  observacoes?: string | null;
+}
+
+export type UpdateServicePayload = Partial<AdminServicePayload>;
 
 export const serviceService = {
   async list(params?: ListServicesParams): Promise<PaginatedResponse<Service>> {
@@ -33,8 +49,23 @@ export const serviceService = {
     return data.data;
   },
 
-  async create(payload: CreateServicePayload): Promise<Service> {
+  async createRequest(payload: CreateServiceRequestPayload): Promise<Service> {
     const { data } = await api.post<{ data: Service }>(BASE_URL, payload);
+    return data.data;
+  },
+
+  // Compatibilidade com chamadas já existentes no painel.
+  async create(payload: CreateServiceRequestPayload): Promise<Service> {
+    return this.createRequest(payload);
+  },
+
+  async createDirect(payload: AdminServicePayload): Promise<Service> {
+    const { data } = await api.post<{ data: Service }>(`${BASE_URL}/direto`, payload);
+    return data.data;
+  },
+
+  async update(id: number | string, payload: UpdateServicePayload): Promise<Service> {
+    const { data } = await api.put<{ data: Service }>(`${BASE_URL}/${id}`, payload);
     return data.data;
   },
 };
