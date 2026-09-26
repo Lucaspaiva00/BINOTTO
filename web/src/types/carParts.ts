@@ -42,6 +42,12 @@ export interface CreatePericiaPayload {
   licensePlate: string;
   chassis: string;
   model: string;
+  brand?: string;
+  vehicleModel?: string;
+  inspectorName?: string;
+  disassemblyValue?: number;
+  technicianSuggestedValue?: number | null;
+  priceVisibility?: {carro: boolean; desmontagem: boolean; total: boolean; sugerido: boolean};
   tipo: "simples" | "completa";
   includeValue: boolean;
   suggestedPrice?: number | null;

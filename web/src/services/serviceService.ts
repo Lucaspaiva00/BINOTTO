@@ -19,6 +19,23 @@ export interface CreateServiceRequestPayload {
   quantidade_tipo: "carros" | "dias";
   quantidade: number;
   observacoes?: string;
+  modo_completo?: boolean;
+  tecnico_id?: number | null;
+  status?: ServiceStatus;
+  placa?: string | null;
+  chassi?: string | null;
+  marca_modelo?: string | null;
+  valor_total?: number;
+  remuneracao_tipo?: "valor" | "porcentagem" | null;
+  remuneracao_tecnico?: number | null;
+  reparos_execucao?: Array<{
+    peca: string;
+    tipoReparo: string;
+    quantidadeAmassados: number;
+    quantidadeImpactosMaior25: number;
+    quantidadeImpactosMenor25: number;
+    observacoes: string;
+  }>;
 }
 
 export interface AdminServicePayload {

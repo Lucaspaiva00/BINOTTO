@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\Admin\FluxoCaixaController;
 use App\Http\Controllers\Api\Admin\LoginController;
 use App\Http\Controllers\Api\Admin\PericiaController as AdminPericiaController;
 use App\Http\Controllers\Api\Admin\ServicoController as AdminServicoController;
+use App\Http\Controllers\Api\Admin\ConfiguracaoPericiaController;
+use App\Http\Controllers\Api\Admin\ReconhecimentoVeiculoController;
 use App\Http\Controllers\Api\Admin\OficinaDocumentoController as AdminOficinaDocumentoController;
 use App\Http\Controllers\Api\Admin\SuporteChamadoController as AdminSuporteChamadoController;
 use App\Http\Controllers\Api\Admin\UsuarioController as AdminUsuarioController;
@@ -86,6 +88,10 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
             Route::get('/{id}', [AdminServicoController::class, 'show']);
             Route::put('/{id}', [AdminServicoController::class, 'update']);
         });
+
+        Route::get('configuracoes/pericias', [ConfiguracaoPericiaController::class, 'show']);
+        Route::put('configuracoes/pericias', [ConfiguracaoPericiaController::class, 'update']);
+        Route::post('pericias/reconhecer', [ReconhecimentoVeiculoController::class, 'recognize'])->middleware('throttle:15,1');
 
         Route::prefix('pericias')->group(function () {
             Route::get('/', [AdminPericiaController::class, 'index']);

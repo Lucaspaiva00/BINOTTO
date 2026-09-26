@@ -20,21 +20,22 @@ export function buildPericiaFormData(payload: CreatePericiaPayload): FormData {
   formData.append("placa", payload.licensePlate.trim());
   formData.append("chassi", payload.chassis.trim());
   formData.append("marca_modelo", payload.model.trim());
+  if (payload.brand) formData.append("marca", payload.brand.trim());
+  if (payload.vehicleModel) formData.append("modelo", payload.vehicleModel.trim());
+  if (payload.inspectorName) formData.append("perito_nome", payload.inspectorName.trim());
+  formData.append("valor_desmontagem", String(payload.disassemblyValue ?? 0));
+  if (payload.technicianSuggestedValue != null) formData.append("valor_sugerido_tecnico", String(payload.technicianSuggestedValue));
+  if (payload.priceVisibility) {
+    Object.entries(payload.priceVisibility).forEach(([key, value]) => formData.append(`visibilidade_valores[${key}]`, value ? "1" : "0"));
+  }
   formData.append("tipo", payload.tipo);
 
-  if (payload.tipo === "simples" && payload.includeValue && payload.suggestedPrice != null) {
-    formData.append("preco_sugerido", String(payload.suggestedPrice));
-  }
-
-  if (payload.tipo === "completa" && payload.includeValue && payload.inspectionValue != null) {
-    formData.append("valor_pericia", String(payload.inspectionValue));
-  }
+  if (payload.inspectionValue != null) formData.append("valor_pericia", String(payload.inspectionValue));
 
   appendPhotoMap(formData, "fotos", payload.photos);
 
-  if (payload.tipo === "completa") {
-    appendPhotoMap(formData, "fotos_pericia_completa", payload.completePhotos);
-  }
+  // Documentos e fotos de apoio podem ser anexados em ambos os tipos de perícia.
+  appendPhotoMap(formData, "fotos_pericia_completa", payload.completePhotos);
 
   const repairs = CAR_PART_IDS.map((partId) => {
     const part = payload.partsState[partId];

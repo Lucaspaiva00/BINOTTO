@@ -32,12 +32,13 @@ interface Props {
   workshops: UserSelectionItem[];
   technicians: UserSelectionItem[];
   partsState: Record<string, PartInspection>;
+  onPartSelect?: (id: string) => void;
   errors?: Record<string, string>;
 }
 
 const STATUS_KEYS = Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[];
 
-export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, errors = {} }: Props) {
+export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, onPartSelect, errors = {} }: Props) {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-border bg-card p-5">
@@ -88,7 +89,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
 
         <div className="mt-5">
           <Label className="mb-2 block">Carro 3D</Label>
-          <CarDiagram partsState={partsState} selectedPartId={null} onSelectPart={() => undefined} vehicleModel={value.model} />
+          <CarDiagram partsState={partsState} selectedPartId={null} onSelectPart={onPartSelect ?? (() => undefined)} canEdit={Boolean(onPartSelect)} vehicleModel={value.model} />
+          {onPartSelect && <p className="text-xs text-muted-foreground mt-2">Clique em uma peça para informar o tipo de reparo, impactos e fotos.</p>}
         </div>
       </section>
 

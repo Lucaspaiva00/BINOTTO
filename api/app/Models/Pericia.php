@@ -20,6 +20,14 @@ class Pericia extends Model
         'placa',
         'chassi',
         'marca_modelo',
+        'marca',
+        'modelo',
+        'perito_nome',
+        'valor_desmontagem',
+        'valor_total',
+        'valor_sugerido_tecnico',
+        'coeficiente_aplicado',
+        'visibilidade_valores',
         'tipo',
         'status',
         'prazo',
@@ -39,6 +47,11 @@ class Pericia extends Model
         'prazo' => 'date',
         'preco_sugerido' => 'decimal:2',
         'valor_pericia' => 'decimal:2',
+        'valor_desmontagem' => 'decimal:2',
+        'valor_total' => 'decimal:2',
+        'valor_sugerido_tecnico' => 'decimal:2',
+        'coeficiente_aplicado' => 'decimal:2',
+        'visibilidade_valores' => 'array',
         'concluida_em' => 'datetime',
         'status' => PericiaStatusEnum::class,
     ];
@@ -66,6 +79,35 @@ class Pericia extends Model
     public function getEstaConcluidaAttribute(): bool
     {
         return !is_null($this->concluida_em);
+    }
+
+    /**
+     * Mantém compatibilidade com perícias antigas (sem flags) e aplica as flags
+     * das novas perícias ao serializar respostas para o técnico, inclusive
+     * quando o registro está aninhado em respostas de serviços.
+     */
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        $user = auth()->user();
+        $visibility = $this->visibilidade_valores;
+        if (($user?->perfil ?? null) !== 'TECNICO' || ! is_array($visibility)) {
+            return $data;
+        }
+        if (! ($visibility['carro'] ?? false)) {
+            $data['valor_pericia'] = null;
+        }
+        if (! ($visibility['desmontagem'] ?? false)) {
+            $data['valor_desmontagem'] = null;
+        }
+        if (! ($visibility['total'] ?? false)) {
+            $data['valor_total'] = null;
+        }
+        if (! ($visibility['sugerido'] ?? false)) {
+            $data['preco_sugerido'] = null;
+            $data['valor_sugerido_tecnico'] = null;
+        }
+        return $data;
     }
 
     /** Referência legível para operação e cliente. */

@@ -1,158 +1,145 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, CalendarDays, ClipboardList } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardList, Save } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchableSelect } from "@/components/ui/searchable-select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { userService } from "@/services/userService";
 import { serviceService } from "@/services/serviceService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
+import { CAR_PARTS, getCarPartLabel } from "@/constants/carParts";
+import { REPAIR_TYPE_LABEL } from "@/constants/repairTypes";
+import { createInitialPartsState } from "@/utils/normalizeReparos";
+import type { RepairType, PartInspection } from "@/types/carParts";
 import type { UserSelectionItem } from "@/types/user";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
+import { ServiceAdminForm, parseDecimalInput, type ServiceAdminFormState } from "./ServiceAdminForm";
 
-const FIELD_MAP: Record<string, string> = {
-  oficina_id: "workshopId",
-  data_inicio: "startDate",
-  data_fim: "endDate",
-  quantidade_tipo: "quantityType",
-  quantidade: "quantity",
-  observacoes: "notes",
+const INITIAL: ServiceAdminFormState = {
+  workshopId: "", status: "em_breve", technicianId: "", plate: "", chassis: "", model: "",
+  price: "0", compensationType: "none", compensationValue: "0", notes: "",
 };
 
 export default function ServicoNew() {
   const navigate = useNavigate();
-  const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
-  const [loadingOptions, setLoadingOptions] = useState(true);
-  const [workshopId, setWorkshopId] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [quantityType, setQuantityType] = useState<"carros" | "dias">("carros");
-  const [quantity, setQuantity] = useState("1");
-  const [notes, setNotes] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const { markDirty, markSaved } = useUnsavedChanges();
+  const [form,setForm] = useState<ServiceAdminFormState>(INITIAL);
+  const [workshops,setWorkshops] = useState<UserSelectionItem[]>([]);
+  const [technicians,setTechnicians] = useState<UserSelectionItem[]>([]);
+  const [loading,setLoading] = useState(true);
+  const [startDate,setStartDate] = useState("");
+  const [endDate,setEndDate] = useState("");
+  const [quantityType,setQuantityType] = useState<"carros"|"dias">("carros");
+  const [quantity,setQuantity] = useState("1");
+  const [partsState,setPartsState] = useState<Record<string,PartInspection>>(createInitialPartsState);
+  const [selectedPartId,setSelectedPartId] = useState<string|null>(null);
+  const [editingPart,setEditingPart] = useState<PartInspection|null>(null);
+  const [errors,setErrors] = useState<Record<string,string>>({});
+  const [saving,setSaving] = useState(false);
+  const {markDirty, markSaved, confirmDiscard} = useUnsavedChanges();
+  const selectedWorkshop = workshops.find(w=>String(w.id)===form.workshopId);
+  const selectedPartLabel = useMemo(()=>selectedPartId?getCarPartLabel(selectedPartId):"",[selectedPartId]);
 
-  const selectedWorkshop = workshops.find((w) => String(w.id) === workshopId);
-  const workshopMissingAddress = selectedWorkshop?.canRequestTechnician === false;
-
-  useEffect(() => {
-    let cancelled = false;
-    userService.listForSelection("OFICINA")
-      .then((shops) => { if (!cancelled) setWorkshops(shops); })
-      .catch((error) => { if (!cancelled) toast.error(getApiErrorMessage(error)); })
-      .finally(() => { if (!cancelled) setLoadingOptions(false); });
-    return () => { cancelled = true; };
-  }, []);
-
-  useEffect(() => {
-    if (quantityType === "carros") setQuantity("1");
-  }, [quantityType]);
-
-  function validate() {
-    const next: Record<string, string> = {};
-    if (!workshopId) next.workshopId = "Selecione a oficina.";
-    if (workshopMissingAddress) next.workshopId = "A oficina precisa ter endereço completo.";
-    if (!startDate) next.startDate = "Informe a data inicial.";
-    if (startDate && endDate && endDate < startDate) next.endDate = "Data final deve ser igual ou posterior à inicial.";
-    const parsed = Number(quantity);
-    if (!Number.isInteger(parsed) || parsed < 1) next.quantity = "Informe uma quantidade válida.";
-    setErrors(next);
-    return Object.keys(next).length === 0;
+  useEffect(()=>{
+    let cancelled=false;
+    Promise.all([userService.listForSelection("OFICINA"),userService.listForSelection("TECNICO")])
+      .then(([shops,techs])=>{if(!cancelled){setWorkshops(shops);setTechnicians(techs);}})
+      .catch(err=>toast.error(getApiErrorMessage(err)))
+      .finally(()=>{if(!cancelled)setLoading(false);});
+    return ()=>{cancelled=true;};
+  },[]);
+  function change<K extends keyof ServiceAdminFormState>(field:K,next:ServiceAdminFormState[K]) {
+    setForm(current=>({...current,[field]:next}));markDirty();
   }
-
-  async function handleSubmit(e: React.FormEvent) {
+  function openPart(partId:string) {
+    setSelectedPartId(partId);setEditingPart({...partsState[partId], photos:[]});
+  }
+  function savePart(){
+    if(selectedPartId&&editingPart){setPartsState(current=>({...current,[selectedPartId]:editingPart}));markDirty();}
+    setSelectedPartId(null);setEditingPart(null);
+  }
+  async function submit(e:React.FormEvent) {
     e.preventDefault();
-    if (!validate()) return;
-    setSubmitting(true);
-    setErrors({});
-
+    const next:Record<string,string>={};
+    const price=parseDecimalInput(form.price);
+    const pay=parseDecimalInput(form.compensationValue);
+    if(!form.workshopId) next.workshopId="Selecione a oficina.";
+    if(selectedWorkshop?.canRequestTechnician===false) next.workshopId="Complete o endereço da oficina antes de criar a solicitação.";
+    if(!startDate) next.startDate="Informe a data inicial.";
+    if(startDate&&endDate&&endDate<startDate) next.endDate="A data final não pode anteceder a inicial.";
+    if(!Number.isInteger(Number(quantity))||Number(quantity)<1) next.quantity="Quantidade inválida.";
+    if(!Number.isFinite(price)||price<0) next.price="Informe um preço válido.";
+    if(form.compensationType!=="none"&&(!Number.isFinite(pay)||pay<0||(form.compensationType==="porcentagem"&&pay>100))) next.compensationValue="Informe valor válido; porcentagem máxima: 100%.";
+    setErrors(next);
+    if(Object.keys(next).length) {toast.error("Verifique os campos da solicitação.");return;}
+    setSaving(true);
     try {
-      const created = await serviceService.createRequest({
-        oficina_id: Number(workshopId),
-        data_inicio: startDate,
-        data_fim: endDate || startDate,
-        quantidade_tipo: quantityType,
-        quantidade: Number(quantity),
-        observacoes: notes.trim() || undefined,
+      const created=await serviceService.createRequest({
+        modo_completo:true,
+        oficina_id:Number(form.workshopId), status:form.status,
+        tecnico_id:form.technicianId?Number(form.technicianId):null,
+        data_inicio:startDate, data_fim:endDate||startDate,
+        quantidade_tipo:quantityType, quantidade:Number(quantity),
+        placa:form.plate.trim()||null, chassi:form.chassis.trim()||null,
+        marca_modelo:form.model.trim()||null,
+        valor_total:price,
+        remuneracao_tipo:form.compensationType==="none"?null:form.compensationType,
+        remuneracao_tecnico:form.compensationType==="none"?null:pay,
+        observacoes:form.notes.trim()||undefined,
+        reparos_execucao:CAR_PARTS.filter(part=>{
+          const state=partsState[part.id];
+          return state.repairType!=="SEM_DANO"||state.dentCount>0||state.notes.trim().length>0;
+        }).map(part=>{
+          const state=partsState[part.id];
+          return {peca:part.id,tipoReparo:state.repairType,quantidadeAmassados:state.dentCount,quantidadeImpactosMaior25:state.impactsOver25,quantidadeImpactosMenor25:state.impactsUnder25,observacoes:state.notes};
+        }),
       });
-      toast.success("Solicitação criada.");
-      markSaved();
-      navigate(`/servicos/${created.id}`);
-    } catch (error) {
-      const validationErrors = getApiValidationErrors(error);
-      if (validationErrors) {
-        const mapped: Record<string, string> = {};
-        for (const [field, message] of Object.entries(validationErrors)) mapped[FIELD_MAP[field] ?? field] = message;
-        setErrors(mapped);
-      } else toast.error(getApiErrorMessage(error));
-    } finally {
-      setSubmitting(false);
-    }
+      markSaved();toast.success(`Solicitação #${created.id} criada.`);navigate(`/servicos/${created.id}`);
+    }catch(error){
+      const val=getApiValidationErrors(error);
+      if(val) setErrors(Object.fromEntries(Object.entries(val).map(([k,v])=>[({oficina_id:"workshopId",valor_total:"price",remuneracao_tecnico:"compensationValue",data_inicio:"startDate",data_fim:"endDate"} as Record<string,string>)[k]??k,v])));
+      toast.error(getApiErrorMessage(error));
+    }finally{setSaving(false);}
   }
-
-  return (
-    <AppLayout title="Criar solicitação" subtitle="Fluxo equivalente à solicitação do aplicativo">
-      <form onSubmit={handleSubmit} onChange={markDirty} className="flex flex-col gap-4 max-w-4xl">
-        <div>
-          <Button type="button" variant="outline" size="sm" onClick={() => navigate("/servicos")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />Voltar
-          </Button>
+  return <AppLayout title="Criar solicitação" subtitle="Oficina, estado, técnico opcional, veículo, reparos e preço">
+    <form onSubmit={submit} onChange={markDirty} className="space-y-5 pb-8">
+      <div className="flex items-center justify-between gap-3">
+        <Button type="button" variant="outline" size="sm" onClick={()=>{if(confirmDiscard())navigate("/servicos");}}><ArrowLeft className="mr-2 h-4 w-4"/>Voltar</Button>
+        <Button type="submit" disabled={saving||loading}><Save className="mr-2 h-4 w-4"/>{saving?"Salvando...":"Criar solicitação"}</Button>
+      </div>
+      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-4">
+        <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-4 w-4"/>Período e quantidade da solicitação</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2"><Label>Data inicial</Label><DateInput value={startDate} onChange={e=>setStartDate(e.target.value)}/>{errors.startDate&&<p className="text-xs text-destructive">{errors.startDate}</p>}</div>
+          <div className="space-y-2"><Label>Data final</Label><DateInput value={endDate} onChange={e=>setEndDate(e.target.value)}/>{errors.endDate&&<p className="text-xs text-destructive">{errors.endDate}</p>}</div>
+          <div className="space-y-2"><Label>Unidade</Label><Select value={quantityType} onValueChange={v=>{setQuantityType(v as "carros"|"dias");markDirty();}}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="carros">Carros</SelectItem><SelectItem value="dias">Dias</SelectItem></SelectContent></Select></div>
+          <div className="space-y-2"><Label>Quantidade</Label><Input type="number" min={1} value={quantity} onChange={e=>setQuantity(e.target.value)}/>{errors.quantity&&<p className="text-xs text-destructive">{errors.quantity}</p>}</div>
         </div>
-
-        <section className="bg-card border border-border rounded-2xl p-5 sm:p-6 space-y-5">
-          <div className="flex items-start gap-3 border-b border-border pb-4">
-            <div className="rounded-xl bg-[hsl(var(--app-accent))]/15 p-2"><ClipboardList className="h-5 w-5" /></div>
-            <div><h2 className="font-semibold">Solicitar serviço para uma oficina</h2><p className="text-sm text-muted-foreground">Selecione a oficina e informe o período e a quantidade, como no fluxo do app.</p></div>
+        <p className="text-xs text-muted-foreground flex items-center gap-2"><CalendarDays className="h-4 w-4"/>Sem técnico selecionado, a solicitação fica disponível para interessados. Se selecionar um técnico, ela será direcionada a ele.</p>
+      </section>
+      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} onPartSelect={openPart} errors={errors}/>
+      <div className="flex justify-end"><Button type="submit" disabled={saving||loading}>{saving?"Salvando...":"Criar solicitação"}</Button></div>
+    </form>
+    <Dialog open={Boolean(selectedPartId)} onOpenChange={open=>{if(!open){setSelectedPartId(null);setEditingPart(null);}}}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Reparo: {selectedPartLabel}</DialogTitle></DialogHeader>
+        {editingPart&&<div className="space-y-4">
+          <div className="space-y-2"><Label>Tipo de reparo</Label><select className="w-full h-10 rounded-md border border-input bg-background px-2" value={editingPart.repairType} onChange={e=>setEditingPart({...editingPart,repairType:e.target.value as RepairType})}>{Object.entries(REPAIR_TYPE_LABEL).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
+          <div className="space-y-2"><Label>Quantidade de amassados</Label><Input type="number" min={0} value={editingPart.dentCount} onChange={e=>setEditingPart({...editingPart,dentCount:Math.max(0,Number(e.target.value)||0)})}/></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2"><Label>Impactos maiores que 25</Label><Input type="number" min={0} value={editingPart.impactsOver25} onChange={e=>setEditingPart({...editingPart,impactsOver25:Math.max(0,Number(e.target.value)||0)})}/></div>
+            <div className="space-y-2"><Label>Impactos menores que 25</Label><Input type="number" min={0} value={editingPart.impactsUnder25} onChange={e=>setEditingPart({...editingPart,impactsUnder25:Math.max(0,Number(e.target.value)||0)})}/></div>
           </div>
-
-          <div className="space-y-2">
-            <Label>Oficina</Label>
-            <SearchableSelect
-              value={workshopId}
-              onChange={(value) => { setWorkshopId(value); markDirty(); }}
-              disabled={loadingOptions}
-              placeholder="Digite ou selecione a oficina"
-              options={workshops.map((workshop) => ({ value: String(workshop.id), label: workshop.name, disabled: workshop.canRequestTechnician === false }))}
-            />
-            {errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}
-          </div>
-
-          <div className="rounded-xl border border-border p-4">
-            <div className="flex items-center gap-2 mb-3"><CalendarDays className="h-4 w-4" /><h3 className="text-sm font-semibold">Período</h3></div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2"><Label htmlFor="startDate">Data inicial</Label><DateInput id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} />{errors.startDate && <p className="text-xs text-destructive">{errors.startDate}</p>}</div>
-              <div className="space-y-2"><Label htmlFor="endDate">Data final</Label><DateInput id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} />{errors.endDate && <p className="text-xs text-destructive">{errors.endDate}</p>}</div>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-[220px_1fr]">
-            <div className="space-y-2">
-              <Label>Unidade</Label>
-              <Select value={quantityType} onValueChange={(v) => { setQuantityType(v as "carros" | "dias"); markDirty(); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="carros">Carros</SelectItem><SelectItem value="dias">Dias</SelectItem></SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantidade</Label>
-              <Input id="quantity" inputMode="numeric" value={quantity} disabled={quantityType === "carros"} onChange={(e) => setQuantity(e.target.value.replace(/[^0-9]/g, ""))} />
-              {errors.quantity && <p className="text-xs text-destructive">{errors.quantity}</p>}
-            </div>
-          </div>
-
-          <div className="space-y-2"><Label htmlFor="notes">Observações</Label><Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" rows={4} /></div>
-
-          <div className="flex justify-end"><Button type="submit" disabled={submitting || loadingOptions || workshopMissingAddress}>{submitting ? "Salvando..." : "Criar solicitação"}</Button></div>
-        </section>
-      </form>
-    </AppLayout>
-  );
+          <div className="space-y-2"><Label>Observações</Label><Input value={editingPart.notes} onChange={e=>setEditingPart({...editingPart,notes:e.target.value})}/></div>
+          <p className="text-xs text-muted-foreground">As fotos técnicas são anexadas na perícia, não nesta solicitação.</p>
+        </div>}
+        <DialogFooter><Button onClick={savePart}>Salvar reparo</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </AppLayout>;
 }

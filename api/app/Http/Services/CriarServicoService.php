@@ -94,7 +94,7 @@ class CriarServicoService
         ];
     }
 
-    private function notificarTecnicos(array $tecnicosPreferidos, Servico $servico): void
+    public function notificarTecnicos(array $tecnicosPreferidos, Servico $servico): void
     {
         try {
             $tecnicosQuery = Tecnico::query();

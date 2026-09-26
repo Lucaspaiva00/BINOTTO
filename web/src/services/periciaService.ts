@@ -1,4 +1,7 @@
 import { api } from "./api/client";
+
+export type VehiclePhotoField = "placa" | "chassi" | "marca" | "modelo";
+export type PriceVisibility = { carro: boolean; desmontagem: boolean; total: boolean; sugerido: boolean };
 import type { PaginatedResponse } from "@/types/api";
 import type { Pericia, PericiaStatus, PericiaTipo } from "@/types/pericia";
 
@@ -15,6 +18,21 @@ export interface ListPericiasParams {
 }
 
 export const periciaService = {
+  async getSettings(): Promise<{coeficiente_eur: number}> {
+    const { data } = await api.get<{data: {coeficiente_eur: number}}>("/configuracoes/pericias");
+    return data.data;
+  },
+  async saveSettings(coeficiente: number): Promise<{coeficiente_eur: number}> {
+    const { data } = await api.put<{data: {coeficiente_eur: number}}>("/configuracoes/pericias", {coeficiente_eur: coeficiente});
+    return data.data;
+  },
+  async recognizePhoto(campo: VehiclePhotoField, imagem: File): Promise<string | null> {
+    const formData = new FormData();
+    formData.append("campo", campo);
+    formData.append("imagem", imagem);
+    const { data } = await api.post<{data: {valor: string | null}}>("/pericias/reconhecer", formData, {headers: {"Content-Type": undefined}});
+    return data.data?.valor ?? null;
+  },
   async list(params?: ListPericiasParams): Promise<PaginatedResponse<Pericia>> {
     const { data } = await api.get<PaginatedResponse<Pericia>>(BASE_URL, { params });
     return data;
@@ -37,7 +55,7 @@ export const periciaService = {
     return { blob: response.data, filename };
   },
 
-  async update(id: number | string, payload: { senha: string; oficina_id: number; tecnico_id?: number | null; placa: string; chassi: string; marca_modelo: string; valor_pericia?: number | null }): Promise<Pericia> {
+  async update(id: number | string, payload: { senha: string; oficina_id: number; tecnico_id?: number | null; placa: string; chassi: string; marca_modelo: string; marca?: string; modelo?: string; perito_nome?: string; valor_pericia?: number | null; valor_desmontagem?: number | null; valor_sugerido_tecnico?: number | null; visibilidade_valores?: PriceVisibility }): Promise<Pericia> {
     const { data } = await api.put<{ data: Pericia }>(`${BASE_URL}/${id}`, payload);
     return data.data;
   },

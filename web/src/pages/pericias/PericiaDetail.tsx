@@ -10,7 +10,7 @@ import { CarDiagram } from "@/components/pericia/CarDiagram";
 import { PartDetailDialog } from "@/components/pericia/PartDetailDialog";
 import { PhotoGallery } from "@/components/pericia/PhotoGallery";
 import { RepairSummary } from "@/components/pericia/RepairSummary";
-import { COMPLETE_PHOTO_SLOTS, TECH_PHOTO_SLOTS } from "@/constants/carParts";
+import { COMPLETE_PHOTO_SLOTS, TECH_PHOTO_SLOTS, VEHICLE_CAMERA_PHOTO_SLOTS } from "@/constants/carParts";
 import { REPAIR_TYPE_COLOR, REPAIR_TYPE_LABEL } from "@/constants/repairTypes";
 import { periciaService } from "@/services/periciaService";
 import { formatCurrency } from "@/utils/currency";
@@ -142,13 +142,19 @@ export default function PericiaDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         <SummaryCard label="Número da perícia" value={pericia.publicNumber || `#${pericia.id}`} />
         <SummaryCard label="Oficina" value={pericia.workshop} />
-        <SummaryCard label="Técnico" value={pericia.technician} />
+        <SummaryCard label={pericia.inspectorName ? "Perito" : "Técnico (perícia antiga)"} value={pericia.inspectorName ?? pericia.technician} />
         <SummaryCard label="Placa" value={pericia.licensePlate} />
         <SummaryCard label="Chassi" value={pericia.chassis} />
-        <SummaryCard label="Marca / modelo" value={pericia.model} />
+        <SummaryCard label="Marca" value={pericia.brand ?? "—"} />
+        <SummaryCard label="Modelo" value={pericia.vehicleModel ?? pericia.model} />
+        <SummaryCard label="Tipo de perícia" value={pericia.tipo === "simples" ? "Básica" : pericia.tipo === "completa" ? "Convencional" : "—"} />
         <SummaryCard label="Data" value={formatDateTime(pericia.createdAt)} />
         <SummaryCard label="Prazo" value={pericia.deadline ? new Date(`${pericia.deadline}T12:00:00`).toLocaleDateString("pt-BR") : "—"} />
-        <SummaryCard label="Valor" value={formatCurrency(value)} />
+        <SummaryCard label="Valor do veículo" value={formatCurrency(value)} />
+        <SummaryCard label="Desmontagem" value={formatCurrency(pericia.disassemblyValue ?? null)} />
+        <SummaryCard label="Total" value={formatCurrency(pericia.totalValue ?? value)} />
+        <SummaryCard label="Valor sugerido pelo técnico" value={pericia.technicianSuggestedValue != null ? formatCurrency(pericia.technicianSuggestedValue) : "—"} />
+        {pericia.appliedCoefficient != null && <SummaryCard label="Coeficiente aplicado" value={`€ ${pericia.appliedCoefficient.toFixed(2)} por amassado`} />}
         <SummaryCard
           label="Serviço vinculado"
           value={pericia.serviceId ? (
@@ -161,6 +167,8 @@ export default function PericiaDetail() {
 
       <div className="space-y-4">
         <PhotoGallery title="Fotos técnicas" slots={TECH_PHOTO_SLOTS} photos={pericia.photos} />
+        <PhotoGallery title="Identificação do veículo (T2)" slots={VEHICLE_CAMERA_PHOTO_SLOTS} photos={pericia.photos} />
+        {pericia.priceVisibility && <div className="rounded-2xl border border-border bg-card p-4 text-sm"><h3 className="font-semibold mb-2">Exibição dos valores ao técnico</h3><div className="flex flex-wrap gap-3">{Object.entries(pericia.priceVisibility).map(([key,shown]) => <span key={key} className={`rounded-md border px-2 py-1 ${shown ? "text-emerald-600" : "text-muted-foreground"}`}>{({carro:"Veículo",desmontagem:"Desmontagem",total:"Total",sugerido:"Sugerido"} as Record<string,string>)[key] ?? key}: {shown ? "visível" : "oculto"}</span>)}</div></div>}
         {hasCompletePhotos && <PhotoGallery title="Fotos adicionais" slots={COMPLETE_PHOTO_SLOTS} photos={pericia.completePhotos} />}
 
         <div className="bg-card border border-border rounded-2xl p-4">

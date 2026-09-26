@@ -21,6 +21,14 @@ export interface Pericia {
   tipo: PericiaTipo | null;
   licensePlate: string | null;
   model: string | null;
+  brand?: string | null;
+  vehicleModel?: string | null;
+  inspectorName?: string | null;
+  disassemblyValue?: number | null;
+  totalValue?: number | null;
+  technicianSuggestedValue?: number | null;
+  appliedCoefficient?: number | null;
+  priceVisibility?: {carro: boolean; desmontagem: boolean; total: boolean; sugerido: boolean} | null;
   workshopId?: number | null;
   workshop: string | null;
   technicianId?: number | null;

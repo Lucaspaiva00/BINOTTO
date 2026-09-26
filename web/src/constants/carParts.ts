@@ -38,7 +38,11 @@ export const CAR_PART_IDS = CAR_PARTS.map((p) => p.id);
 
 export const TECH_PHOTO_SLOTS = [
   { key: "diagonalFrontDriver", label: "Dianteira diagonal motorista" },
+  { key: "diagonalFrontPassenger", label: "Dianteira diagonal passageiro" },
   { key: "diagonalRearPassenger", label: "Traseira diagonal passageiro" },
+  { key: "diagonalRearDriver", label: "Traseira diagonal motorista" },
+  { key: "rearCenter", label: "Foto da traseira" },
+  { key: "inspectionProof", label: "Comprovante da perícia" },
   { key: "plateOrChassis", label: "Placa ou chassi" },
   { key: "workOrder", label: "Ordem de serviço" },
 ] as const;
@@ -52,3 +56,11 @@ export const COMPLETE_PHOTO_SLOTS = [
 export function getCarPartLabel(partId: string): string {
   return CAR_PARTS.find((p) => p.id === partId)?.label ?? partId;
 }
+
+// Fotos realizadas pela câmera nos campos da T2 também ficam disponíveis na T3.
+export const VEHICLE_CAMERA_PHOTO_SLOTS = [
+  { key: "vehicle_plate", label: "Placa" },
+  { key: "vehicle_chassis", label: "Chassi" },
+  { key: "vehicle_brand", label: "Marca" },
+  { key: "vehicle_model", label: "Modelo" },
+] as const;

@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class PericiaController extends Controller
 {
@@ -33,6 +34,7 @@ class PericiaController extends Controller
                 'prazo',
                 'tipo',
                 'marca_modelo',
+                'marca', 'modelo', 'perito_nome', 'valor_desmontagem', 'valor_total', 'valor_sugerido_tecnico', 'coeficiente_aplicado', 'visibilidade_valores',
                 'preco_sugerido',
                 'valor_pericia',
                 'moeda',
@@ -93,6 +95,13 @@ class PericiaController extends Controller
             'placa' => ['required', 'string', 'max:20'],
             'chassi' => ['required', 'string', 'max:30'],
             'marca_modelo' => ['required', 'string', 'max:255'],
+            'marca' => ['nullable', 'string', 'max:100'],
+            'modelo' => ['nullable', 'string', 'max:150'],
+            'perito_nome' => ['nullable', 'string', 'max:160'],
+            'valor_desmontagem' => ['nullable', 'numeric', 'min:0'],
+            'valor_sugerido_tecnico' => ['nullable', 'numeric', 'min:0'],
+            'visibilidade_valores' => ['nullable', 'array'],
+            'visibilidade_valores.*' => ['boolean'],
             'tipo' => ['required', 'in:simples,completa'],
             'prazo' => ['nullable', 'date'],
             'preco_sugerido' => ['nullable', 'numeric', 'min:0'],
@@ -110,6 +119,15 @@ class PericiaController extends Controller
             $repairsJson = json_decode($request->input('reparos_necessarios', '[]'), true) ?? [];
             $repairs = $this->periciaStorageService->normalizeRepairs($repairsJson);
             $isComplete = $data['tipo'] === 'completa';
+            $coeficiente = (float) (DB::table('configuracoes_pericia')->value('coeficiente_eur') ?? 0);
+            if ($isComplete && $coeficiente <= 0) {
+                throw ValidationException::withMessages(['tipo' => ['Defina o coeficiente em Configurações antes de criar perícia convencional.']]);
+            }
+            $dentCount = array_sum(array_map(fn ($repair) => max(0, (int) ($repair['quantidadeAmassados'] ?? 0)), $repairs));
+            $carValue = $isComplete ? round($dentCount * $coeficiente, 2) : (float) ($data['valor_pericia'] ?? 0);
+            $disassembly = (float) ($data['valor_desmontagem'] ?? 0);
+            $visibility = array_intersect_key($data['visibilidade_valores'] ?? [], array_flip(['carro', 'desmontagem', 'total', 'sugerido']));
+            $visibility = array_merge(['carro' => false, 'desmontagem' => false, 'total' => false, 'sugerido' => false], $visibility);
 
             DB::beginTransaction();
 
@@ -119,12 +137,20 @@ class PericiaController extends Controller
                 'placa' => $data['placa'],
                 'chassi' => $data['chassi'],
                 'marca_modelo' => $data['marca_modelo'],
+                'marca' => $data['marca'] ?? null,
+                'modelo' => $data['modelo'] ?? null,
+                'perito_nome' => $data['perito_nome'] ?? null,
+                'valor_desmontagem' => $disassembly,
+                'valor_total' => round($carValue + $disassembly, 2),
+                'valor_sugerido_tecnico' => $data['valor_sugerido_tecnico'] ?? null,
+                'coeficiente_aplicado' => $isComplete ? $coeficiente : null,
+                'visibilidade_valores' => $visibility,
                 'tipo' => $data['tipo'],
                 'status' => PericiaStatusEnum::ABERTA->value,
                 'prazo' => $data['prazo'] ?? null,
                 'moeda' => 'EUR',
-                'preco_sugerido' => $isComplete ? null : ($data['preco_sugerido'] ?? null),
-                'valor_pericia' => $isComplete ? ($data['valor_pericia'] ?? null) : null,
+                'preco_sugerido' => null,
+                'valor_pericia' => $carValue,
             ]);
 
             $attachments = $this->periciaStorageService->persistCreateAttachments(
@@ -149,6 +175,9 @@ class PericiaController extends Controller
             ]);
 
             return response()->json(['data' => new PericiaResource($pericia)], 201);
+        } catch (ValidationException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Exception $e) {
             DB::rollBack();
             $this->periciaStorageService->rollbackUploaded($uploadedPaths);
@@ -180,6 +209,13 @@ class PericiaController extends Controller
             'placa' => ['required', 'string', 'max:20'],
             'chassi' => ['required', 'string', 'max:30'],
             'marca_modelo' => ['required', 'string', 'max:255'],
+            'marca' => ['nullable','string','max:100'],
+            'modelo' => ['nullable','string','max:150'],
+            'perito_nome' => ['nullable','string','max:160'],
+            'valor_desmontagem' => ['nullable','numeric','min:0'],
+            'valor_sugerido_tecnico' => ['nullable','numeric','min:0'],
+            'visibilidade_valores' => ['nullable','array'],
+            'visibilidade_valores.*' => ['boolean'],
             'valor_pericia' => ['nullable', 'numeric', 'min:0'],
         ]);
 
@@ -193,18 +229,25 @@ class PericiaController extends Controller
         DB::transaction(function () use ($pericia, $data) {
             $pericia->update([
                 'oficina_id' => $data['oficina_id'],
-                'tecnico_id' => $data['tecnico_id'] ?? null,
+                'tecnico_id' => array_key_exists('tecnico_id', $data) ? $data['tecnico_id'] : $pericia->tecnico_id,
                 'placa' => strtoupper($data['placa']),
                 'chassi' => strtoupper($data['chassi']),
                 'marca_modelo' => $data['marca_modelo'],
                 'valor_pericia' => $data['valor_pericia'] ?? null,
+                'marca' => $data['marca'] ?? $pericia->marca,
+                'modelo' => $data['modelo'] ?? $pericia->modelo,
+                'perito_nome' => array_key_exists('perito_nome', $data) ? $data['perito_nome'] : $pericia->perito_nome,
+                'valor_desmontagem' => $data['valor_desmontagem'] ?? $pericia->valor_desmontagem,
+                'valor_total' => (float) ($data['valor_pericia'] ?? $pericia->valor_pericia ?? 0) + (float) ($data['valor_desmontagem'] ?? $pericia->valor_desmontagem ?? 0),
+                'valor_sugerido_tecnico' => $data['valor_sugerido_tecnico'] ?? $pericia->valor_sugerido_tecnico,
+                'visibilidade_valores' => $data['visibilidade_valores'] ?? $pericia->visibilidade_valores,
             ]);
 
             // Se a perícia já originou um serviço, mantém os dados principais sincronizados.
             if ($pericia->servico) {
                 $pericia->servico->update([
                     'oficina_id' => $data['oficina_id'],
-                    'tecnico_id' => $data['tecnico_id'] ?? null,
+                    'tecnico_id' => array_key_exists('tecnico_id', $data) ? $data['tecnico_id'] : $pericia->tecnico_id,
                 ]);
 
                 if ($pericia->servico->primeiroVeiculo) {

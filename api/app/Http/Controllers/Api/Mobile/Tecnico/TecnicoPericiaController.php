@@ -29,6 +29,7 @@ class TecnicoPericiaController extends Controller
             'marca_modelo',
             'preco_sugerido',
             'valor_pericia',
+            'visibilidade_valores',
             'created_at',
             'oficina_id',
             'servico_id',

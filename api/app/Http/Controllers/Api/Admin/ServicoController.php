@@ -94,6 +94,63 @@ class ServicoController extends Controller
      */
     public function store(StoreServicoRequest $request)
     {
+        // Solicitação completa enviada pelo painel: mantém todos os campos do serviço e
+        // não confunde "sem técnico" (aberto a interessados) com "técnico designado".
+        if ($request->boolean('modo_completo')) {
+            $data = $request->validated();
+            if (($data['remuneracao_tipo'] ?? null) === 'porcentagem' && ($data['remuneracao_tecnico'] ?? 0) > 100) {
+                throw ValidationException::withMessages(['remuneracao_tecnico' => ['A porcentagem deve estar entre 0 e 100.']]);
+            }
+            $oficina = Oficina::findOrFail($data['oficina_id']);
+            if (! $oficina->podeSolicitarTecnico()) {
+                throw ValidationException::withMessages(['oficina_id' => [__('main.service_workshop_address_required')]]);
+            }
+            $servico = DB::transaction(function () use ($data, $request, $oficina) {
+                $assigned = ! empty($data['tecnico_id']);
+                $servico = Servico::create([
+                    'oficina_id' => $oficina->id,
+                    'tecnico_id' => $data['tecnico_id'] ?? null,
+                    'tecnico_label' => $oficina->cidade,
+                    'criado_por_usuario_id' => $request->user()->id,
+                    'data_inicio' => $data['data_inicio'] ?? null,
+                    'data_fim' => $data['data_fim'] ?? null,
+                    'quantidade_tipo' => $data['quantidade_tipo'] ?? 'carros',
+                    'quantidade' => $data['quantidade'] ?? 1,
+                    'moeda' => 'EUR',
+                    'status' => $data['status'] ?? ServicoStatusEnum::EM_BREVE->value,
+                    'observacoes' => $data['observacoes'] ?? null,
+                    'valor_total' => $data['valor_total'] ?? 0,
+                    'preco_tecnico' => ($data['remuneracao_tipo'] ?? null) === 'valor' ? ($data['remuneracao_tecnico'] ?? 0) : null,
+                    'percentual_tecnico' => ($data['remuneracao_tipo'] ?? null) === 'porcentagem' ? ($data['remuneracao_tecnico'] ?? 0) : null,
+                    'disponivel_para_todos' => ! $assigned,
+                    'liberado_para_todos_em' => $assigned ? null : now(),
+                ]);
+                $servico->veiculos()->create([
+                    'placa' => $this->nullableUpper($data['placa'] ?? null),
+                    'chassi' => $this->nullableUpper($data['chassi'] ?? null),
+                    'marca_modelo' => $data['marca_modelo'] ?? null,
+                    'preco_total' => $data['valor_total'] ?? 0,
+                    'reparos_execucao' => $data['reparos_execucao'] ?? [],
+                ]);
+                ServicoLog::create([
+                    'servico_id' => $servico->id,
+                    'oficina_id' => $oficina->id,
+                    'tecnico_id' => $servico->tecnico_id,
+                    'tipo' => ServicoLogTipoEnum::SERVICO_CRIADO,
+                    'descricao' => 'Administrador criou solicitação completa',
+                    'payload' => [
+                        'status' => $servico->status?->value,
+                        'disponivel_para_todos' => $servico->disponivel_para_todos,
+                    ],
+                ]);
+                return $servico;
+            });
+            $notify = ! empty($data['tecnico_id']) ? [(int) $data['tecnico_id']] : [];
+            $this->criarServicoService->notificarTecnicos($notify, $servico);
+            return response()->json(['data' => new ServicoResource($servico->fresh()->load([
+                'oficina', 'tecnico', 'primeiroVeiculo', 'criadoPor.oficina', 'criadoPor.tecnico',
+            ]))], 201);
+        }
         try {
             $oficina = Oficina::findOrFail($request->integer('oficina_id'));
 
