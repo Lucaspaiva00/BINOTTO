@@ -124,7 +124,6 @@ export default function ServicoDetail() {
     const next: Record<string, string> = {};
     const detailError = validateDetails(form, partsState);
     if (detailError) { toast.error(detailError); return; }
-    const car = form.detailedPrices.oficina_carro;
     const tech = form.detailedPrices.tecnico_carro;
     const totals = resolveDetailedPrices(form.detailedPrices);
     if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }

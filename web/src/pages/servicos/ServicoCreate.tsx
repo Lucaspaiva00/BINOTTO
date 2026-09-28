@@ -47,7 +47,6 @@ export default function ServicoCreate() {
     const next: Record<string, string> = {};
     const detailsError = validateDetails(form, partsState);
     if (detailsError) { toast.error(detailsError); return; }
-    const carPrice = form.detailedPrices.oficina_carro;
     const techPrice = form.detailedPrices.tecnico_carro;
     const totals = resolveDetailedPrices(form.detailedPrices);
     if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
