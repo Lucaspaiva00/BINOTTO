@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, CalendarDays, ClipboardList, Save } from "lucide-react";
@@ -8,23 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DateInput } from "@/components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { userService } from "@/services/userService";
 import { serviceService } from "@/services/serviceService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
-import { CAR_PARTS, getCarPartLabel } from "@/constants/carParts";
-import { REPAIR_TYPE_LABEL } from "@/constants/repairTypes";
 import { createInitialPartsState } from "@/utils/normalizeReparos";
-import type { RepairType, PartInspection } from "@/types/carParts";
+import type { PartInspection } from "@/types/carParts";
 import type { UserSelectionItem } from "@/types/user";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
-import { ServiceAdminForm, parseDecimalInput, type ServiceAdminFormState } from "./ServiceAdminForm";
+import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
+import { ServicePartDialog } from "./ServicePartDialog";
+import { buildServiceDetailsFormData, validateDetails, parseAmount, SERVICE_PARTS_ORDER } from "./serviceDetails";
 
-const INITIAL: ServiceAdminFormState = {
-  workshopId: "", status: "em_breve", technicianId: "", plate: "", chassis: "", model: "",
-  price: "0", compensationType: "none", compensationValue: "0", notes: "",
-};
+const INITIAL: ServiceAdminFormState = { ...initialServiceForm(), status: "em_breve" };
 
 export default function ServicoNew() {
   const navigate = useNavigate();
@@ -43,7 +39,6 @@ export default function ServicoNew() {
   const [saving,setSaving] = useState(false);
   const {markDirty, markSaved, confirmDiscard} = useUnsavedChanges();
   const selectedWorkshop = workshops.find(w=>String(w.id)===form.workshopId);
-  const selectedPartLabel = useMemo(()=>selectedPartId?getCarPartLabel(selectedPartId):"",[selectedPartId]);
 
   useEffect(()=>{
     let cancelled=false;
@@ -57,27 +52,28 @@ export default function ServicoNew() {
     setForm(current=>({...current,[field]:next}));markDirty();
   }
   function openPart(partId:string) {
-    setSelectedPartId(partId);setEditingPart({...partsState[partId], photos:[]});
-  }
-  function savePart(){
-    if(selectedPartId&&editingPart){setPartsState(current=>({...current,[selectedPartId]:editingPart}));markDirty();}
-    setSelectedPartId(null);setEditingPart(null);
+    setSelectedPartId(partId);setEditingPart({...partsState[partId], photos:[...partsState[partId].photos]});
   }
   async function submit(e:React.FormEvent) {
     e.preventDefault();
     const next:Record<string,string>={};
-    const price=parseDecimalInput(form.price);
-    const pay=parseDecimalInput(form.compensationValue);
+    const detailError = validateDetails(form, partsState);
+    if(detailError) {toast.error(detailError);return;}
+    const carPrice = form.detailedPrices.oficina_carro;
+    const techPrice = form.detailedPrices.tecnico_carro;
+    const price=carPrice.tipo === "valor" ? parseAmount(carPrice.valor) : 0;
+    const pay=parseAmount(techPrice.valor);
     if(!form.workshopId) next.workshopId="Selecione a oficina.";
     if(selectedWorkshop?.canRequestTechnician===false) next.workshopId="Complete o endereço da oficina antes de criar a solicitação.";
     if(!startDate) next.startDate="Informe a data inicial.";
     if(startDate&&endDate&&endDate<startDate) next.endDate="A data final não pode anteceder a inicial.";
     if(!Number.isInteger(Number(quantity))||Number(quantity)<1) next.quantity="Quantidade inválida.";
     if(!Number.isFinite(price)||price<0) next.price="Informe um preço válido.";
-    if(form.compensationType!=="none"&&(!Number.isFinite(pay)||pay<0||(form.compensationType==="porcentagem"&&pay>100))) next.compensationValue="Informe valor válido; porcentagem máxima: 100%.";
+    if(!Number.isFinite(pay)||pay<0||(techPrice.tipo==="porcentagem"&&pay>100)) next.compensationValue="Informe valor válido; porcentagem máxima: 100%.";
     setErrors(next);
     if(Object.keys(next).length) {toast.error("Verifique os campos da solicitação.");return;}
     setSaving(true);
+    let createdId: number | null = null;
     try {
       const created=await serviceService.createRequest({
         modo_completo:true,
@@ -86,12 +82,12 @@ export default function ServicoNew() {
         data_inicio:startDate, data_fim:endDate||startDate,
         quantidade_tipo:quantityType, quantidade:Number(quantity),
         placa:form.plate.trim()||null, chassi:form.chassis.trim()||null,
-        marca_modelo:form.model.trim()||null,
+        marca_modelo:`${form.brand} ${form.vehicleModel}`.trim()||null,
         valor_total:price,
-        remuneracao_tipo:form.compensationType==="none"?null:form.compensationType,
-        remuneracao_tecnico:form.compensationType==="none"?null:pay,
+        remuneracao_tipo:techPrice.tipo,
+        remuneracao_tecnico:pay,
         observacoes:form.notes.trim()||undefined,
-        reparos_execucao:CAR_PARTS.filter(part=>{
+        reparos_execucao:SERVICE_PARTS_ORDER.map(id=>({id})).filter(part=>{
           const state=partsState[part.id];
           return state.repairType!=="SEM_DANO"||state.dentCount>0||state.notes.trim().length>0;
         }).map(part=>{
@@ -99,11 +95,14 @@ export default function ServicoNew() {
           return {peca:part.id,tipoReparo:state.repairType,quantidadeAmassados:state.dentCount,quantidadeImpactosMaior25:state.impactsOver25,quantidadeImpactosMenor25:state.impactsUnder25,observacoes:state.notes};
         }),
       });
+      createdId=created.id;
+      await serviceService.saveDetails(created.id,buildServiceDetailsFormData(form,partsState));
       markSaved();toast.success(`Solicitação #${created.id} criada.`);navigate(`/servicos/${created.id}`);
     }catch(error){
       const val=getApiValidationErrors(error);
       if(val) setErrors(Object.fromEntries(Object.entries(val).map(([k,v])=>[({oficina_id:"workshopId",valor_total:"price",remuneracao_tecnico:"compensationValue",data_inicio:"startDate",data_fim:"endDate"} as Record<string,string>)[k]??k,v])));
-      toast.error(getApiErrorMessage(error));
+      if(createdId){toast.warning(`Solicitação #${createdId} criada, mas os detalhes não foram salvos. Complete a edição.`);navigate(`/servicos/${createdId}`);}
+      else toast.error(getApiErrorMessage(error));
     }finally{setSaving(false);}
   }
   return <AppLayout title="Criar solicitação" subtitle="Oficina, estado, técnico opcional, veículo, reparos e preço">
@@ -122,24 +121,11 @@ export default function ServicoNew() {
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-2"><CalendarDays className="h-4 w-4"/>Sem técnico selecionado, a solicitação fica disponível para interessados. Se selecionar um técnico, ela será direcionada a ele.</p>
       </section>
-      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} onPartSelect={openPart} errors={errors}/>
+      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} onPartSelect={openPart}
+        onPartChange={(id,part)=>{setPartsState(prev=>({...prev,[id]:part}));markDirty();}} errors={errors}/>
       <div className="flex justify-end"><Button type="submit" disabled={saving||loading}>{saving?"Salvando...":"Criar solicitação"}</Button></div>
     </form>
-    <Dialog open={Boolean(selectedPartId)} onOpenChange={open=>{if(!open){setSelectedPartId(null);setEditingPart(null);}}}>
-      <DialogContent>
-        <DialogHeader><DialogTitle>Reparo: {selectedPartLabel}</DialogTitle></DialogHeader>
-        {editingPart&&<div className="space-y-4">
-          <div className="space-y-2"><Label>Tipo de reparo</Label><select className="w-full h-10 rounded-md border border-input bg-background px-2" value={editingPart.repairType} onChange={e=>setEditingPart({...editingPart,repairType:e.target.value as RepairType})}>{Object.entries(REPAIR_TYPE_LABEL).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></div>
-          <div className="space-y-2"><Label>Quantidade de amassados</Label><Input type="number" min={0} value={editingPart.dentCount} onChange={e=>setEditingPart({...editingPart,dentCount:Math.max(0,Number(e.target.value)||0)})}/></div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2"><Label>Impactos maiores que 25</Label><Input type="number" min={0} value={editingPart.impactsOver25} onChange={e=>setEditingPart({...editingPart,impactsOver25:Math.max(0,Number(e.target.value)||0)})}/></div>
-            <div className="space-y-2"><Label>Impactos menores que 25</Label><Input type="number" min={0} value={editingPart.impactsUnder25} onChange={e=>setEditingPart({...editingPart,impactsUnder25:Math.max(0,Number(e.target.value)||0)})}/></div>
-          </div>
-          <div className="space-y-2"><Label>Observações</Label><Input value={editingPart.notes} onChange={e=>setEditingPart({...editingPart,notes:e.target.value})}/></div>
-          <p className="text-xs text-muted-foreground">As fotos técnicas são anexadas na perícia, não nesta solicitação.</p>
-        </div>}
-        <DialogFooter><Button onClick={savePart}>Salvar reparo</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ServicePartDialog partId={selectedPartId} value={editingPart} onClose={()=>{setSelectedPartId(null);setEditingPart(null);}}
+      onSave={value=>{setEditingPart(value);if(selectedPartId)setPartsState(prev=>({...prev,[selectedPartId]:value}));setSelectedPartId(null);setEditingPart(null);markDirty();}}/>
   </AppLayout>;
 }

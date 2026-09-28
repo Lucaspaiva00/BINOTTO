@@ -4,6 +4,7 @@ namespace App\Http\Resources\Api\Admin;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ServicoResource extends JsonResource
 {
@@ -24,7 +25,17 @@ class ServicoResource extends JsonResource
             'licensePlate' => $this->primeiroVeiculo?->placa ?? $this->placa,
             'chassis' => $this->primeiroVeiculo?->chassi,
             'model' => $this->primeiroVeiculo?->marca_modelo ?? $this->modelo,
-            'vehicleRepairs' => $this->primeiroVeiculo?->reparos_execucao ?? [],
+            'brand' => $this->primeiroVeiculo?->marca,
+            'vehicleModel' => $this->primeiroVeiculo?->modelo,
+            'vehiclePhotos' => collect($this->primeiroVeiculo?->fotos_veiculo ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all(),
+            'inspectionType' => $this->pericia_completa ? 'completa' : 'simples',
+            'detailedPrices' => $this->precos_detalhados,
+            'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
+            'canAdminRefuse' => in_array($this->status?->value, ['aceito', 'em_breve', 'aguardando_aprovacao'], true),
+            'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {
+                $repair['fotos'] = collect($repair['fotos'] ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all();
+                return $repair;
+            })->all(),
             'vehiclePrice' => (float) ($this->primeiroVeiculo?->preco_total ?? 0),
             'startDate' => $this->data_inicio?->format('Y-m-d'),
             'endDate' => $this->data_fim?->format('Y-m-d'),

@@ -972,22 +972,23 @@ class TecnicoServicoController extends Controller
             ]);
 
             if ($request->boolean('finalizar')) {
-                $servico->update([
-                    'status' => ServicoStatusEnum::FINALIZADO->value,
-                ]);
-
-                ServicoLog::create([
-                    'servico_id' => $servico->id,
-                    'tecnico_id' => $tecnico->id,
-                    'tipo' => ServicoLogTipoEnum::SERVICO_FINALIZADO,
-                    'descricao' => 'Técnico finalizou a execução do serviço',
-                ]);
-
                 if ($servico->periciaEmExecucao) {
                     $servico->periciaEmExecucao->update([
                         'status' => PericiaStatusEnum::CONCLUIDA->value,
                     ]);
                 }
+                // Não concluir todas as perícias quando apenas uma foi finalizada no APP.
+                $pending = $servico->pericias()->whereNotIn('status', [
+                    PericiaStatusEnum::CONCLUIDA->value, PericiaStatusEnum::CANCELADA->value,
+                ])->exists();
+                $servico->refresh();
+                $servico->update(['status' => $pending ? ServicoStatusEnum::EM_EXECUCAO : ServicoStatusEnum::FINALIZADO]);
+                ServicoLog::create([
+                    'servico_id' => $servico->id,
+                    'tecnico_id' => $tecnico->id,
+                    'tipo' => $pending ? ServicoLogTipoEnum::SERVICO_ATUALIZADO : ServicoLogTipoEnum::SERVICO_FINALIZADO,
+                    'descricao' => $pending ? 'Técnico concluiu uma etapa; há outras perícias pendentes' : 'Técnico finalizou a execução do serviço',
+                ]);
             }
 
             // Lógica de remoção de fotos
@@ -1054,22 +1055,20 @@ class TecnicoServicoController extends Controller
                 'finalizado_em' => now(),
             ]);
 
-            $servico->update([
-                'status' => ServicoStatusEnum::FINALIZADO->value,
-            ]);
-
+            if ($servico->periciaEmExecucao) {
+                $servico->periciaEmExecucao->update(['status' => PericiaStatusEnum::CONCLUIDA->value]);
+            }
+            $pending = $servico->pericias()->whereNotIn('status', [
+                PericiaStatusEnum::CONCLUIDA->value, PericiaStatusEnum::CANCELADA->value,
+            ])->exists();
+            $servico->refresh();
+            $servico->update(['status' => $pending ? ServicoStatusEnum::EM_EXECUCAO : ServicoStatusEnum::FINALIZADO]);
             ServicoLog::create([
                 'servico_id' => $servico->id,
                 'tecnico_id' => $tecnico->id,
-                'tipo' => ServicoLogTipoEnum::SERVICO_FINALIZADO,
-                'descricao' => 'Técnico finalizou a execução do serviço',
+                'tipo' => $pending ? ServicoLogTipoEnum::SERVICO_ATUALIZADO : ServicoLogTipoEnum::SERVICO_FINALIZADO,
+                'descricao' => $pending ? 'Perícia concluída; serviço ainda tem perícias pendentes' : 'Técnico finalizou a execução do serviço',
             ]);
-
-            if ($servico->periciaEmExecucao) {
-                $servico->periciaEmExecucao->update([
-                    'status' => PericiaStatusEnum::CONCLUIDA->value,
-                ]);
-            }
 
             DB::commit();
 
@@ -1167,23 +1166,30 @@ class TecnicoServicoController extends Controller
             ->keyBy('peca')
             ->toArray();
 
-        return array_map(function ($reparo) use ($reparosIndexados) {
+        $updated = array_map(function ($reparo) use ($reparosIndexados) {
             $peca = $reparo['peca'] ?? null;
 
             $atual = $reparosIndexados[$peca] ?? [];
 
-            return [
+            // O APP antigo envia apenas os campos legados: nunca descartar as três
+            // novas faixas de amassados, fotos ou outros dados salvos no painel.
+            return array_merge($atual, [
                 'peca' => $peca,
-                'tipoReparo' => $reparo['tipoReparo'] ?? 'SEM_DANO',
-                'quantidadeAmassados' => $reparo['quantidadeAmassados'] ?? 0,
-                'quantidadeImpactosMaior25' => $reparo['quantidadeImpactosMaior25'] ?? 0,
-                'quantidadeImpactosMenor25' => $reparo['quantidadeImpactosMenor25'] ?? 0,
-                'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? null,
-                'coeficiente' => $reparo['coeficiente'] ?? 0,
-                'observacoes' => $reparo['observacoes'] ?? '',
+                'tipoReparo' => $reparo['tipoReparo'] ?? $atual['tipoReparo'] ?? 'SEM_DANO',
+                'quantidadeAmassados' => $reparo['quantidadeAmassados'] ?? $atual['quantidadeAmassados'] ?? 0,
+                'quantidadeImpactosMaior25' => $reparo['quantidadeImpactosMaior25'] ?? $atual['quantidadeImpactosMaior25'] ?? 0,
+                'quantidadeImpactosMenor25' => $reparo['quantidadeImpactosMenor25'] ?? $atual['quantidadeImpactosMenor25'] ?? 0,
+                'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? $atual['tamanhoAmassado'] ?? null,
+                'coeficiente' => $reparo['coeficiente'] ?? $atual['coeficiente'] ?? 0,
+                'observacoes' => $reparo['observacoes'] ?? $atual['observacoes'] ?? '',
                 'fotos' => $atual['fotos'] ?? [],
-            ];
+            ]);
         }, $reparos);
+        $submittedIds = array_column($reparos, 'peca');
+        foreach ($reparosAtuais as $old) {
+            if (! in_array($old['peca'] ?? null, $submittedIds, true)) $updated[] = $old;
+        }
+        return $updated;
     }
 
     public function generatePdf(int $id)

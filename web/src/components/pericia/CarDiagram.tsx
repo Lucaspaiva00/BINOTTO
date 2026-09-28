@@ -29,6 +29,16 @@ function VehiclePanel({ panel, state, selected, canOpen, onSelect, overlayOnly }
   const visible = !overlayOnly || state?.repairType !== "SEM_DANO" || selected || hovered;
   return <mesh visible={visible} position={panel.position} onClick={click} onPointerEnter={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = canOpen ? "pointer" : "default"; }} onPointerLeave={() => { setHovered(false); document.body.style.cursor = "default"; }}>
     <boxGeometry args={panel.size} /><meshStandardMaterial transparent={overlayOnly} opacity={overlayOnly ? .72 : 1} color={color} metalness={.45} roughness={.35} emissive={selected || hovered ? "#ffffff" : "#000000"} emissiveIntensity={selected ? .32 : hovered ? .12 : 0} />
+    {(state?.repairType === "ALUMINIO_PDR" || state?.repairType === "ALUMINIO_PINTURA") && Array.from({ length: 5 }, (_, i) => {
+      const offset = (i - 2) * (panel.size[2] / 6);
+      const side = panel.size[0] < .4;
+      return <mesh key={i} position={side
+        ? [(panel.position[0] > 0 ? 1 : -1) * (panel.size[0] / 2 + .009), 0, offset]
+        : [0, panel.size[1] / 2 + .009, offset]}>
+        <boxGeometry args={side ? [.009, panel.size[1] * .92, .013] : [panel.size[0] * .9, .009, .013]} />
+        <meshBasicMaterial color="#27bb70" />
+      </mesh>;
+    })}
     {(hovered || selected) && <Html position={[0, panel.size[1] / 2 + .12, 0]} center distanceFactor={7} style={{ pointerEvents: "none" }}><div className="whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[11px] font-medium text-white shadow-lg">{getCarPartLabel(panel.id)}</div></Html>}
   </mesh>;
 }

@@ -35,6 +35,9 @@ export interface ServiceVehicleRepair {
   quantidadeAmassados?: number;
   quantidadeImpactosMaior25?: number;
   quantidadeImpactosMenor25?: number;
+  amassadosAte2?: number;
+  amassadosAte5?: number;
+  amassadosAcima5?: number;
   observacoes?: string;
   fotos?: string[];
 }
@@ -54,6 +57,13 @@ export interface Service {
   licensePlate: string | null;
   chassis: string | null;
   model: string | null;
+  brand?: string | null;
+  vehicleModel?: string | null;
+  vehiclePhotos?: Record<string, string>;
+  inspectionType?: "simples" | "completa";
+  detailedPrices?: Record<string, {tipo: "valor" | "porcentagem"; valor: number | null; visivel_app: boolean}>;
+  canAdminAccept?: boolean;
+  canAdminRefuse?: boolean;
   vehicleRepairs: ServiceVehicleRepair[];
   vehiclePrice: number;
   startDate: string | null;

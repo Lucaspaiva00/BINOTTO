@@ -1,4 +1,4 @@
-export type PericiaStatus = "aberta" | "em_execucao" | "concluida";
+export type PericiaStatus = "aberta" | "em_execucao" | "concluida" | "cancelada";
 
 export type PericiaTipo = "simples" | "completa";
 

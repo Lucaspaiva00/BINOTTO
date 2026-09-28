@@ -13,6 +13,9 @@ export interface PartInspection {
   dentCount: number;
   impactsOver25: number;
   impactsUnder25: number;
+  dentsUpTo2?: number;
+  dentsUpTo5?: number;
+  dentsOver5?: number;
   notes: string;
   photos: PartPhoto[];
 }

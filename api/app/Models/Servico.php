@@ -24,6 +24,7 @@ class Servico extends Model
         'quantidade',
         'moeda',
         'valor_total',
+        'precos_detalhados',
         'pericia_completa',
         'status',
         'tecnico_label',
@@ -46,6 +47,7 @@ class Servico extends Model
         'data_fim' => 'date',
         'data_prevista_chegada' => 'date',
         'valor_total' => 'decimal:2',
+        'precos_detalhados' => 'array',
         'ids_tecnico_recusa' => 'array',
         'status' => ServicoStatusEnum::class,
         'preco_tecnico' => 'decimal:2',
@@ -60,6 +62,38 @@ class Servico extends Model
         'placa',
         'modelo',
     ];
+
+    public function toArray(): array
+    {
+        $data = parent::toArray();
+        $user = auth()->user();
+        if (($user?->perfil ?? null) !== 'TECNICO' || ! is_array($this->precos_detalhados)) {
+            return $data;
+        }
+        foreach ($data['precos_detalhados'] ?? [] as $key => $configuration) {
+            if (! ($configuration['visivel_app'] ?? false)) {
+                $data['precos_detalhados'][$key]['valor'] = null;
+            }
+        }
+        if (! ($this->precos_detalhados['oficina_carro']['visivel_app'] ?? false)) {
+            $data['valor_total'] = null;
+            // Evita revelar o mesmo valor pelo veículo embutido nas respostas mobile.
+            if (isset($data['primeiro_veiculo']) && is_array($data['primeiro_veiculo'])) {
+                $data['primeiro_veiculo']['preco_total'] = null;
+            }
+            if (isset($data['veiculos']) && is_array($data['veiculos'])) {
+                foreach ($data['veiculos'] as &$veiculo) {
+                    if (is_array($veiculo)) $veiculo['preco_total'] = null;
+                }
+                unset($veiculo);
+            }
+        }
+        if (! ($this->precos_detalhados['tecnico_carro']['visivel_app'] ?? false)) {
+            $data['preco_tecnico'] = null;
+            $data['percentual_tecnico'] = null;
+        }
+        return $data;
+    }
 
     // Relacionamentos
     public function oficina()

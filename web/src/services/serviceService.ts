@@ -89,4 +89,21 @@ export const serviceService = {
     const { data } = await api.put<{ data: Service }>(`${BASE_URL}/${id}`, payload);
     return data.data;
   },
+
+  async saveDetails(id: number | string, payload: FormData): Promise<Service> {
+    const { data } = await api.post<{ data: Service }>(`${BASE_URL}/${id}/detalhes`, payload, {
+      headers: { "Content-Type": undefined },
+    });
+    return data.data;
+  },
+
+  async accept(id: number | string, technicianId: number): Promise<Service> {
+    const { data } = await api.patch<{ data: Service }>(`${BASE_URL}/${id}/aceitar`, { tecnico_id: technicianId });
+    return data.data;
+  },
+
+  async refuse(id: number | string): Promise<Service> {
+    const { data } = await api.patch<{ data: Service }>(`${BASE_URL}/${id}/recusar`);
+    return data.data;
+  },
 };

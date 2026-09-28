@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, Cog, Eye, Save, Wrench } from "lucide-react";
@@ -13,18 +13,19 @@ import { formatDateTime } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getServiceLogFields } from "./serviceLogFields";
 import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
-import { createInitialPartsState } from "@/utils/normalizeReparos";
+
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import type { PericiaStatus } from "@/types/pericia";
-import type { PartInspection, RepairType } from "@/types/carParts";
-import type { Service, ServiceLog, ServiceVehicleRepair } from "@/types/service";
+import type { PartInspection } from "@/types/carParts";
+import type { Service, ServiceLog } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
   ServiceAdminForm,
   formatEditableDecimal,
-  parseDecimalInput,
   type ServiceAdminFormState,
 } from "./ServiceAdminForm";
+import { ServicePartDialog } from "./ServicePartDialog";
+import { emptyVehiclePhotos, pricesFromService, buildServiceDetailsFormData, normalizeServiceRepairs, validateDetails, parseAmount } from "./serviceDetails";
 
 function formatLogDateTime(iso: string) {
   const d = new Date(iso);
@@ -36,24 +37,6 @@ function logActor(log: ServiceLog): { name: string; role: string; icon: typeof W
   if (log.technician) return { name: log.technician, role: "Técnico", icon: Wrench };
   if (log.workshop) return { name: log.workshop, role: "Oficina", icon: Building2 };
   return { name: "Sistema", role: "Sistema", icon: Cog };
-}
-
-function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): Record<string, PartInspection> {
-  const result = createInitialPartsState();
-  for (const repair of repairs) {
-    const id = repair.peca;
-    if (!id || !result[id]) continue;
-    result[id] = {
-      ...result[id],
-      repairType: (repair.tipoReparo ?? "SEM_DANO") as RepairType,
-      dentCount: repair.quantidadeAmassados ?? 0,
-      impactsOver25: repair.quantidadeImpactosMaior25 ?? 0,
-      impactsUnder25: repair.quantidadeImpactosMenor25 ?? 0,
-      notes: repair.observacoes ?? "",
-      photos: repair.fotos ?? [],
-    };
-  }
-  return result;
 }
 
 function formFromService(service: Service): ServiceAdminFormState {
@@ -70,6 +53,12 @@ function formFromService(service: Service): ServiceAdminFormState {
     plate: service.licensePlate ?? "",
     chassis: service.chassis ?? "",
     model: service.model ?? "",
+    // Serviços anteriores guardavam um único campo marca_modelo: preserve o texto ao editar.
+    brand: service.brand ?? (service.model?.split(" ")[0] ?? ""),
+    vehicleModel: service.vehicleModel ?? (service.brand ? "" : service.model?.split(" ").slice(1).join(" ") ?? ""),
+    vehiclePhotos: { ...emptyVehiclePhotos(), ...service.vehiclePhotos },
+    inspectionType: service.inspectionType ?? "simples",
+    detailedPrices: pricesFromService(service),
     price: formatEditableDecimal(service.totalAmount),
     compensationType,
     compensationValue: formatEditableDecimal(
@@ -90,6 +79,10 @@ export default function ServicoDetail() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [technicians, setTechnicians] = useState<UserSelectionItem[]>([]);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
+  const [partsState, setPartsState] = useState<Record<string, PartInspection>>({});
+  const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
+  const [editingPart, setEditingPart] = useState<PartInspection | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
   const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
@@ -106,6 +99,7 @@ export default function ServicoDetail() {
         if (cancelled) return;
         setService(data);
         setForm(formFromService(data));
+        setPartsState(normalizeServiceRepairs(data.vehicleRepairs));
         setTechnicians(techs);
         setWorkshops(shops);
         markSaved();
@@ -119,7 +113,6 @@ export default function ServicoDetail() {
     return () => { cancelled = true; };
   }, [id, markSaved]);
 
-  const partsState = useMemo(() => normalizeServiceRepairs(service?.vehicleRepairs ?? []), [service?.vehicleRepairs]);
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
     setForm((current) => current ? { ...current, [field]: value } : current);
@@ -129,12 +122,16 @@ export default function ServicoDetail() {
   async function save() {
     if (!form) return;
     const next: Record<string, string> = {};
-    const price = parseDecimalInput(form.price);
-    const compensation = parseDecimalInput(form.compensationValue);
+    const detailError = validateDetails(form, partsState);
+    if (detailError) { toast.error(detailError); return; }
+    const car = form.detailedPrices.oficina_carro;
+    const tech = form.detailedPrices.tecnico_carro;
+    const price = car.tipo === "valor" ? parseAmount(car.valor) : 0;
+    const compensation = parseAmount(tech.valor);
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero.";
-    if (form.compensationType !== "none" && (!Number.isFinite(compensation) || compensation < 0)) next.compensationValue = "Informe um valor válido.";
-    if (form.compensationType === "porcentagem" && compensation > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
+    if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
+    if (tech.tipo === "porcentagem" && compensation > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -146,14 +143,16 @@ export default function ServicoDetail() {
         status: form.status,
         placa: form.plate.trim() || null,
         chassi: form.chassis.trim() || null,
-        marca_modelo: form.model.trim() || null,
-        valor_total: price,
-        remuneracao_tipo: form.compensationType === "none" ? null : form.compensationType,
-        remuneracao_tecnico: form.compensationType === "none" ? null : compensation,
+        marca_modelo: `${form.brand} ${form.vehicleModel}`.trim() || null,
+        ...(car.tipo === "valor" ? { valor_total: price } : {}),
+        remuneracao_tipo: tech.tipo,
+        remuneracao_tecnico: compensation,
         observacoes: form.notes.trim() || null,
       });
-      setService(updated);
-      setForm(formFromService(updated));
+      const completed = await serviceService.saveDetails(updated.id, buildServiceDetailsFormData(form, partsState));
+      setService(completed);
+      setForm(formFromService(completed));
+      setPartsState(normalizeServiceRepairs(completed.vehicleRepairs));
       markSaved();
       toast.success("Serviço atualizado.");
     } catch (error) {
@@ -161,6 +160,23 @@ export default function ServicoDetail() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function changePart(id: string, next: PartInspection) {
+    setPartsState(prev => ({ ...prev, [id]: next }));
+    markDirty();
+  }
+  async function adminAction(type: "accept" | "refuse") {
+    if (!service || !form || !confirmDiscard()) return;
+    if (type === "accept" && !form.technicianId) {toast.warning("Selecione o técnico e salve antes do aceite.");return;}
+    if (type === "accept" && String(service.technicianId ?? "") !== form.technicianId) {toast.warning("Salve a seleção do técnico antes de aceitar.");return;}
+    setActionBusy(true);
+    try {
+      const updated = type === "accept" ? await serviceService.accept(service.id, Number(form.technicianId)) : await serviceService.refuse(service.id);
+      const fresh = await serviceService.show(updated.id);
+      setService(fresh); setForm(formFromService(fresh)); setPartsState(normalizeServiceRepairs(fresh.vehicleRepairs));
+      markSaved();toast.success(type === "accept" ? "Aceite registrado." : "Técnico liberado e solicitação reaberta.");
+    } catch (e) {toast.error(getApiErrorMessage(e));} finally {setActionBusy(false);}
   }
 
   if (loading) return <AppLayout title="Serviço"><div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div></AppLayout>;
@@ -176,7 +192,12 @@ export default function ServicoDetail() {
         </div>
       </div>
 
-      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors} />
+      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
+        onPartSelect={partId => {setSelectedPartId(partId);setEditingPart({...partsState[partId],photos:[...partsState[partId].photos]});}}
+        onPartChange={changePart} onAccept={() => void adminAction("accept")} onRefuse={() => void adminAction("refuse")}
+        canAccept={Boolean(service.canAdminAccept)} canRefuse={Boolean(service.canAdminRefuse)} actionBusy={actionBusy}/>
+      <ServicePartDialog partId={selectedPartId} value={editingPart} onClose={() => {setSelectedPartId(null);setEditingPart(null);}}
+        onSave={part => {if(selectedPartId)changePart(selectedPartId,part);setSelectedPartId(null);setEditingPart(null);}}/>
 
       {service.inspections && service.inspections.length > 0 && (
         <section className="bg-card border border-border rounded-2xl p-6 mt-4">

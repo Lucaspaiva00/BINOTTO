@@ -489,21 +489,28 @@ class OficinaServicoController extends Controller
     private function normalizeReparos(array $reparos, array $reparosAtuais = []): array
     {
         $reparosIndexados = collect($reparosAtuais)->keyBy('peca')->toArray();
-        return array_map(function ($reparo) use ($reparosIndexados) {
+        $updated = array_map(function ($reparo) use ($reparosIndexados) {
             $peca = $reparo['peca'] ?? null;
             $atual = $reparosIndexados[$peca] ?? [];
-            return [
+            // O APP antigo envia apenas os campos legados: nunca descartar as três
+            // novas faixas de amassados, fotos ou outros dados salvos no painel.
+            return array_merge($atual, [
                 'peca' => $peca,
-                'tipoReparo' => $reparo['tipoReparo'] ?? 'SEM_DANO',
-                'quantidadeAmassados' => $reparo['quantidadeAmassados'] ?? 0,
-                'quantidadeImpactosMaior25' => $reparo['quantidadeImpactosMaior25'] ?? 0,
-                'quantidadeImpactosMenor25' => $reparo['quantidadeImpactosMenor25'] ?? 0,
-                'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? null,
-                'coeficiente' => $reparo['coeficiente'] ?? 0,
-                'observacoes' => $reparo['observacoes'] ?? '',
+                'tipoReparo' => $reparo['tipoReparo'] ?? $atual['tipoReparo'] ?? 'SEM_DANO',
+                'quantidadeAmassados' => $reparo['quantidadeAmassados'] ?? $atual['quantidadeAmassados'] ?? 0,
+                'quantidadeImpactosMaior25' => $reparo['quantidadeImpactosMaior25'] ?? $atual['quantidadeImpactosMaior25'] ?? 0,
+                'quantidadeImpactosMenor25' => $reparo['quantidadeImpactosMenor25'] ?? $atual['quantidadeImpactosMenor25'] ?? 0,
+                'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? $atual['tamanhoAmassado'] ?? null,
+                'coeficiente' => $reparo['coeficiente'] ?? $atual['coeficiente'] ?? 0,
+                'observacoes' => $reparo['observacoes'] ?? $atual['observacoes'] ?? '',
                 'fotos' => $atual['fotos'] ?? [],
-            ];
+            ]);
         }, $reparos);
+        $submittedIds = array_column($reparos, 'peca');
+        foreach ($reparosAtuais as $old) {
+            if (! in_array($old['peca'] ?? null, $submittedIds, true)) $updated[] = $old;
+        }
+        return $updated;
     }
 
 
@@ -655,17 +662,7 @@ class OficinaServicoController extends Controller
                     'descricao' => 'Oficina cancelou o serviço',
                 ]);
 
-                $periciaAberta = Pericia::where('servico_id', $servico->id)
-                    ->where('status', PericiaStatusEnum::ABERTA)
-                    ->lockForUpdate()
-                    ->latest()
-                    ->first();
-
-                if ($periciaAberta) {
-                    $periciaAberta->update([
-                        'servico_id' => null,
-                    ]);
-                }
+                // A perícia permanece vinculada e recebe o status 'cancelada' via observer.
 
                 return $servico;
             });

@@ -48,7 +48,7 @@ class PericiaController extends Controller
                 'tecnico:id,nome_completo',
             ])
             ->when($request->input('status'), function ($query, $status) {
-                if (in_array($status, ['aberta', 'em_execucao', 'concluida'], true)) {
+                if (in_array($status, ['aberta', 'em_execucao', 'concluida', 'cancelada'], true)) {
                     $query->where('status', $status);
                 }
             })
