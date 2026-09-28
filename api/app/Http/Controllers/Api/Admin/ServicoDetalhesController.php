@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\Admin\ServicoResource;
 use App\Models\Servico;
 use App\Models\ServicoLog;
+use App\Support\ServicoPrecos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -59,6 +60,7 @@ class ServicoDetalhesController extends Controller
             'precos.*.tipo' => ['required', Rule::in(['valor', 'porcentagem'])],
             'precos.*.valor' => ['required', 'numeric', 'min:0', 'max:99999999'],
             'precos.*.visivel_app' => ['required', 'boolean'],
+            'precos.*.habilitado_preenchimento_app' => ['sometimes', 'boolean'],
             'fotos_veiculo' => ['sometimes', 'array'],
             'fotos_veiculo.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'fotos_reparos' => ['sometimes', 'array'],
@@ -78,6 +80,12 @@ class ServicoDetalhesController extends Controller
                 throw ValidationException::withMessages(['precos_detalhados' => ["A porcentagem de {$key} deve ser de 0 a 100%."]]);
             }
         }
+        $precos = ServicoPrecos::normalizar($precos);
+        try {
+            $valoresCalculados = ServicoPrecos::calcular($precos);
+        } catch (\InvalidArgumentException $e) {
+            throw ValidationException::withMessages(['precos_detalhados' => [$e->getMessage()]]);
+        }
         if (array_diff(array_keys($fotosExistentes), self::FOTOS_VEICULO)) {
             throw ValidationException::withMessages(['fotos_veiculo_existentes' => ['Tipo de fotografia desconhecido.']]);
         }
@@ -94,7 +102,7 @@ class ServicoDetalhesController extends Controller
         $pathsCriados = [];
         $pathsRemovidos = [];
         try {
-            DB::transaction(function () use ($request, $servico, $reparos, $precos, $fotosExistentes, &$pathsCriados, &$pathsRemovidos) {
+            DB::transaction(function () use ($request, $servico, $reparos, $precos, $fotosExistentes, $valoresCalculados, &$pathsCriados, &$pathsRemovidos) {
                 $veiculo = $servico->primeiroVeiculo ?: $servico->veiculos()->create(['preco_total' => 0, 'reparos_execucao' => []]);
                 $anteriores = $veiculo->fotos_veiculo ?? [];
                 $fotos = [];
@@ -161,12 +169,19 @@ class ServicoDetalhesController extends Controller
                     'fotos_veiculo' => $fotos,
                     'reparos_execucao' => $saved,
                 ]);
+                if ($valoresCalculados['carro']['oficina'] !== null) {
+                    $veiculo->update(['preco_total' => $valoresCalculados['carro']['oficina']]);
+                }
                 $servico->update([
                     'pericia_completa' => $request->input('tipo_pericia') === 'completa',
                     'observacoes' => $request->input('observacoes'),
                     'precos_detalhados' => $precos,
-                    // Espelha o preço fixo para clientes legados; não converte % sem base aprovada.
-                    ...(($precos['oficina_carro']['tipo'] ?? null) === 'valor' ? ['valor_total' => $precos['oficina_carro']['valor']] : []),
+                    // Espelha os valores calculados nas colunas legadas, sem confundir a base
+                    // da oficina com o percentual do técnico. A desmontagem segue separada.
+                    'valor_total' => $valoresCalculados['carro']['oficina'],
+                    'preco_tecnico' => $valoresCalculados['carro']['tecnico'],
+                    'percentual_tecnico' => $precos['tecnico_carro']['tipo'] === 'porcentagem'
+                        ? $precos['tecnico_carro']['valor'] : null,
                 ]);
                 ServicoLog::create([
                     'servico_id' => $servico->id,

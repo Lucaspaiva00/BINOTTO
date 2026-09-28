@@ -329,22 +329,32 @@
     </div>
     @endif
 
+    @php
+        // Respeita também as permissões nos PDFs acessíveis pelo APP.
+        $periciaPublica = $pericia->toArray();
+        $servicoPublico = $pericia->servico?->toArray() ?? [];
+        $podeValorPericia = ($periciaPublica['valor_pericia'] ?? null) !== null;
+        $podeValorServico = ($servicoPublico['valor_total'] ?? null) !== null;
+    @endphp
+    @if($podeValorPericia || $podeValorServico)
     <div class="section">
         <div class="section-title">{{ __('pdf.financial') }}</div>
         <table class="info-table">
+            @if($podeValorPericia)
             <tr>
                 <td class="label">{{ __('pdf.inspection_value') }}</td>
-                <td>{{ $pericia->moeda }} {{ number_format($pericia->valor_pericia, 2, ',', '.') }}</td>
+                <td>{{ $pericia->moeda }} {{ number_format((float) $periciaPublica['valor_pericia'], 2, ',', '.') }}</td>
             </tr>
+            @endif
+            @if($podeValorServico)
             <tr>
                 <td class="label">{{ __('pdf.repair_value') }}</td>
-                <td>
-                    {{ $pericia->moeda }}
-                    {{ number_format($pericia->servico->primeiro_veiculo->preco_total ?? $pericia->servico->valor_total ?? 0, 2, ',', '.') }}
-                </td>
+                <td>{{ $pericia->moeda }} {{ number_format((float) $servicoPublico['valor_total'], 2, ',', '.') }}</td>
             </tr>
+            @endif
         </table>
     </div>
+    @endif
 
     <div class="footer">{{ __('pdf.footer') }}</div>
 </body>

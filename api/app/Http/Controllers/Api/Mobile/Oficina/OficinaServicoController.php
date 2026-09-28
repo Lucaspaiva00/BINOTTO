@@ -212,8 +212,10 @@ class OficinaServicoController extends Controller
                 $response['fotos_pericia_completa'] = $pericia->fotos_pericia_completa;
                 $response['reparos_necessarios'] = $pericia->reparos_necessarios;
                 $response['fotos_reparos'] = $this->extrairFotosReparos($pericia->reparos_necessarios);
-                $response['preco_sugerido'] = $pericia->preco_sugerido;
-                $response['valor_pericia'] = $pericia->valor_pericia;
+                // Não contornar a ocultação da API extraindo atributos brutos.
+                $inspectionSafe = $pericia->toArray();
+                $response['preco_sugerido'] = $inspectionSafe['preco_sugerido'] ?? null;
+                $response['valor_pericia'] = $inspectionSafe['valor_pericia'] ?? null;
             }
 
             return response()->json([
@@ -727,13 +729,18 @@ class OficinaServicoController extends Controller
     public function generatePdf(int $id)
     {
         try {
-            $servico = Servico::with(['tecnico', 'oficina', 'primeiroVeiculo'])->find($id);
+            $servico = Servico::with(['tecnico', 'oficina', 'primeiroVeiculo'])
+                ->where('oficina_id', auth()->user()?->oficina?->id)
+                ->find($id);
 
             if (!$servico) {
                 return response()->json(['success' => false, 'message' => __('main.service_not_found')], 404);
             }
 
-            $pdf = Pdf::loadView('pdf.executado', ['servico' => $servico]);
+            $config = $servico->precos_detalhados;
+            $allowed = ! is_array($config)
+                || (\App\Support\ServicoPrecos::paraPerfil($config, 'OFICINA')['oficina_carro'] ?? null) !== null;
+            $pdf = Pdf::loadView('pdf.executado', ['servico' => $servico, 'podeVerValor' => $allowed]);
             return $pdf->download("relatorio-executado-{$servico->id}.pdf");
         } catch (Exception $e) {
             Log::error('Erro ao gerar PDF', ['error' => $e->getMessage()]);

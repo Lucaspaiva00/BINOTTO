@@ -25,7 +25,7 @@ import {
   type ServiceAdminFormState,
 } from "./ServiceAdminForm";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { emptyVehiclePhotos, pricesFromService, buildServiceDetailsFormData, normalizeServiceRepairs, validateDetails, parseAmount } from "./serviceDetails";
+import { emptyVehiclePhotos, pricesFromService, buildServiceDetailsFormData, normalizeServiceRepairs, validateDetails, parseAmount, resolveDetailedPrices } from "./serviceDetails";
 
 function formatLogDateTime(iso: string) {
   const d = new Date(iso);
@@ -126,12 +126,14 @@ export default function ServicoDetail() {
     if (detailError) { toast.error(detailError); return; }
     const car = form.detailedPrices.oficina_carro;
     const tech = form.detailedPrices.tecnico_carro;
-    const price = car.tipo === "valor" ? parseAmount(car.valor) : 0;
-    const compensation = parseAmount(tech.valor);
+    const totals = resolveDetailedPrices(form.detailedPrices);
+    if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
+    const price = totals.carro.oficina;
+    const compensation = totals.carro.tecnico;
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero.";
     if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
-    if (tech.tipo === "porcentagem" && compensation > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
+    if (tech.tipo === "porcentagem" && parseAmount(tech.valor) > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -144,9 +146,9 @@ export default function ServicoDetail() {
         placa: form.plate.trim() || null,
         chassi: form.chassis.trim() || null,
         marca_modelo: `${form.brand} ${form.vehicleModel}`.trim() || null,
-        ...(car.tipo === "valor" ? { valor_total: price } : {}),
+        valor_total: price,
         remuneracao_tipo: tech.tipo,
-        remuneracao_tecnico: compensation,
+        remuneracao_tecnico: tech.tipo === "porcentagem" ? parseAmount(tech.valor) : compensation,
         observacoes: form.notes.trim() || null,
       });
       const completed = await serviceService.saveDetails(updated.id, buildServiceDetailsFormData(form, partsState));

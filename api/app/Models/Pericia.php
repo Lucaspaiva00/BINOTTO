@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\PericiaStatusEnum;
+use App\Support\ServicoPrecos;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -91,21 +92,48 @@ class Pericia extends Model
         $data = parent::toArray();
         $user = auth()->user();
         $visibility = $this->visibilidade_valores;
-        if (($user?->perfil ?? null) !== 'TECNICO' || ! is_array($visibility)) {
-            return $data;
+        $perfil = $user?->perfil;
+        if ($perfil === 'TECNICO' && is_array($visibility)) {
+            if (! ($visibility['carro'] ?? false)) $data['valor_pericia'] = null;
+            if (! ($visibility['desmontagem'] ?? false)) $data['valor_desmontagem'] = null;
+            if (! ($visibility['total'] ?? false)) $data['valor_total'] = null;
+            if (! ($visibility['sugerido'] ?? false)) {
+                $data['preco_sugerido'] = null;
+                $data['valor_sugerido_tecnico'] = null;
+            }
         }
-        if (! ($visibility['carro'] ?? false)) {
-            $data['valor_pericia'] = null;
-        }
-        if (! ($visibility['desmontagem'] ?? false)) {
-            $data['valor_desmontagem'] = null;
-        }
-        if (! ($visibility['total'] ?? false)) {
-            $data['valor_total'] = null;
-        }
-        if (! ($visibility['sugerido'] ?? false)) {
-            $data['preco_sugerido'] = null;
-            $data['valor_sugerido_tecnico'] = null;
+        // A perícia vinculada também é acessível pelo endpoint próprio do APP;
+        // aplica a mesma ocultação aprovada no serviço, sem afetar perícias legadas.
+        if ($this->servico_id && in_array($perfil, ServicoPrecos::PERFIS, true)) {
+            $linked = $this->relationLoaded('servico')
+                ? $this->getRelation('servico')
+                : $this->servico()->first(['id', 'precos_detalhados']);
+            if (is_array($linked?->precos_detalhados)) {
+                $visible = ServicoPrecos::paraPerfil($linked->precos_detalhados, $perfil);
+                $own = $perfil === 'TECNICO' ? 'tecnico' : 'oficina';
+                if (($visible['oficina_carro'] ?? null) === null && $perfil === 'TECNICO') {
+                    $data['valor_pericia'] = null;
+                    $data['valor_total'] = null;
+                }
+                if (($visible['oficina_desmontagem'] ?? null) === null && $perfil === 'TECNICO') {
+                    $data['valor_desmontagem'] = null;
+                }
+                if (($visible['tecnico_carro'] ?? null) === null && $perfil === 'OFICINA') {
+                    $data['valor_sugerido_tecnico'] = null;
+                    $data['preco_sugerido'] = null;
+                }
+                if ($perfil === 'TECNICO' && ($visible['tecnico_carro'] ?? null) === null) {
+                    $data['preco_sugerido'] = null;
+                    $data['valor_sugerido_tecnico'] = null;
+                }
+                if ($perfil === 'OFICINA' && ($visible['oficina_carro'] ?? null) === null) {
+                    $data['valor_pericia'] = null;
+                    $data['valor_total'] = null;
+                }
+                if ($perfil === 'OFICINA' && ($visible['oficina_desmontagem'] ?? null) === null) {
+                    $data['valor_desmontagem'] = null;
+                }
+            }
         }
         return $data;
     }

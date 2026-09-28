@@ -18,7 +18,7 @@ import type { PartInspection, RepairType } from "@/types/carParts";
 import type { ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
-  defaultPrices, emptyVehiclePhotos, PRICE_KEYS, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS,
+  defaultPrices, emptyVehiclePhotos, PRICE_KEYS, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS, resolveDetailedPrices,
   type DetailedPrices, type DetailedPriceKey, type VehiclePhotoKey, type VehiclePhotoMap,
 } from "./serviceDetails";
 
@@ -139,6 +139,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   function updatePrice(key: DetailedPriceKey, update: Partial<DetailedPrices[DetailedPriceKey]>) {
     onChange("detailedPrices", { ...value.detailedPrices, [key]: { ...value.detailedPrices[key], ...update } });
   }
+  const totals = resolveDetailedPrices(value.detailedPrices);
+  const formatted = (amount: number | undefined) => amount == null ? "—" : new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   return <div className="space-y-5">
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante</h2>
@@ -193,15 +195,35 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
 
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CircleDollarSign className="h-5 w-5"/>Preço</h2>
-      <p className="text-xs text-muted-foreground">Valores e percentuais são configurações. Percentuais não geram faturamento automático sem base financeira aprovada.</p>
+      <p className="text-xs text-muted-foreground">Carro e desmontagem são calculados separadamente. Oficina fixa + percentual do técnico calcula o técnico; técnico fixo + percentual da oficina calcula a oficina. Os resultados são informativos e não geram faturamento automático.</p>
       <div className="grid gap-4 md:grid-cols-2">
-        {PRICE_KEYS.map(({ key, label }) => <div key={key} className="space-y-2 rounded-xl border p-3">
-          <Label>{label}</Label>
-          <Select value={value.detailedPrices[key].tipo} onValueChange={type => updatePrice(key, { tipo: type as "valor" | "porcentagem" })}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="valor">Valor fixo</SelectItem><SelectItem value="porcentagem">Porcentagem</SelectItem></SelectContent></Select>
-          <Input inputMode="decimal" value={value.detailedPrices[key].valor} onChange={e => updatePrice(key, { valor: e.target.value.replace(/[^0-9,.]/g, "") })} placeholder={value.detailedPrices[key].tipo === "valor" ? "0,00" : "0%"} />
-          <div className="flex items-center justify-between gap-2"><Label className="text-xs">Visível no APP do técnico</Label><Switch checked={value.detailedPrices[key].visivel_app} onCheckedChange={checked => updatePrice(key, { visivel_app: checked })} /></div>
-        </div>)}
+        {PRICE_KEYS.map(({ key, label }) => {
+          const price = value.detailedPrices[key];
+          const ownProfile = key.startsWith("oficina_") ? "oficina" : "técnico";
+          const oppositeProfile = ownProfile === "oficina" ? "técnico" : "oficina";
+          return <div key={key} className="space-y-3 rounded-xl border p-3">
+            <Label className="font-semibold">{label}</Label>
+            <Select value={price.tipo} onValueChange={type => updatePrice(key, { tipo: type as "valor" | "porcentagem" })}>
+              <SelectTrigger aria-label={`Tipo de ${label}`}><SelectValue/></SelectTrigger>
+              <SelectContent><SelectItem value="valor">Valor fixo</SelectItem><SelectItem value="porcentagem">Porcentagem</SelectItem></SelectContent>
+            </Select>
+            <Input aria-label={`Valor de ${label}`} inputMode="decimal" value={price.valor} onChange={e => updatePrice(key, { valor: e.target.value.replace(/[^0-9,.]/g, "") })} placeholder={price.tipo === "valor" ? "0,00" : "0%"} />
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs" htmlFor={`ocultar-${key}`}>Ocultar preço no APP da {oppositeProfile}</Label>
+              <Switch id={`ocultar-${key}`} checked={!price.visivel_app} onCheckedChange={checked => updatePrice(key, { visivel_app: !checked })} />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Label className="text-xs" htmlFor={`preencher-${key}`}>Visualizar e preencher no APP da {ownProfile}</Label>
+              <Switch id={`preencher-${key}`} checked={price.habilitado_preenchimento_app} onCheckedChange={checked => updatePrice(key, { habilitado_preenchimento_app: checked })} />
+            </div>
+          </div>;
+        })}
       </div>
+      {totals ? <div className="rounded-lg bg-muted px-4 py-3 text-sm" aria-live="polite">
+        <p className="font-semibold mb-2">Valores calculados (moeda do serviço)</p>
+        <p>Carro — oficina: {formatted(totals.carro.oficina)} · técnico: {formatted(totals.carro.tecnico)}</p>
+        <p>Desmontagem — oficina: {formatted(totals.desmontagem.oficina)} · técnico: {formatted(totals.desmontagem.tecnico)}</p>
+      </div> : <p role="alert" className="text-sm text-destructive">Cada item precisa de pelo menos um valor fixo. O percentual da oficina usado no cálculo inverso deve ser maior que zero.</p>}
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
   </div>;

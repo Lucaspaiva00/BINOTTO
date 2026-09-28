@@ -40,7 +40,9 @@ Em `servicos.precos_detalhados`:
 }
 ```
 
-`tipo` aceita `valor` ou `porcentagem` (0–100%). Os percentuais são **configuração**, sem lançamento financeiro automático: falta a confirmação contratual da base de cálculo. Para o usuário `TECNICO`, valores com `visivel_app=false` são enviados como `null`; os valores antigos de carro/técnico também são filtrados. O APP deve **ocultar controles e valores nulos**, não exibir `0,00` no lugar. A oficina mantém acesso aos seus próprios valores conforme autorização atual.
+**ATUALIZADO em 28/09 após confirmação do Juliano:** ver `docs/BINOTTO_FINANCEIRO_APP_WEB_2026-09-28.md`. Agora existe cálculo de cotação direto e inverso, sem gerar faturamento automático. O botão `OCULTAR PREÇO` afeta o perfil oposto e `habilitado_preenchimento_app` controla separadamente a presença e gravação do campo no perfil próprio. As regras financeiras mais recentes prevalecem sobre o exemplo legado acima.
+
+A configuração antiga era: `tipo` aceita `valor` ou `porcentagem` (0–100%). Os percentuais são **configuração**, sem lançamento financeiro automático: falta a confirmação contratual da base de cálculo. Para o usuário `TECNICO`, valores com `visivel_app=false` são enviados como `null`; os valores antigos de carro/técnico também são filtrados. O APP deve **ocultar controles e valores nulos**, não exibir `0,00` no lugar. A oficina mantém acesso aos seus próprios valores conforme autorização atual.
 
 ### Endpoints administrativos novos
 

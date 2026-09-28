@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Mobile\Oficina\OficinaTecnicoBloqueadoController;
 use App\Http\Controllers\Api\Mobile\Oficina\OficinaTecnicoPreferidoController;
 use App\Http\Controllers\Api\Mobile\OficinaController;
 use App\Http\Controllers\Api\Mobile\PasswordController;
+use App\Http\Controllers\Api\Mobile\ServicoPrecoController;
 use App\Http\Controllers\Api\Mobile\PericiaController;
 use App\Http\Controllers\Api\Mobile\SuporteController;
 use App\Http\Controllers\Api\Mobile\Tecnico\TecnicoDocumentoController;
@@ -147,6 +148,8 @@ Route::prefix('mobile')->middleware(['locale'])->group(function () {
                 Route::get('/agenda', [OficinaServicoController::class, 'agendaCalendar']);
                 Route::get('/pendentes', [OficinaServicoController::class, 'listPendentes']);
                 Route::get('/historico', [OficinaServicoController::class, 'listHistorico']);
+                Route::get('/{id}/precos', [ServicoPrecoController::class, 'listarOficina']);
+                Route::patch('/{id}/precos', [ServicoPrecoController::class, 'atualizarOficina']);
                 Route::get('/', [OficinaServicoController::class, 'index']);
                 Route::post('/', [OficinaServicoController::class, 'create']);
                 Route::get('/{id}', [OficinaServicoController::class, 'show']);
@@ -199,6 +202,8 @@ Route::prefix('mobile')->middleware(['locale'])->group(function () {
             Route::prefix('servicos')->group(function () {
                 Route::get('/agenda', [TecnicoServicoController::class, 'agendaCalendar']);
                 Route::get('/concluidos', [TecnicoServicoController::class, 'listConcluidos']);
+                Route::get('/{id}/precos', [ServicoPrecoController::class, 'listarTecnico']);
+                Route::patch('/{id}/precos', [ServicoPrecoController::class, 'atualizarTecnico']);
                 Route::get('/', [TecnicoServicoController::class, 'index']);
                 Route::patch('/{id}/aceitar', [TecnicoServicoController::class, 'accept']);
                 Route::patch('/{id}/cancelar-aceitacao', [TecnicoServicoController::class, 'cancelAccept']);

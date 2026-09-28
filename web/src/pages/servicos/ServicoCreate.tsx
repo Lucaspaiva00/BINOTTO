@@ -11,7 +11,7 @@ import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { createInitialPartsState } from "@/utils/normalizeReparos";
 import type { PartInspection } from "@/types/carParts";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { buildServiceDetailsFormData, validateDetails, parseAmount } from "./serviceDetails";
+import { buildServiceDetailsFormData, validateDetails, parseAmount, resolveDetailedPrices } from "./serviceDetails";
 import type { UserSelectionItem } from "@/types/user";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 
@@ -49,12 +49,14 @@ export default function ServicoCreate() {
     if (detailsError) { toast.error(detailsError); return; }
     const carPrice = form.detailedPrices.oficina_carro;
     const techPrice = form.detailedPrices.tecnico_carro;
-    const price = carPrice.tipo === "valor" ? parseAmount(carPrice.valor) : 0;
-    const compensation = parseAmount(techPrice.valor);
+    const totals = resolveDetailedPrices(form.detailedPrices);
+    if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
+    const price = totals.carro.oficina;
+    const compensation = totals.carro.tecnico;
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero se necessário.";
     if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
-    if (techPrice.tipo === "porcentagem" && compensation > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
+    if (techPrice.tipo === "porcentagem" && parseAmount(techPrice.valor) > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -70,7 +72,7 @@ export default function ServicoCreate() {
         marca_modelo: `${form.brand} ${form.vehicleModel}`.trim() || null,
         valor_total: price,
         remuneracao_tipo: techPrice.tipo,
-        remuneracao_tecnico: compensation,
+        remuneracao_tecnico: techPrice.tipo === "porcentagem" ? parseAmount(techPrice.valor) : compensation,
         observacoes: form.notes.trim() || null,
       });
       createdId = created.id;

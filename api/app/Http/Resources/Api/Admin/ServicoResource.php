@@ -5,6 +5,7 @@ namespace App\Http\Resources\Api\Admin;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
+use App\Support\ServicoPrecos;
 
 class ServicoResource extends JsonResource
 {
@@ -29,7 +30,8 @@ class ServicoResource extends JsonResource
             'vehicleModel' => $this->primeiroVeiculo?->modelo,
             'vehiclePhotos' => collect($this->primeiroVeiculo?->fotos_veiculo ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all(),
             'inspectionType' => $this->pericia_completa ? 'completa' : 'simples',
-            'detailedPrices' => $this->precos_detalhados,
+            'detailedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::normalizar($this->precos_detalhados),
+            'calculatedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::calcularSeguro($this->precos_detalhados),
             'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'canAdminRefuse' => in_array($this->status?->value, ['aceito', 'em_breve', 'aguardando_aprovacao'], true),
             'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {

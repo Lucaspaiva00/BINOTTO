@@ -23,21 +23,21 @@ export const PRICE_KEYS = [
   { key: "tecnico_carro", label: "Técnico — carro" },
 ] as const;
 export type DetailedPriceKey = (typeof PRICE_KEYS)[number]["key"];
-export type DetailedPrice = { tipo: "valor" | "porcentagem"; valor: string; visivel_app: boolean };
+export type DetailedPrice = { tipo: "valor" | "porcentagem"; valor: string; visivel_app: boolean; habilitado_preenchimento_app: boolean };
 export type DetailedPrices = Record<DetailedPriceKey, DetailedPrice>;
 export function defaultPrices(amount = 0, techAmount: number | null = null, techPercentage: number | null = null): DetailedPrices {
   return {
-    oficina_desmontagem: { tipo: "valor", valor: "0", visivel_app: false },
-    oficina_carro: { tipo: "valor", valor: String(amount), visivel_app: false },
-    tecnico_desmontagem: { tipo: "valor", valor: "0", visivel_app: false },
-    tecnico_carro: { tipo: techPercentage !== null ? "porcentagem" : "valor", valor: String(techPercentage ?? techAmount ?? 0), visivel_app: false },
+    oficina_desmontagem: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
+    oficina_carro: { tipo: "valor", valor: String(amount), visivel_app: false, habilitado_preenchimento_app: false },
+    tecnico_desmontagem: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
+    tecnico_carro: { tipo: techPercentage !== null ? "porcentagem" : "valor", valor: String(techPercentage ?? techAmount ?? 0), visivel_app: false, habilitado_preenchimento_app: false },
   };
 }
 export function pricesFromService(service: Service): DetailedPrices {
   const defaults = defaultPrices(service.totalAmount, service.technicianAmount, service.technicianPercentage);
   for (const { key } of PRICE_KEYS) {
     const supplied = service.detailedPrices?.[key];
-    if (supplied) defaults[key] = { tipo: supplied.tipo, valor: supplied.valor == null ? "0" : String(supplied.valor), visivel_app: supplied.visivel_app };
+    if (supplied) defaults[key] = { tipo: supplied.tipo, valor: supplied.valor == null ? "0" : String(supplied.valor), visivel_app: supplied.visivel_app ?? false, habilitado_preenchimento_app: supplied.habilitado_preenchimento_app ?? false };
   }
   return defaults;
 }
@@ -119,12 +119,35 @@ export function parseAmount(input: string): number {
   const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
   return Number(normalized);
 }
+/** Só apresenta valores derivados, sem modificar os quatro preços originais. */
+export function resolveDetailedPrices(prices: DetailedPrices): Record<"carro" | "desmontagem", { oficina: number; tecnico: number }> | null {
+  const out = {} as Record<"carro" | "desmontagem", { oficina: number; tecnico: number }>;
+  for (const item of ["carro", "desmontagem"] as const) {
+    const office = prices[`oficina_${item}`];
+    const tech = prices[`tecnico_${item}`];
+    const a = parseAmount(office.valor);
+    const b = parseAmount(tech.valor);
+    if (![a, b].every(v => Number.isFinite(v) && v >= 0)) return null;
+    if ((office.tipo === "porcentagem" && (a <= 0 || a > 100)) || (tech.tipo === "porcentagem" && b > 100)) return null;
+    if (office.tipo === "porcentagem" && tech.tipo === "porcentagem") return null;
+    const rounded = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+    out[item] = office.tipo === "valor" && tech.tipo === "porcentagem"
+      ? { oficina: rounded(a), tecnico: rounded(a * b / 100) }
+      : office.tipo === "porcentagem" && tech.tipo === "valor"
+        ? { oficina: rounded(b * 100 / a), tecnico: rounded(b) }
+        : { oficina: rounded(a), tecnico: rounded(b) };
+    if (out[item].oficina > 99999999 || out[item].tecnico > 99999999) return null;
+  }
+  return out;
+}
+
 export function validateDetails(form: { detailedPrices: DetailedPrices; vehiclePhotos: VehiclePhotoMap }, parts: Record<string, PartInspection>): string | null {
   for (const { key, label } of PRICE_KEYS) {
     const price = form.detailedPrices[key];
     const value = parseAmount(price.valor);
     if (!Number.isFinite(value) || value < 0 || (price.tipo === "porcentagem" && value > 100)) return `Revise ${label}: valor inválido.`;
   }
+  if (resolveDetailedPrices(form.detailedPrices) === null) return "Defina uma base fixa e apenas um percentual por item. No cálculo inverso, o percentual da oficina deve ser maior que zero.";
   for (const photo of Object.values(form.vehiclePhotos)) {
     if (photo instanceof File && photo.size > 8 * 1024 * 1024) return "Cada fotografia deve ter até 8 MB.";
   }

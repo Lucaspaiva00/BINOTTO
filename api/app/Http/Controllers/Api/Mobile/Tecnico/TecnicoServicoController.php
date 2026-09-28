@@ -1195,13 +1195,18 @@ class TecnicoServicoController extends Controller
     public function generatePdf(int $id)
     {
         try {
-            $servico = Servico::with(['tecnico', 'oficina', 'primeiroVeiculo'])->find($id);
+            $servico = Servico::with(['tecnico', 'oficina', 'primeiroVeiculo'])
+                ->where('tecnico_id', auth()->user()?->tecnico?->id)
+                ->find($id);
 
             if (! $servico) {
                 return response()->json(['success' => false, 'message' => 'Serviço não encontrado'], 404);
             }
 
-            $pdf = Pdf::loadView('pdf.executado', ['servico' => $servico]);
+            $config = $servico->precos_detalhados;
+            $allowed = ! is_array($config)
+                || (\App\Support\ServicoPrecos::paraPerfil($config, 'TECNICO')['oficina_carro'] ?? null) !== null;
+            $pdf = Pdf::loadView('pdf.executado', ['servico' => $servico, 'podeVerValor' => $allowed]);
 
             return $pdf->download("relatorio-executado-{$servico->id}.pdf");
         } catch (Exception $e) {

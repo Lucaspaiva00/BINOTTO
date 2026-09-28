@@ -345,6 +345,7 @@
     </div>
     @endif
 
+    @if($podeVerValor ?? true)
     <div class="section">
         <div class="section-title">{{ __('pdf.financial') }}</div>
         <table class="info-table">
@@ -358,6 +359,8 @@
             </tr>
         </table>
     </div>
+
+    @endif
 
     <div class="footer">{{ __('pdf.auto_generated_report') }} - {{ now()->format('d/m/Y H:i') }}</div>
 </body>

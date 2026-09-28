@@ -61,7 +61,8 @@ export interface Service {
   vehicleModel?: string | null;
   vehiclePhotos?: Record<string, string>;
   inspectionType?: "simples" | "completa";
-  detailedPrices?: Record<string, {tipo: "valor" | "porcentagem"; valor: number | null; visivel_app: boolean}>;
+  detailedPrices?: Record<string, {tipo: "valor" | "porcentagem"; valor: number | null; visivel_app: boolean; habilitado_preenchimento_app?: boolean}>;
+  calculatedPrices?: Record<string, {oficina: number | null; tecnico: number | null}> | null;
   canAdminAccept?: boolean;
   canAdminRefuse?: boolean;
   vehicleRepairs: ServiceVehicleRepair[];

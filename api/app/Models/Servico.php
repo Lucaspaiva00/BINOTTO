@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PericiaStatusEnum;
 use App\Enums\ServicoStatusEnum;
+use App\Support\ServicoPrecos;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,30 +68,74 @@ class Servico extends Model
     {
         $data = parent::toArray();
         $user = auth()->user();
-        if (($user?->perfil ?? null) !== 'TECNICO' || ! is_array($this->precos_detalhados)) {
-            return $data;
+        $perfil = $user?->perfil;
+        if (! is_array($this->precos_detalhados) || ! in_array($perfil, ServicoPrecos::PERFIS, true)) {
+            return $data; // Serviços antigos continuam funcionando com o contrato legado.
         }
-        foreach ($data['precos_detalhados'] ?? [] as $key => $configuration) {
-            if (! ($configuration['visivel_app'] ?? false)) {
-                $data['precos_detalhados'][$key]['valor'] = null;
+
+        $visible = ServicoPrecos::paraPerfil($this->precos_detalhados, $perfil);
+        $data['precos_detalhados'] = $visible;
+        $data['precos_calculados'] = ServicoPrecos::calculadosParaPerfil($this->precos_detalhados, $perfil);
+
+        $own = $perfil === 'TECNICO' ? 'tecnico' : 'oficina';
+        $other = $perfil === 'TECNICO' ? 'oficina' : 'tecnico';
+        if (($visible["{$other}_carro"] ?? null) === null) {
+            if ($perfil === 'TECNICO') {
+                $data['valor_total'] = null;
+                foreach (['primeiro_veiculo', 'veiculos'] as $relation) {
+                    if (isset($data[$relation]) && is_array($data[$relation])) {
+                        if ($relation === 'primeiro_veiculo') {
+                            $data[$relation]['preco_total'] = null;
+                        } else {
+                            foreach ($data[$relation] as &$vehicle) {
+                                if (is_array($vehicle)) $vehicle['preco_total'] = null;
+                            }
+                            unset($vehicle);
+                        }
+                    }
+                }
+            } else {
+                $data['preco_tecnico'] = null;
+                $data['percentual_tecnico'] = null;
             }
         }
-        if (! ($this->precos_detalhados['oficina_carro']['visivel_app'] ?? false)) {
+
+        // Desabilitar o próprio campo também precisa valer nos aliases legados.
+        if ($perfil === 'TECNICO' && ($visible['tecnico_carro'] ?? null) === null) {
+            $data['preco_tecnico'] = null;
+            $data['percentual_tecnico'] = null;
+        }
+        if ($perfil === 'OFICINA' && ($visible['oficina_carro'] ?? null) === null) {
             $data['valor_total'] = null;
-            // Evita revelar o mesmo valor pelo veículo embutido nas respostas mobile.
             if (isset($data['primeiro_veiculo']) && is_array($data['primeiro_veiculo'])) {
                 $data['primeiro_veiculo']['preco_total'] = null;
             }
             if (isset($data['veiculos']) && is_array($data['veiculos'])) {
-                foreach ($data['veiculos'] as &$veiculo) {
-                    if (is_array($veiculo)) $veiculo['preco_total'] = null;
+                foreach ($data['veiculos'] as &$vehicle) {
+                    if (is_array($vehicle)) $vehicle['preco_total'] = null;
                 }
-                unset($veiculo);
+                unset($vehicle);
             }
         }
-        if (! ($this->precos_detalhados['tecnico_carro']['visivel_app'] ?? false)) {
-            $data['preco_tecnico'] = null;
-            $data['percentual_tecnico'] = null;
+
+        // Os detalhes financeiros da perícia vinculada não podem contornar
+        // a regra de ocultação do serviço nas respostas mobile.
+        foreach (['pericia', 'pericias', 'pericia_em_execucao', 'pericia_aberta_vinculada', 'ultima_pericia'] as $key) {
+            if (! isset($data[$key])) continue;
+            $isList = $key === 'pericias';
+            $items = $isList ? $data[$key] : [$data[$key]];
+            if (! is_array($items)) continue;
+            foreach ($items as &$inspection) {
+                if (! is_array($inspection)) continue;
+                if ($perfil === 'TECNICO' && ($visible['oficina_carro'] ?? null) === null) {
+                    foreach (['valor_pericia', 'valor_total', 'valor_desmontagem'] as $field) $inspection[$field] = null;
+                }
+                if ($perfil === 'OFICINA' && ($visible['tecnico_carro'] ?? null) === null) {
+                    foreach (['valor_sugerido_tecnico', 'preco_sugerido'] as $field) $inspection[$field] = null;
+                }
+            }
+            unset($inspection);
+            $data[$key] = $isList ? $items : ($items[0] ?? null);
         }
         return $data;
     }
