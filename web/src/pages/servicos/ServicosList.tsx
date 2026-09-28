@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Search, ClipboardList } from "lucide-react";
+import { Plus, Search, ClipboardList, X } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { serviceService } from "@/services/serviceService";
+import { userService } from "@/services/userService";
+import { formatDate } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { SERVICE_STATUS_CLASS, SERVICE_STATUS_LABEL } from "@/utils/serviceStatus";
 import { COMMON_COUNTRIES } from "@/constants/countries";
 import type { Service, ServiceStatus } from "@/types/service";
+import type { UserSelectionItem } from "@/types/user";
 
 const PER_PAGE = 20;
 
@@ -25,6 +30,12 @@ export default function ServicosList() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [country, setCountry] = useState<string>("all");
+  const [workshop, setWorkshop] = useState<string>("all");
+  const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
+  const [city, setCity] = useState("");
+  const [debouncedCity, setDebouncedCity] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -34,16 +45,29 @@ export default function ServicosList() {
   useEffect(() => {
     const timeout = setTimeout(() => {
       setDebouncedSearch(search);
+      setDebouncedCity(city);
       setPage(1);
     }, 400);
 
     return () => clearTimeout(timeout);
-  }, [search]);
+  }, [search, city]);
+
+  useEffect(() => {
+    userService.listForSelection("OFICINA")
+      .then(setWorkshops)
+      .catch(() => { /* Filtro opcional: a listagem continua disponível. */ });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadServices() {
+      if (startDate && endDate && endDate < startDate) {
+        setServices([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
 
       try {
@@ -52,6 +76,10 @@ export default function ServicosList() {
           per_page: PER_PAGE,
           status: status === "all" ? undefined : status,
           pais: country === "all" ? undefined : country,
+          oficina_id: workshop === "all" ? undefined : Number(workshop),
+          cidade: debouncedCity.trim() || undefined,
+          data_inicial: startDate || undefined,
+          data_final: endDate || undefined,
           busca: debouncedSearch.trim() || undefined,
         });
         if (cancelled) return;
@@ -71,7 +99,23 @@ export default function ServicosList() {
     return () => {
       cancelled = true;
     };
-  }, [page, status, country, debouncedSearch]);
+  }, [page, status, country, workshop, debouncedCity, startDate, endDate, debouncedSearch]);
+
+  const invalidDateRange = Boolean(startDate && endDate && endDate < startDate);
+  function clearFilters() {
+    setSearch("");
+    setStatus("all");
+    setCountry("all");
+    setWorkshop("all");
+    setCity("");
+    setStartDate("");
+    setEndDate("");
+    setPage(1);
+  }
+  function money(value: number, currency: string | null): string {
+    const code = currency && /^[A-Z]{3}$/.test(currency) ? currency : "EUR";
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: code }).format(value);
+  }
 
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
@@ -135,29 +179,43 @@ export default function ServicosList() {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex flex-wrap items-end gap-3 basis-full">
+          <div className="min-w-45 flex-1 space-y-1"><Label>Oficina</Label>
+            <Select value={workshop} onValueChange={(v) => { setWorkshop(v); setPage(1); }}>
+              <SelectTrigger><SelectValue placeholder="Todas as oficinas" /></SelectTrigger>
+              <SelectContent><SelectItem value="all">Todas as oficinas</SelectItem>{workshops.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="min-w-40 flex-1 space-y-1"><Label>Cidade</Label><Input placeholder="Filtrar cidade" value={city} onChange={(e) => setCity(e.target.value)} /></div>
+          <div className="min-w-40 space-y-1"><Label>Data inicial</Label><DateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} /></div>
+          <div className="min-w-40 space-y-1"><Label>Data final</Label><DateInput min={startDate || undefined} value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} /></div>
+          <Button type="button" variant="outline" onClick={clearFilters}><X className="w-4 h-4 mr-1" />Limpar</Button>
+        </div>
       </div>
+      {invalidDateRange && <p className="text-sm text-destructive mb-4">A data final não pode ser anterior à inicial.</p>}
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-205">
+        <Table className="min-w-245">
           <TableHeader>
             <TableRow>
-              <TableHead>Criado por</TableHead>
+              <TableHead>Período</TableHead>
               <TableHead>Oficina</TableHead>
-              <TableHead>Local</TableHead>
+              <TableHead>Cidade</TableHead>
               <TableHead>País</TableHead>
+              <TableHead className="text-right">Preço da oficina</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10">
+                <TableCell colSpan={6} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : services.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-60" />
                   Nenhum serviço encontrado.
                 </TableCell>
@@ -165,13 +223,14 @@ export default function ServicosList() {
             ) : (
               services.map((s) => (
                 <TableRow key={s.id} onClick={() => navigate(`/servicos/${s.id}`)} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell className="font-medium text-foreground">
-                    {s.createdBy ?? "—"}
+                  <TableCell className="font-medium text-foreground whitespace-nowrap">
+                    {s.startDate ? `${formatDate(s.startDate)}${s.endDate && s.endDate !== s.startDate ? ` a ${formatDate(s.endDate)}` : ""}` : "—"}
                     <div className="text-xs text-muted-foreground">ID: {s.id}</div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{s.workshop ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCity ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCountry ?? "—"}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{money(s.totalAmount, s.currency)}</TableCell>
                   <TableCell>
                     {s.status ? (
                       <Badge variant="outline" className={SERVICE_STATUS_CLASS[s.status]}>
