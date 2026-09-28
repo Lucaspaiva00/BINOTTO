@@ -9,6 +9,10 @@ export interface ListServicesParams {
   per_page?: number;
   status?: ServiceStatus;
   pais?: string;
+  oficina_id?: number;
+  cidade?: string;
+  data_inicial?: string;
+  data_final?: string;
   busca?: string;
 }
 

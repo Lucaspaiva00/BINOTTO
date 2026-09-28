@@ -40,6 +40,20 @@ class ServicoController extends Controller
             ->when($request->input('pais'), function ($query, $pais) {
                 $query->whereHas('oficina', fn ($o) => $o->where('pais', $pais));
             })
+            ->when($request->filled('oficina_id'), function ($query) use ($request) {
+                $query->where('oficina_id', $request->integer('oficina_id'));
+            })
+            ->when($request->filled('cidade'), function ($query) use ($request) {
+                $cidade = trim((string) $request->input('cidade'));
+                $query->whereHas('oficina', fn ($oficina) => $oficina->where('cidade', 'like', "%{$cidade}%"));
+            })
+            // Mostra serviços cujo período de execução se sobrepõe ao intervalo filtrado.
+            ->when($request->filled('data_inicial'), function ($query) use ($request) {
+                $query->whereDate(DB::raw('COALESCE(data_fim, data_inicio)'), '>=', $request->input('data_inicial'));
+            })
+            ->when($request->filled('data_final'), function ($query) use ($request) {
+                $query->whereDate('data_inicio', '<=', $request->input('data_final'));
+            })
             ->when($request->input('busca'), function ($query, $busca) {
                 $termo = trim($busca);
                 $placa = strtoupper(str_replace('-', '', $termo));
