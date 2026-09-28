@@ -62,6 +62,12 @@ export default function ServicosList() {
     let cancelled = false;
 
     async function loadServices() {
+      if (startDate && endDate && endDate < startDate) {
+        setServices([]);
+        setTotal(0);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
 
       try {
@@ -106,7 +112,10 @@ export default function ServicosList() {
     setEndDate("");
     setPage(1);
   }
-  const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "EUR" });
+  function money(value: number, currency: string | null): string {
+    const code = currency && /^[A-Z]{3}$/.test(currency) ? currency : "EUR";
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: code }).format(value);
+  }
 
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
@@ -221,7 +230,7 @@ export default function ServicosList() {
                   <TableCell className="text-muted-foreground">{s.workshop ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCity ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCountry ?? "—"}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">{money.format(s.totalAmount)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{money(s.totalAmount, s.currency)}</TableCell>
                   <TableCell>
                     {s.status ? (
                       <Badge variant="outline" className={SERVICE_STATUS_CLASS[s.status]}>
