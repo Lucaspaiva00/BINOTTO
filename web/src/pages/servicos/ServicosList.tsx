@@ -202,7 +202,7 @@ export default function ServicosList() {
               <TableHead>Oficina</TableHead>
               <TableHead>Cidade</TableHead>
               <TableHead>País</TableHead>
-              <TableHead className="text-right">Preço da oficina</TableHead>
+              <TableHead className="text-right">Preço da oficina (total)</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -230,9 +230,12 @@ export default function ServicosList() {
                   <TableCell className="text-muted-foreground">{s.workshop ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCity ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCountry ?? "—"}</TableCell>
-                  <TableCell className="text-right whitespace-nowrap">{s.detailedPrices?.oficina_carro?.tipo === "porcentagem"
-                    ? `${s.detailedPrices.oficina_carro.valor ?? 0}%`
-                    : money(s.detailedPrices?.oficina_carro?.valor ?? s.totalAmount, s.currency)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">{money(
+                    s.calculatedPrices?.carro?.oficina != null
+                      ? s.calculatedPrices.carro.oficina + (s.calculatedPrices.desmontagem?.oficina ?? 0)
+                      : s.totalAmount,
+                    s.currency,
+                  )}</TableCell>
                   <TableCell>
                     {s.status ? (
                       <Badge variant="outline" className={SERVICE_STATUS_CLASS[s.status]}>

@@ -30,6 +30,7 @@ class ServicoDetalhesController extends Controller
     ];
     private const FOTOS_VEICULO = ['frente_motorista', 'traseira_carona', 'placa', 'chassi', 'marca', 'modelo'];
     private const PRECO_KEYS = ['oficina_desmontagem', 'oficina_carro', 'tecnico_desmontagem', 'tecnico_carro'];
+    private const SUGESTAO_KEYS = ['tecnico_sugestao_carro', 'tecnico_sugestao_desmontagem'];
 
     public function salvar(Request $request, int $id)
     {
@@ -56,7 +57,7 @@ class ServicoDetalhesController extends Controller
             'reparos.*.amassadosAte5' => ['required', 'integer', 'min:0', 'max:9999'],
             'reparos.*.amassadosAcima5' => ['required', 'integer', 'min:0', 'max:9999'],
             'reparos.*.observacoes' => ['nullable', 'string', 'max:255'],
-            'precos' => ['required', 'array', 'size:4'],
+            'precos' => ['required', 'array', 'min:4', 'max:6'],
             'precos.*.tipo' => ['required', Rule::in(['valor', 'porcentagem'])],
             'precos.*.valor' => ['required', 'numeric', 'min:0', 'max:99999999'],
             'precos.*.visivel_app' => ['required', 'boolean'],
@@ -72,10 +73,13 @@ class ServicoDetalhesController extends Controller
         if (count($ids) !== count(array_unique($ids))) {
             throw ValidationException::withMessages(['reparos_execucao' => ['Não repita uma mesma peça.']]);
         }
-        if (array_diff(array_keys($precos), self::PRECO_KEYS) || array_diff(self::PRECO_KEYS, array_keys($precos))) {
+        if (array_diff(array_keys($precos), array_merge(self::PRECO_KEYS, self::SUGESTAO_KEYS)) || array_diff(self::PRECO_KEYS, array_keys($precos))) {
             throw ValidationException::withMessages(['precos_detalhados' => ['Os quatro preços devem estar presentes.']]);
         }
         foreach ($precos as $key => $price) {
+            if (in_array($key, self::SUGESTAO_KEYS, true) && ($price['tipo'] ?? null) !== 'valor') {
+                throw ValidationException::withMessages(['precos_detalhados' => ["A sugestão {$key} aceita somente valor monetário."]]);
+            }
             if (($price['tipo'] ?? '') === 'porcentagem' && (float) ($price['valor'] ?? 0) > 100) {
                 throw ValidationException::withMessages(['precos_detalhados' => ["A porcentagem de {$key} deve ser de 0 a 100%."]]);
             }

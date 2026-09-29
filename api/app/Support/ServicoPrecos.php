@@ -29,6 +29,13 @@ final class ServicoPrecos
                     $precos[$key]['habilitado_preenchimento_app'] = (bool) ($precos[$key]['habilitado_preenchimento_app'] ?? false);
                 }
             }
+            // Sugestão opcional do técnico, separada do preço acordado e da comissão.
+            $suggestionKey = "tecnico_sugestao_{$item}";
+            if (isset($precos[$suggestionKey]) && is_array($precos[$suggestionKey])) {
+                $precos[$suggestionKey]['tipo'] = 'valor';
+                $precos[$suggestionKey]['visivel_app'] = (bool) ($precos[$suggestionKey]['visivel_app'] ?? false);
+                $precos[$suggestionKey]['habilitado_preenchimento_app'] = (bool) ($precos[$suggestionKey]['habilitado_preenchimento_app'] ?? false);
+            }
         }
         return $precos;
     }
@@ -93,6 +100,19 @@ final class ServicoPrecos
         }
     }
 
+    /** Só soma quando reparação e desmontagem são conhecidos, sem revelar itens privados. */
+    public static function somarCalculados(array $calculados): array
+    {
+        $total = [];
+        foreach (['oficina', 'tecnico'] as $lado) {
+            $carro = $calculados['carro'][$lado] ?? null;
+            $desmontagem = $calculados['desmontagem'][$lado] ?? null;
+            $total[$lado] = $carro !== null && $desmontagem !== null
+                ? round((float) $carro + (float) $desmontagem, 2) : null;
+        }
+        return $total;
+    }
+
     /** Valores ocultos não são expostos nem como valor bruto nem como valor calculado. */
     public static function paraPerfil(array $precos, string $perfil): array
     {
@@ -110,6 +130,11 @@ final class ServicoPrecos
             $resultado[$key] = $permitido ? $config : null;
         }
         return $resultado;
+    }
+
+    public static function totaisParaPerfil(array $precos, string $perfil): array
+    {
+        return self::somarCalculados(self::calculadosParaPerfil($precos, $perfil));
     }
 
     public static function calculadosParaPerfil(array $precos, string $perfil): array

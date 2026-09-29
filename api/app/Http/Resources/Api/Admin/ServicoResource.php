@@ -32,6 +32,7 @@ class ServicoResource extends JsonResource
             'inspectionType' => $this->pericia_completa ? 'completa' : 'simples',
             'detailedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::normalizar($this->precos_detalhados),
             'calculatedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::calcularSeguro($this->precos_detalhados),
+            'calculatedTotals' => $this->precos_detalhados === null ? null : ServicoPrecos::somarCalculados(ServicoPrecos::calcularSeguro($this->precos_detalhados)),
             'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'canAdminRefuse' => in_array($this->status?->value, ['aceito', 'em_breve', 'aguardando_aprovacao'], true),
             'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {

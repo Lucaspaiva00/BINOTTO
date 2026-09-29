@@ -23,19 +23,27 @@ export const PRICE_KEYS = [
   { key: "tecnico_carro", label: "Técnico — carro" },
 ] as const;
 export type DetailedPriceKey = (typeof PRICE_KEYS)[number]["key"];
+/** Propostas do técnico: independentes da comissão e dos valores contratados. */
+export const SUGGESTION_KEYS = [
+  { key: "tecnico_sugestao_carro", label: "Sugestão técnico — reparação" },
+  { key: "tecnico_sugestao_desmontagem", label: "Sugestão técnico — desmontagem" },
+] as const;
+export type SuggestionPriceKey = (typeof SUGGESTION_KEYS)[number]["key"];
 export type DetailedPrice = { tipo: "valor" | "porcentagem"; valor: string; visivel_app: boolean; habilitado_preenchimento_app: boolean };
-export type DetailedPrices = Record<DetailedPriceKey, DetailedPrice>;
+export type DetailedPrices = Record<DetailedPriceKey | SuggestionPriceKey, DetailedPrice>;
 export function defaultPrices(amount = 0, techAmount: number | null = null, techPercentage: number | null = null): DetailedPrices {
   return {
     oficina_desmontagem: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
     oficina_carro: { tipo: "valor", valor: String(amount), visivel_app: false, habilitado_preenchimento_app: false },
     tecnico_desmontagem: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
     tecnico_carro: { tipo: techPercentage !== null ? "porcentagem" : "valor", valor: String(techPercentage ?? techAmount ?? 0), visivel_app: false, habilitado_preenchimento_app: false },
+    tecnico_sugestao_carro: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
+    tecnico_sugestao_desmontagem: { tipo: "valor", valor: "0", visivel_app: false, habilitado_preenchimento_app: false },
   };
 }
 export function pricesFromService(service: Service): DetailedPrices {
   const defaults = defaultPrices(service.totalAmount, service.technicianAmount, service.technicianPercentage);
-  for (const { key } of PRICE_KEYS) {
+  for (const { key } of [...PRICE_KEYS, ...SUGGESTION_KEYS]) {
     const supplied = service.detailedPrices?.[key];
     if (supplied) defaults[key] = { tipo: supplied.tipo, valor: supplied.valor == null ? "0" : String(supplied.valor), visivel_app: supplied.visivel_app ?? false, habilitado_preenchimento_app: supplied.habilitado_preenchimento_app ?? false };
   }
@@ -89,7 +97,7 @@ export function buildServiceDetailsFormData(form: {
     if (photo instanceof File) data.append(`fotos_veiculo[${key}]`, photo);
   });
   data.append("precos_detalhados", JSON.stringify(Object.fromEntries(
-    PRICE_KEYS.map(({ key }) => [key, {
+    [...PRICE_KEYS, ...SUGGESTION_KEYS].map(({ key }) => [key, {
       ...form.detailedPrices[key],
       valor: parseAmount(form.detailedPrices[key].valor),
     }]),
@@ -146,6 +154,11 @@ export function validateDetails(form: { detailedPrices: DetailedPrices; vehicleP
     const price = form.detailedPrices[key];
     const value = parseAmount(price.valor);
     if (!Number.isFinite(value) || value < 0 || (price.tipo === "porcentagem" && value > 100)) return `Revise ${label}: valor inválido.`;
+  }
+  for (const { key, label } of SUGGESTION_KEYS) {
+    const suggested = form.detailedPrices[key];
+    const amount = parseAmount(suggested.valor);
+    if (suggested.tipo !== "valor" || !Number.isFinite(amount) || amount < 0 || amount > 99999999) return `Revise ${label}: somente um valor monetário válido é permitido.`;
   }
   if (resolveDetailedPrices(form.detailedPrices) === null) return "Defina uma base fixa e apenas um percentual por item. No cálculo inverso, o percentual da oficina deve ser maior que zero.";
   for (const photo of Object.values(form.vehiclePhotos)) {

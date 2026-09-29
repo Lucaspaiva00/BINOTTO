@@ -86,4 +86,19 @@ check(P::normalizar($legacyTech)['tecnico_carro']['visivel_app'] === false, 'Vis
 check(P::calcular($old)['carro']['oficina'] === null, 'Legado parcial não tem base inventada');
 check(P::calcularSeguro(['oficina_carro'=>['tipo'=>'porcentagem','valor'=>30],'tecnico_carro'=>['tipo'=>'porcentagem','valor'=>40]])['carro']['oficina'] === null, 'Legado inválido não causa 500 na consulta');
 check(P::paraPerfil($p, 'ADMIN') === P::normalizar($p), 'Administrador consulta configuração completa');
+// Sugestões não afetam o contrato, o cálculo nem a comissão.
+$p = prices();
+$p['tecnico_sugestao_carro'] = config('carro','tecnico','valor',375,false,true);
+$p['tecnico_sugestao_desmontagem'] = config('desmontagem','tecnico','valor',50,true,false);
+check(P::calcular($p)['carro']['tecnico'] === 300.0, 'Sugestão não altera comissão');
+check(P::calcular($p)['desmontagem']['tecnico'] === 30.0, 'Sugestão não altera desmontagem');
+check(P::paraPerfil($p, 'OFICINA')['tecnico_sugestao_carro'] === null, 'Sugestão privada oculta para oficina');
+check(P::paraPerfil($p, 'OFICINA')['tecnico_sugestao_desmontagem']['valor'] === 50.0, 'Sugestão compartilhada à oficina');
+check(P::paraPerfil($p, 'TECNICO')['tecnico_sugestao_carro']['valor'] === 375.0, 'Sugestão habilitada no APP técnico');
+check(P::paraPerfil($p, 'TECNICO')['tecnico_sugestao_desmontagem'] === null, 'Sugestão desabilitada oculta no APP técnico');
+$totals = P::somarCalculados(P::calcular($p));
+check($totals['oficina'] === 1200.0 && $totals['tecnico'] === 330.0, 'Total soma reparação e desmontagem');
+check(P::totaisParaPerfil($p, 'TECNICO')['oficina'] === null, 'Total oculto não vaza preço da oficina');
+check(P::totaisParaPerfil($p, 'TECNICO')['tecnico'] === 330.0, 'Total próprio correto');
+check(P::somarCalculados(['carro'=>['oficina'=>100,'tecnico'=>null],'desmontagem'=>['oficina'=>50,'tecnico'=>5]])['tecnico'] === null,'Parcela desconhecida não é inventada');
 fwrite(STDOUT, "PASS: {$checks} regras financeiras, arredondamento e visibilidade testadas.\n");
