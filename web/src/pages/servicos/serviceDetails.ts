@@ -45,7 +45,19 @@ export function pricesFromService(service: Service): DetailedPrices {
   const defaults = defaultPrices(service.totalAmount, service.technicianAmount, service.technicianPercentage);
   for (const { key } of [...PRICE_KEYS, ...SUGGESTION_KEYS]) {
     const supplied = service.detailedPrices?.[key];
-    if (supplied) defaults[key] = { tipo: supplied.tipo, valor: supplied.valor == null ? "0" : String(supplied.valor), visivel_app: supplied.visivel_app ?? false, habilitado_preenchimento_app: supplied.habilitado_preenchimento_app ?? false };
+    if (supplied) {
+      const isOffice = key === "oficina_carro" || key === "oficina_desmontagem";
+      const item = key.endsWith("desmontagem") ? "desmontagem" : "carro";
+      const normalizedValue = isOffice && supplied.tipo === "porcentagem"
+        ? service.calculatedPrices?.[item]?.oficina ?? 0
+        : supplied.valor ?? 0;
+      defaults[key] = {
+        tipo: isOffice ? "valor" : supplied.tipo,
+        valor: String(normalizedValue),
+        visivel_app: supplied.visivel_app ?? false,
+        habilitado_preenchimento_app: supplied.habilitado_preenchimento_app ?? false,
+      };
+    }
   }
   return defaults;
 }
@@ -97,10 +109,21 @@ export function buildServiceDetailsFormData(form: {
     if (photo instanceof File) data.append(`fotos_veiculo[${key}]`, photo);
   });
   data.append("precos_detalhados", JSON.stringify(Object.fromEntries(
-    [...PRICE_KEYS, ...SUGGESTION_KEYS].map(({ key }) => [key, {
-      ...form.detailedPrices[key],
-      valor: parseAmount(form.detailedPrices[key].valor),
-    }]),
+    [...PRICE_KEYS, ...SUGGESTION_KEYS].map(({ key }) => {
+      const current = form.detailedPrices[key];
+      const isOffice = key === "oficina_carro" || key === "oficina_desmontagem";
+      const isCommission = key === "tecnico_carro" || key === "tecnico_desmontagem";
+      const isSuggestion = key === "tecnico_sugestao_carro" || key === "tecnico_sugestao_desmontagem";
+      return [key, {
+        ...current,
+        tipo: isOffice || isSuggestion ? "valor" : current.tipo,
+        valor: parseAmount(current.valor),
+        // A tela nova não expõe permissões extras: comissão é apenas calculada no painel.
+        habilitado_preenchimento_app: isCommission ? false : current.habilitado_preenchimento_app,
+        // Sugestão do técnico usa apenas o botão "Visível" para aparecer/preencher no APP técnico.
+        visivel_app: isSuggestion ? false : current.visivel_app,
+      }];
+    }),
   )));
   data.append("reparos_execucao", JSON.stringify(SERVICE_PARTS_ORDER.map((id) => {
     const part = partsState[id];

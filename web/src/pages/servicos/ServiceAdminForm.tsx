@@ -194,64 +194,115 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     </section>
 
 
-    <section className="rounded-2xl border border-border bg-card p-5 space-y-5">
+    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CircleDollarSign className="h-5 w-5"/>Preço</h2>
-      <p className="text-xs text-muted-foreground">Reparação e desmontagem são independentes. A comissão em % usa o preço da oficina como base; também é possível informar o valor do técnico e calcular o da oficina pelo percentual. “Ocultar” e “permitir preencher” são permissões diferentes.</p>
-      {(["carro", "desmontagem"] as const).map(item => {
-        const officeKey = `oficina_${item}` as DetailedPriceKey;
-        const techKey = `tecnico_${item}` as DetailedPriceKey;
-        const suggestionKey = `tecnico_sugestao_${item}` as SuggestionPriceKey;
-        const office = value.detailedPrices[officeKey];
-        const tech = value.detailedPrices[techKey];
-        const suggestion = value.detailedPrices[suggestionKey];
-        const calculated = totals?.[item];
-        const heading = item === "carro" ? "Reparação" : "Desmontagem";
-        return <div key={item} className="rounded-xl border border-border p-4 space-y-4">
-          <h3 className="text-base font-semibold">{heading}</h3>
-          <div className="grid gap-5 xl:grid-cols-3">
-            <div className="space-y-3">
-              <Label className="font-semibold">Preço da oficina</Label>
-              <div className="flex gap-2">
-                <Select value={office.tipo} onValueChange={type => updatePrice(officeKey, {tipo: type as "valor" | "porcentagem"})}>
-                  <SelectTrigger className="w-32 shrink-0" aria-label={`Tipo preço da oficina — ${heading}`}><SelectValue/></SelectTrigger>
-                  <SelectContent><SelectItem value="valor">Valor</SelectItem><SelectItem value="porcentagem">%</SelectItem></SelectContent>
-                </Select>
-                <Input className="min-w-0" inputMode="decimal" aria-label={`Preço da oficina — ${heading}`} value={office.valor} onChange={e => updatePrice(officeKey, {valor:e.target.value.replace(/[^0-9,.]/g, "")})} placeholder={office.tipo === "valor" ? "0,00" : "0%"} />
+
+      <div className="overflow-x-auto">
+        <div className="min-w-[980px] space-y-2">
+          <div className="grid grid-cols-[9rem_minmax(9rem,1fr)_5.5rem_minmax(19rem,1.8fr)_minmax(10rem,1fr)_5.5rem] items-center gap-3 border-b pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span>Item</span>
+            <span>Preço</span>
+            <span className="text-center">Visível</span>
+            <span>Comissão</span>
+            <span>Sugestão Técnico</span>
+            <span className="text-center">Visível</span>
+          </div>
+
+          {(["carro", "desmontagem"] as const).map(item => {
+            const officeKey = `oficina_${item}` as DetailedPriceKey;
+            const techKey = `tecnico_${item}` as DetailedPriceKey;
+            const suggestionKey = `tecnico_sugestao_${item}` as SuggestionPriceKey;
+            const office = value.detailedPrices[officeKey];
+            const tech = value.detailedPrices[techKey];
+            const suggestion = value.detailedPrices[suggestionKey];
+            const calculated = totals?.[item];
+            const heading = item === "carro" ? "REPARAÇÃO" : "DESMONTAGEM";
+
+            return <div key={item} className="grid grid-cols-[9rem_minmax(9rem,1fr)_5.5rem_minmax(19rem,1.8fr)_minmax(10rem,1fr)_5.5rem] items-center gap-3 rounded-lg border px-3 py-3">
+              <span className="font-semibold">{heading}</span>
+
+              <Input
+                inputMode="decimal"
+                aria-label={`Preço — ${heading}`}
+                value={office.valor}
+                onChange={e => updatePrice(officeKey, { tipo: "valor", valor: e.target.value.replace(/[^0-9,.]/g, "") })}
+                placeholder="0,00"
+              />
+
+              <div className="flex justify-center">
+                <Switch
+                  aria-label={`Preço visível — ${heading}`}
+                  checked={office.visivel_app}
+                  onCheckedChange={checked => updatePrice(officeKey, { visivel_app: checked })}
+                />
               </div>
-              <p className="text-sm">Resultado da oficina: <strong>{formatted(calculated?.oficina)}</strong></p>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`share-office-${item}`}>Visível no APP do técnico</Label><Switch id={`share-office-${item}`} checked={office.visivel_app} onCheckedChange={checked => updatePrice(officeKey,{visivel_app:checked})}/></div>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`fill-office-${item}`}>Preencher no APP da oficina</Label><Switch id={`fill-office-${item}`} checked={office.habilitado_preenchimento_app} onCheckedChange={checked => updatePrice(officeKey,{habilitado_preenchimento_app:checked})}/></div>
-            </div>
-            <div className="space-y-3">
-              <Label className="font-semibold">Comissão / preço do técnico</Label>
-              <div className="flex gap-2">
-                <Select value={tech.tipo} onValueChange={type => updatePrice(techKey, {tipo: type as "valor" | "porcentagem"})}>
-                  <SelectTrigger className="w-32 shrink-0" aria-label={`Tipo comissão do técnico — ${heading}`}><SelectValue/></SelectTrigger>
-                  <SelectContent><SelectItem value="porcentagem">%</SelectItem><SelectItem value="valor">Valor</SelectItem></SelectContent>
-                </Select>
-                <Input className="min-w-0" inputMode="decimal" aria-label={`Comissão do técnico — ${heading}`} value={tech.valor} onChange={e => updatePrice(techKey, {valor:e.target.value.replace(/[^0-9,.]/g, "")})} placeholder={tech.tipo === "porcentagem" ? "0%" : "0,00"}/>
-                {tech.tipo === "porcentagem" && <Input className="min-w-24" readOnly aria-label={`Resultado em dinheiro — ${heading}`} value={formatted(calculated?.tecnico)} title="Resultado da comissão em dinheiro"/>}
+
+              <div className="flex items-center gap-2">
+                <div className="flex shrink-0 rounded-md border p-0.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 px-3"
+                    variant={tech.tipo === "porcentagem" ? "default" : "ghost"}
+                    onClick={() => updatePrice(techKey, { tipo: "porcentagem" })}
+                  >%</Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 px-3"
+                    variant={tech.tipo === "valor" ? "default" : "ghost"}
+                    onClick={() => updatePrice(techKey, { tipo: "valor" })}
+                  >$</Button>
+                </div>
+
+                <Input
+                  className="min-w-24"
+                  inputMode="decimal"
+                  aria-label={`Comissão — ${heading}`}
+                  value={tech.valor}
+                  onChange={e => updatePrice(techKey, { valor: e.target.value.replace(/[^0-9,.]/g, "") })}
+                  placeholder={tech.tipo === "porcentagem" ? "0%" : "0,00"}
+                />
+
+                {tech.tipo === "porcentagem" && <Input
+                  className="min-w-28"
+                  readOnly
+                  aria-label={`Resultado da comissão — ${heading}`}
+                  value={formatted(calculated?.tecnico)}
+                  title="Resultado da comissão em dinheiro"
+                />}
               </div>
-              <p className="text-sm">Resultado do técnico: <strong>{formatted(calculated?.tecnico)}</strong></p>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`share-tech-${item}`}>Visível no APP da oficina</Label><Switch id={`share-tech-${item}`} checked={tech.visivel_app} onCheckedChange={checked => updatePrice(techKey,{visivel_app:checked})}/></div>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`fill-tech-${item}`}>Preencher no APP do técnico</Label><Switch id={`fill-tech-${item}`} checked={tech.habilitado_preenchimento_app} onCheckedChange={checked => updatePrice(techKey,{habilitado_preenchimento_app:checked})}/></div>
+
+              <Input
+                inputMode="decimal"
+                aria-label={`Sugestão técnico — ${heading}`}
+                value={suggestion.valor}
+                onChange={e => updatePrice(suggestionKey, { tipo: "valor", valor: e.target.value.replace(/[^0-9,.]/g, "") })}
+                placeholder="0,00"
+              />
+
+              <div className="flex justify-center">
+                <Switch
+                  aria-label={`Sugestão técnico visível — ${heading}`}
+                  checked={suggestion.habilitado_preenchimento_app}
+                  onCheckedChange={checked => updatePrice(suggestionKey, { habilitado_preenchimento_app: checked })}
+                />
+              </div>
+            </div>;
+          })}
+
+          <div className="grid grid-cols-[9rem_1fr_1fr] items-center gap-3 rounded-lg border bg-muted/40 px-3 py-3">
+            <span className="font-semibold">TOTAL</span>
+            <div className="flex items-center gap-2">
+              <Label className="w-16 shrink-0 text-xs">Oficina</Label>
+              <Input readOnly aria-label="Total oficina" value={totals ? formatted(totals.carro.oficina + totals.desmontagem.oficina) : "—"} />
             </div>
-            <div className="space-y-3">
-              <Label className="font-semibold">Sugestão do técnico</Label>
-              <Input inputMode="decimal" aria-label={`Sugestão técnico — ${heading}`} value={suggestion.valor} onChange={e => updatePrice(suggestionKey,{tipo:"valor",valor:e.target.value.replace(/[^0-9,.]/g,"")})} placeholder="0,00"/>
-              <p className="text-xs text-muted-foreground">A sugestão não altera os preços contratados nem os totais.</p>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`share-suggestion-${item}`}>Visível no APP da oficina</Label><Switch id={`share-suggestion-${item}`} checked={suggestion.visivel_app} onCheckedChange={checked => updatePrice(suggestionKey,{visivel_app:checked})}/></div>
-              <div className="flex justify-between items-center gap-2"><Label className="text-xs" htmlFor={`fill-suggestion-${item}`}>Preencher no APP do técnico</Label><Switch id={`fill-suggestion-${item}`} checked={suggestion.habilitado_preenchimento_app} onCheckedChange={checked => updatePrice(suggestionKey,{habilitado_preenchimento_app:checked})}/></div>
+            <div className="flex items-center gap-2">
+              <Label className="w-16 shrink-0 text-xs">Técnico</Label>
+              <Input readOnly aria-label="Total técnico" value={totals ? formatted(totals.carro.tecnico + totals.desmontagem.tecnico) : "—"} />
             </div>
           </div>
-        </div>;
-      })}
-      <div className="rounded-xl border border-border bg-muted p-4" aria-live="polite">
-        <h3 className="font-semibold">Total</h3>
-        {totals ? <div className="grid gap-3 pt-3 sm:grid-cols-2">
-          <div><p className="text-xs text-muted-foreground">Total oficina (reparação + desmontagem)</p><p className="text-lg font-semibold">{formatted(totals.carro.oficina + totals.desmontagem.oficina)}</p></div>
-          <div><p className="text-xs text-muted-foreground">Total técnico (reparação + desmontagem)</p><p className="text-lg font-semibold">{formatted(totals.carro.tecnico + totals.desmontagem.tecnico)}</p></div>
-        </div> : <p role="alert" className="text-sm text-destructive">Verifique a base de cálculo. É necessário um valor fixo por item; para inverter o cálculo, informe percentual da oficina maior que zero.</p>}
+        </div>
       </div>
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
