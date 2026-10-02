@@ -198,7 +198,7 @@ export default function ServicosList() {
         <Table className="min-w-245">
           <TableHeader>
             <TableRow>
-              <TableHead>Período</TableHead>
+              <TableHead>Data</TableHead>
               <TableHead>Oficina</TableHead>
               <TableHead>Cidade</TableHead>
               <TableHead>País</TableHead>
@@ -224,7 +224,7 @@ export default function ServicosList() {
               services.map((s) => (
                 <TableRow key={s.id} onClick={() => navigate(`/servicos/${s.id}`)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="font-medium text-foreground whitespace-nowrap">
-                    {s.startDate ? `${formatDate(s.startDate)}${s.endDate && s.endDate !== s.startDate ? ` a ${formatDate(s.endDate)}` : ""}` : "—"}
+                    {formatDate(s.serviceDate ?? s.startDate ?? s.createdAt?.slice(0, 10))}
                     <div className="text-xs text-muted-foreground">ID: {s.id}</div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{s.workshop ?? "—"}</TableCell>

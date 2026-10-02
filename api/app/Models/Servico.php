@@ -19,6 +19,8 @@ class Servico extends Model
         'oficina_id',
         'tecnico_id',
         'criado_por_usuario_id',
+        'data_servico',
+        'tecnico_nome_manual',
         'data_inicio',
         'data_fim',
         'quantidade_tipo',
@@ -44,6 +46,7 @@ class Servico extends Model
     ];
 
     protected $casts = [
+        'data_servico' => 'date',
         'data_inicio' => 'date',
         'data_fim' => 'date',
         'data_prevista_chegada' => 'date',

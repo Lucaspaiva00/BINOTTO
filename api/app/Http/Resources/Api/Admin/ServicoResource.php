@@ -20,7 +20,9 @@ class ServicoResource extends JsonResource
             'workshopCity' => $this->oficina?->cidade,
             'workshopCountry' => $this->oficina?->pais,
             'technicianId' => $this->tecnico_id,
-            'technician' => $this->tecnico?->nome_completo,
+            'technician' => $this->tecnico?->nome_completo ?? $this->tecnico_nome_manual,
+            'manualTechnicianName' => $this->tecnico_nome_manual,
+            'serviceDate' => ($this->data_servico ?? $this->data_inicio ?? $this->created_at)?->format('Y-m-d'),
             'createdBy' => $this->nomeCriadoPor(),
             'vehicleId' => $this->primeiroVeiculo?->id,
             'licensePlate' => $this->primeiroVeiculo?->placa ?? $this->placa,
@@ -34,7 +36,7 @@ class ServicoResource extends JsonResource
             'calculatedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::calcularSeguro($this->precos_detalhados),
             'calculatedTotals' => $this->precos_detalhados === null ? null : ServicoPrecos::somarCalculados(ServicoPrecos::calcularSeguro($this->precos_detalhados)),
             'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
-            'canAdminRefuse' => in_array($this->status?->value, ['aceito', 'em_breve', 'aguardando_aprovacao'], true),
+            'canAdminRefuse' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {
                 $repair['fotos'] = collect($repair['fotos'] ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all();
                 return $repair;

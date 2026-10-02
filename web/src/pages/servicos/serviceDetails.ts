@@ -69,7 +69,7 @@ export const SERVICE_PARTS_ORDER = [
 
 export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): Record<string, PartInspection> {
   const result = Object.fromEntries(CAR_PARTS.map(part => [part.id, {
-    repairType: "SEM_DANO", dentCount: 0, impactsOver25: 0, impactsUnder25: 0,
+    assessed: false, repairType: "SEM_DANO", dentCount: 0, impactsOver25: 0, impactsUnder25: 0,
     dentsUpTo2: 0, dentsUpTo5: 0, dentsOver5: 0, notes: "", photos: [],
   }])) as Record<string, PartInspection>;
   for (const repair of repairs) {
@@ -77,6 +77,7 @@ export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): R
     const state = result[repair.peca];
     result[repair.peca] = {
       ...state,
+      assessed: repair.avaliada ?? true,
       repairType: (repair.tipoReparo ?? state.repairType) as PartInspection["repairType"],
       dentCount: repair.quantidadeAmassados ?? 0,
       impactsOver25: repair.quantidadeImpactosMaior25 ?? 0,
@@ -93,9 +94,15 @@ export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): R
 
 export function buildServiceDetailsFormData(form: {
   plate: string; chassis: string; brand: string; vehicleModel: string; notes: string;
+  workshopId: string; technicianId: string; manualTechnicianName: string; serviceDate: string; status: string;
   inspectionType: "simples" | "completa"; vehiclePhotos: VehiclePhotoMap; detailedPrices: DetailedPrices;
 }, partsState: Record<string, PartInspection>): FormData {
   const data = new FormData();
+  data.append("oficina_id", form.workshopId);
+  data.append("tecnico_id", form.technicianId);
+  data.append("tecnico_nome_manual", form.technicianId ? "" : form.manualTechnicianName.trim());
+  data.append("data_servico", form.serviceDate);
+  data.append("status", form.status);
   data.append("placa", form.plate.trim());
   data.append("chassi", form.chassis.trim());
   data.append("marca", form.brand.trim());
@@ -129,6 +136,7 @@ export function buildServiceDetailsFormData(form: {
     const part = partsState[id];
     return {
       peca: id,
+      avaliada: part.assessed !== false,
       tipoReparo: part.repairType,
       amassadosAte2: part.dentsUpTo2 ?? 0,
       amassadosAte5: part.dentsUpTo5 ?? 0,
@@ -144,6 +152,15 @@ export function buildServiceDetailsFormData(form: {
   }
   return data;
 }
+export function createInitialServiceParts(): Record<string, PartInspection> {
+  return normalizeServiceRepairs();
+}
+
+export function localTodayISO(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function parseAmount(input: string): number {
   const trimmed = input.trim();
   if (trimmed === "") return 0;

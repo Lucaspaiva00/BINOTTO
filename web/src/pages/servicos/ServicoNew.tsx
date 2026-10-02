@@ -12,19 +12,16 @@ import { userService } from "@/services/userService";
 import { serviceService } from "@/services/serviceService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
-import { createInitialPartsState } from "@/utils/normalizeReparos";
 import type { PartInspection } from "@/types/carParts";
 import type { UserSelectionItem } from "@/types/user";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { buildServiceDetailsFormData, validateDetails, parseAmount, SERVICE_PARTS_ORDER } from "./serviceDetails";
-
-const INITIAL: ServiceAdminFormState = { ...initialServiceForm(), status: "em_breve" };
+import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, SERVICE_PARTS_ORDER } from "./serviceDetails";
 
 export default function ServicoNew() {
   const navigate = useNavigate();
-  const [form,setForm] = useState<ServiceAdminFormState>(INITIAL);
+  const [form,setForm] = useState<ServiceAdminFormState>(() => ({ ...initialServiceForm(), status: "em_breve" }));
   const [workshops,setWorkshops] = useState<UserSelectionItem[]>([]);
   const [technicians,setTechnicians] = useState<UserSelectionItem[]>([]);
   const [loading,setLoading] = useState(true);
@@ -32,7 +29,7 @@ export default function ServicoNew() {
   const [endDate,setEndDate] = useState("");
   const [quantityType,setQuantityType] = useState<"carros"|"dias">("carros");
   const [quantity,setQuantity] = useState("1");
-  const [partsState,setPartsState] = useState<Record<string,PartInspection>>(createInitialPartsState);
+  const [partsState,setPartsState] = useState<Record<string,PartInspection>>(createInitialServiceParts);
   const [selectedPartId,setSelectedPartId] = useState<string|null>(null);
   const [editingPart,setEditingPart] = useState<PartInspection|null>(null);
   const [errors,setErrors] = useState<Record<string,string>>({});
@@ -63,6 +60,7 @@ export default function ServicoNew() {
     const techPrice = form.detailedPrices.tecnico_carro;
     const price=carPrice.tipo === "valor" ? parseAmount(carPrice.valor) : 0;
     const pay=parseAmount(techPrice.valor);
+    if(!form.serviceDate) next.serviceDate="Informe a data do serviço.";
     if(!form.workshopId) next.workshopId="Selecione a oficina.";
     if(selectedWorkshop?.canRequestTechnician===false) next.workshopId="Complete o endereço da oficina antes de criar a solicitação.";
     if(!startDate) next.startDate="Informe a data inicial.";
@@ -78,6 +76,7 @@ export default function ServicoNew() {
       const created=await serviceService.createRequest({
         modo_completo:true,
         oficina_id:Number(form.workshopId), status:form.status,
+        data_servico:form.serviceDate, tecnico_nome_manual:form.technicianId?null:form.manualTechnicianName.trim()||null,
         tecnico_id:form.technicianId?Number(form.technicianId):null,
         data_inicio:startDate, data_fim:endDate||startDate,
         quantidade_tipo:quantityType, quantidade:Number(quantity),
@@ -97,7 +96,7 @@ export default function ServicoNew() {
       });
       createdId=created.id;
       await serviceService.saveDetails(created.id,buildServiceDetailsFormData(form,partsState));
-      markSaved();toast.success(`Solicitação #${created.id} criada.`);navigate(`/servicos/${created.id}`);
+      markSaved();toast.success(`Solicitação #${created.id} criada.`);navigate("/servicos");
     }catch(error){
       const val=getApiValidationErrors(error);
       if(val) setErrors(Object.fromEntries(Object.entries(val).map(([k,v])=>[({oficina_id:"workshopId",valor_total:"price",remuneracao_tecnico:"compensationValue",data_inicio:"startDate",data_fim:"endDate"} as Record<string,string>)[k]??k,v])));
@@ -121,8 +120,10 @@ export default function ServicoNew() {
         </div>
         <p className="text-xs text-muted-foreground flex items-center gap-2"><CalendarDays className="h-4 w-4"/>Sem técnico selecionado, a solicitação fica disponível para interessados. Se selecionar um técnico, ela será direcionada a ele.</p>
       </section>
+      <fieldset disabled={saving || loading} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} onPartSelect={openPart}
         onPartChange={(id,part)=>{setPartsState(prev=>({...prev,[id]:part}));markDirty();}} errors={errors}/>
+      </fieldset>
       <div className="flex justify-end"><Button type="submit" disabled={saving||loading}>{saving?"Salvando...":"Criar solicitação"}</Button></div>
     </form>
     <ServicePartDialog partId={selectedPartId} value={editingPart} onClose={()=>{setSelectedPartId(null);setEditingPart(null);}}

@@ -18,6 +18,8 @@ export interface ListServicesParams {
 
 export interface CreateServiceRequestPayload {
   oficina_id: number;
+  data_servico?: string;
+  tecnico_nome_manual?: string | null;
   data_inicio: string;
   data_fim?: string;
   quantidade_tipo: "carros" | "dias";
@@ -44,6 +46,8 @@ export interface CreateServiceRequestPayload {
 
 export interface AdminServicePayload {
   oficina_id: number;
+  data_servico?: string;
+  tecnico_nome_manual?: string | null;
   tecnico_id?: number | null;
   status: ServiceStatus;
   data_inicio?: string | null;

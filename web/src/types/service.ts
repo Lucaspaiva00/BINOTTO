@@ -30,6 +30,7 @@ export interface ServiceInspectionSummary {
 }
 
 export interface ServiceVehicleRepair {
+  avaliada?: boolean;
   peca?: string;
   tipoReparo?: string;
   quantidadeAmassados?: number;
@@ -52,6 +53,8 @@ export interface Service {
   workshopCountry: string | null;
   technicianId: number | null;
   technician: string | null;
+  manualTechnicianName?: string | null;
+  serviceDate?: string | null;
   createdBy: string | null;
   vehicleId: number | null;
   licensePlate: string | null;

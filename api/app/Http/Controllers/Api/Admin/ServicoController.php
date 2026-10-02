@@ -47,12 +47,12 @@ class ServicoController extends Controller
                 $cidade = trim((string) $request->input('cidade'));
                 $query->whereHas('oficina', fn ($oficina) => $oficina->where('cidade', 'like', "%{$cidade}%"));
             })
-            // Mostra serviços cujo período de execução se sobrepõe ao intervalo filtrado.
+            // A data do serviço corresponde à coluna exibida na listagem; legados usam início/criação.
             ->when($request->filled('data_inicial'), function ($query) use ($request) {
-                $query->whereDate(DB::raw('COALESCE(data_fim, data_inicio)'), '>=', $request->input('data_inicial'));
+                $query->whereDate(DB::raw('COALESCE(data_servico, data_inicio, created_at)'), '>=', $request->input('data_inicial'));
             })
             ->when($request->filled('data_final'), function ($query) use ($request) {
-                $query->whereDate('data_inicio', '<=', $request->input('data_final'));
+                $query->whereDate(DB::raw('COALESCE(data_servico, data_inicio, created_at)'), '<=', $request->input('data_final'));
             })
             ->when($request->input('busca'), function ($query, $busca) {
                 $termo = trim($busca);
@@ -63,6 +63,7 @@ class ServicoController extends Controller
                         $o->where('nome_fantasia', 'like', "%{$termo}%")
                             ->orWhere('cidade', 'like', "%{$termo}%");
                     })
+                        ->orWhere('tecnico_nome_manual', 'like', "%{$termo}%")
                         ->orWhereHas('tecnico', fn ($t) => $t->where('nome_completo', 'like', "%{$termo}%"))
                         ->orWhereHas('criadoPor.oficina', fn ($o) => $o->where('nome_fantasia', 'like', "%{$termo}%"))
                         ->orWhereHas('criadoPor.tecnico', fn ($t) => $t->where('nome_completo', 'like', "%{$termo}%"))
@@ -124,6 +125,8 @@ class ServicoController extends Controller
                 $servico = Servico::create([
                     'oficina_id' => $oficina->id,
                     'tecnico_id' => $data['tecnico_id'] ?? null,
+                    'tecnico_nome_manual' => empty($data['tecnico_id']) ? ($data['tecnico_nome_manual'] ?? null) : null,
+                    'data_servico' => $data['data_servico'] ?? now()->toDateString(),
                     'tecnico_label' => $oficina->cidade,
                     'criado_por_usuario_id' => $request->user()->id,
                     'data_inicio' => $data['data_inicio'] ?? null,
@@ -217,6 +220,8 @@ class ServicoController extends Controller
                 $servico = Servico::create([
                     'oficina_id' => $data['oficina_id'],
                     'tecnico_id' => $data['tecnico_id'] ?? null,
+                    'tecnico_nome_manual' => empty($data['tecnico_id']) ? ($data['tecnico_nome_manual'] ?? null) : null,
+                    'data_servico' => $data['data_servico'] ?? now()->toDateString(),
                     'criado_por_usuario_id' => $request->user()->id,
                     'data_inicio' => $data['data_inicio'] ?? null,
                     'data_fim' => $data['data_fim'] ?? null,
@@ -292,10 +297,14 @@ class ServicoController extends Controller
         try {
             DB::transaction(function () use ($servico, $data) {
                 $updates = [];
-                foreach (['oficina_id', 'tecnico_id', 'data_inicio', 'data_fim', 'status', 'observacoes'] as $field) {
+                foreach (['oficina_id', 'tecnico_id', 'tecnico_nome_manual', 'data_servico', 'data_inicio', 'data_fim', 'status', 'observacoes'] as $field) {
                     if (array_key_exists($field, $data)) {
                         $updates[$field] = $data[$field];
                     }
+                }
+
+                if (! empty(array_key_exists('tecnico_id', $updates) ? $updates['tecnico_id'] : $servico->tecnico_id)) {
+                    $updates['tecnico_nome_manual'] = null;
                 }
 
                 if (array_key_exists('valor_total', $data)) {
@@ -396,6 +405,8 @@ class ServicoController extends Controller
             'oficina_id' => [$required, 'integer', 'exists:oficinas,id'],
             'tecnico_id' => ['sometimes', 'nullable', 'integer', 'exists:tecnicos,id'],
             'status' => [$required, 'string', Rule::in($statusValues)],
+            'data_servico' => ['sometimes', 'date_format:Y-m-d'],
+            'tecnico_nome_manual' => ['sometimes', 'nullable', 'string', 'max:150'],
             'data_inicio' => ['sometimes', 'nullable', 'date'],
             'data_fim' => ['sometimes', 'nullable', 'date', 'after_or_equal:data_inicio'],
             'placa' => ['sometimes', 'nullable', 'string', 'max:20'],

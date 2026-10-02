@@ -36,7 +36,7 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
       <DialogHeader><DialogTitle>{getCarPartLabel(partId)}</DialogTitle></DialogHeader>
       <div className="space-y-4">
         <div className="space-y-1"><Label>Tipo de reparação</Label>
-          <div className="flex flex-wrap gap-2">{TYPES.map(type => <Button key={type} type="button" size="sm" variant={part.repairType === type ? "default" : "outline"} onClick={() => patch({ repairType: type })}>
+          <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant={part.assessed === false ? "default" : "outline"} onClick={() => patch({ assessed: false, repairType: "SEM_DANO" })}>Não avaliada</Button>{TYPES.map(type => <Button key={type} type="button" size="sm" variant={part.assessed !== false && part.repairType === type ? "default" : "outline"} onClick={() => patch({ repairType: type, assessed: true })}>
             <span aria-hidden style={{ backgroundColor: getRepairTypeColor(type) }} className="mr-1 h-3 w-3 rounded-sm border border-black/10" />{REPAIR_TYPE_LABEL[type]}
           </Button>)}</div>
         </div>

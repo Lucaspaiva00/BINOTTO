@@ -9,6 +9,7 @@ export type RepairType =
 export type PartPhoto = File | string;
 
 export interface PartInspection {
+  assessed?: boolean;
   repairType: RepairType;
   dentCount: number;
   impactsOver25: number;

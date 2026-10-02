@@ -18,6 +18,8 @@ class StoreServicoRequest extends FormRequest
         return [
             'oficina_id' => 'required|integer|exists:oficinas,id',
             'moeda' => 'nullable|string|size:3',
+            'data_servico' => ['sometimes', 'date_format:Y-m-d'],
+            'tecnico_nome_manual' => ['nullable', 'string', 'max:150'],
             'data_inicio' => 'nullable|date',
             'data_fim' => 'nullable|date|after_or_equal:data_inicio',
             'quantidade_tipo' => 'nullable|in:carros,dias',

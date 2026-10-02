@@ -8,24 +8,21 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { serviceService } from "@/services/serviceService";
 import { userService } from "@/services/userService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
-import { createInitialPartsState } from "@/utils/normalizeReparos";
 import type { PartInspection } from "@/types/carParts";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { buildServiceDetailsFormData, validateDetails, parseAmount, resolveDetailedPrices } from "./serviceDetails";
+import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, resolveDetailedPrices } from "./serviceDetails";
 import type { UserSelectionItem } from "@/types/user";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 
-const INITIAL: ServiceAdminFormState = initialServiceForm();
-
 export default function ServicoCreate() {
   const navigate = useNavigate();
-  const [form, setForm] = useState<ServiceAdminFormState>(INITIAL);
+  const [form, setForm] = useState<ServiceAdminFormState>(initialServiceForm);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
   const [technicians, setTechnicians] = useState<UserSelectionItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
-  const [partsState, setPartsState] = useState<Record<string, PartInspection>>(createInitialPartsState);
+  const [partsState, setPartsState] = useState<Record<string, PartInspection>>(createInitialServiceParts);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedValue, setSelectedValue] = useState<PartInspection | null>(null);
   function changePart(id: string, part: PartInspection) { setPartsState(current => ({ ...current, [id]: part })); markDirty(); }
@@ -52,6 +49,7 @@ export default function ServicoCreate() {
     if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
     const price = totals.carro.oficina;
     const compensation = totals.carro.tecnico;
+    if (!form.serviceDate) next.serviceDate = "Informe a data do serviço.";
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero se necessário.";
     if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
@@ -64,6 +62,8 @@ export default function ServicoCreate() {
     try {
       const created = await serviceService.createDirect({
         oficina_id: Number(form.workshopId),
+        data_servico: form.serviceDate,
+        tecnico_nome_manual: form.technicianId ? null : form.manualTechnicianName.trim() || null,
         tecnico_id: form.technicianId ? Number(form.technicianId) : null,
         status: form.status,
         placa: form.plate.trim() || null,
@@ -78,7 +78,7 @@ export default function ServicoCreate() {
       await serviceService.saveDetails(created.id, buildServiceDetailsFormData(form, partsState));
       markSaved();
       toast.success(`Serviço #${created.id} criado.`);
-      navigate(`/servicos/${created.id}`);
+      navigate("/servicos");
     } catch (error) {
       if (createdId) {
         toast.warning(`Serviço #${createdId} foi criado, mas os detalhes não foram salvos. Abra o cadastro para completar.`);
@@ -97,9 +97,12 @@ export default function ServicoCreate() {
         </Button>
         <Button onClick={submit} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
       </div>
+      <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
         onPartSelect={id => { setSelectedPartId(id); setSelectedValue({ ...partsState[id], photos: [...partsState[id].photos] }); }}
         onPartChange={changePart} />
+      </fieldset>
+      <div className="mt-6 flex justify-end"><Button onClick={submit} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button></div>
       <ServicePartDialog partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
         onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />
     </AppLayout>

@@ -43,7 +43,12 @@ class ServicoDetalhesController extends Controller
             throw ValidationException::withMessages(['reparos_execucao' => ['Envie reparos, preços e fotos existentes como JSON válido.']]);
         }
         $request->merge(['reparos' => $reparos, 'precos' => $precos]);
-        $request->validate([
+        $adminData = $request->validate([
+            'oficina_id' => ['sometimes', 'integer', 'exists:oficinas,id'],
+            'tecnico_id' => ['sometimes', 'nullable', 'integer', 'exists:tecnicos,id'],
+            'tecnico_nome_manual' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'data_servico' => ['sometimes', 'date_format:Y-m-d'],
+            'status' => ['sometimes', Rule::in(array_column(ServicoStatusEnum::cases(), 'value'))],
             'placa' => ['nullable', 'string', 'max:20'],
             'chassi' => ['nullable', 'string', 'max:30'],
             'marca' => ['nullable', 'string', 'max:100'],
@@ -52,6 +57,7 @@ class ServicoDetalhesController extends Controller
             'tipo_pericia' => ['required', Rule::in(['simples', 'completa'])],
             'reparos' => ['required', 'array', 'max:14'],
             'reparos.*.peca' => ['required', Rule::in(self::PARTES)],
+            'reparos.*.avaliada' => ['sometimes', 'boolean'],
             'reparos.*.tipoReparo' => ['required', Rule::in(['PDR', 'PINTURA', 'TROCA', 'ALUMINIO_PDR', 'ALUMINIO_PINTURA', 'SEM_DANO'])],
             'reparos.*.amassadosAte2' => ['required', 'integer', 'min:0', 'max:9999'],
             'reparos.*.amassadosAte5' => ['required', 'integer', 'min:0', 'max:9999'],
@@ -106,7 +112,15 @@ class ServicoDetalhesController extends Controller
         $pathsCriados = [];
         $pathsRemovidos = [];
         try {
-            DB::transaction(function () use ($request, $servico, $reparos, $precos, $fotosExistentes, $valoresCalculados, &$pathsCriados, &$pathsRemovidos) {
+            DB::transaction(function () use ($request, $servico, $adminData, $reparos, $precos, $fotosExistentes, $valoresCalculados, &$pathsCriados, &$pathsRemovidos) {
+                $servico = Servico::whereKey($servico->id)->lockForUpdate()->firstOrFail();
+                $metadata = array_intersect_key($adminData, array_flip(['oficina_id', 'tecnico_id', 'tecnico_nome_manual', 'data_servico', 'status']));
+                if (! empty(array_key_exists('tecnico_id', $metadata) ? $metadata['tecnico_id'] : $servico->tecnico_id)) {
+                    $metadata['tecnico_nome_manual'] = null;
+                }
+                if (($metadata['status'] ?? null) === 'finalizado' && $servico->status === ServicoStatusEnum::CANCELADO) {
+                    throw ValidationException::withMessages(['status' => ['Um serviço cancelado não pode ser finalizado.']]);
+                }
                 $veiculo = $servico->primeiroVeiculo ?: $servico->veiculos()->create(['preco_total' => 0, 'reparos_execucao' => []]);
                 $anteriores = $veiculo->fotos_veiculo ?? [];
                 $fotos = [];
@@ -150,6 +164,7 @@ class ServicoDetalhesController extends Controller
                     $saved[] = array_merge($old, [
                         'peca' => $key,
                         'tipoReparo' => $repair['tipoReparo'],
+                        'avaliada' => (bool) ($repair['avaliada'] ?? true),
                         'amassadosAte2' => (int) $repair['amassadosAte2'],
                         'amassadosAte5' => (int) $repair['amassadosAte5'],
                         'amassadosAcima5' => (int) $repair['amassadosAcima5'],
@@ -176,7 +191,7 @@ class ServicoDetalhesController extends Controller
                 if ($valoresCalculados['carro']['oficina'] !== null) {
                     $veiculo->update(['preco_total' => $valoresCalculados['carro']['oficina']]);
                 }
-                $servico->update([
+                $servico->update(array_merge($metadata, [
                     'pericia_completa' => $request->input('tipo_pericia') === 'completa',
                     'observacoes' => $request->input('observacoes'),
                     'precos_detalhados' => $precos,
@@ -186,7 +201,7 @@ class ServicoDetalhesController extends Controller
                     'preco_tecnico' => $valoresCalculados['carro']['tecnico'],
                     'percentual_tecnico' => $precos['tecnico_carro']['tipo'] === 'porcentagem'
                         ? $precos['tecnico_carro']['valor'] : null,
-                ]);
+                ]));
                 ServicoLog::create([
                     'servico_id' => $servico->id,
                     'oficina_id' => $servico->oficina_id,
@@ -218,7 +233,7 @@ class ServicoDetalhesController extends Controller
             if ($s->tecnico_id !== null && $s->tecnico_id !== $data['tecnico_id']) {
                 throw ValidationException::withMessages(['tecnico_id' => ['Outro técnico está designado.']]);
             }
-            $s->update(['tecnico_id' => $data['tecnico_id'], 'status' => ServicoStatusEnum::ACEITO, 'aceito_em' => now(), 'disponivel_para_todos' => false]);
+            $s->update(['tecnico_nome_manual' => null, 'tecnico_id' => $data['tecnico_id'], 'status' => ServicoStatusEnum::ACEITO, 'aceito_em' => now(), 'disponivel_para_todos' => false]);
             ServicoLog::create(['servico_id' => $s->id, 'tecnico_id' => $s->tecnico_id, 'tipo' => ServicoLogTipoEnum::SERVICO_ACEITO, 'descricao' => 'Administrador confirmou a aceitação do técnico']);
             return $s;
         });
@@ -229,7 +244,7 @@ class ServicoDetalhesController extends Controller
     {
         $servico = DB::transaction(function () use ($id) {
             $s = Servico::whereKey($id)->lockForUpdate()->firstOrFail();
-            if (! in_array($s->status, [ServicoStatusEnum::ACEITO, ServicoStatusEnum::AGUARDANDO_APROVACAO, ServicoStatusEnum::EM_BREVE], true)) {
+            if (! in_array($s->status, [ServicoStatusEnum::ACEITO, ServicoStatusEnum::AGUARDANDO, ServicoStatusEnum::AGUARDANDO_APROVACAO, ServicoStatusEnum::EM_BREVE], true)) {
                 throw ValidationException::withMessages(['status' => ['Não é permitido recusar um serviço em execução ou finalizado.']]);
             }
             $oldTech = $s->tecnico_id;

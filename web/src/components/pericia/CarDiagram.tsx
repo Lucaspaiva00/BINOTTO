@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Center, Html, OrbitControls, useGLTF } from "@react-three/drei";
-import type { Object3D } from "three";
+import { Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { getCarPartLabel } from "@/constants/carParts";
 import { getRepairTypeColor } from "@/constants/repairTypes";
 import type { PartInspection } from "@/types/carParts";
@@ -24,11 +24,12 @@ const PANELS: Panel[] = [
 
 function VehiclePanel({ panel, state, selected, canOpen, onSelect, overlayOnly }: { panel: Panel; state?: PartInspection; selected: boolean; canOpen: boolean; onSelect: () => void; overlayOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
-  const color = getRepairTypeColor(state?.repairType ?? "SEM_DANO");
+  const color = state?.assessed === false ? "#FFFFFF" : getRepairTypeColor(state?.repairType ?? "SEM_DANO");
   const click = (event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); if (canOpen) onSelect(); };
-  const visible = !overlayOnly || state?.repairType !== "SEM_DANO" || selected || hovered;
-  return <mesh visible={visible} position={panel.position} onClick={click} onPointerEnter={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = canOpen ? "pointer" : "default"; }} onPointerLeave={() => { setHovered(false); document.body.style.cursor = "default"; }}>
-    <boxGeometry args={panel.size} /><meshStandardMaterial transparent={overlayOnly} opacity={overlayOnly ? .72 : 1} color={color} metalness={.45} roughness={.35} emissive={selected || hovered ? "#ffffff" : "#000000"} emissiveIntensity={selected ? .32 : hovered ? .12 : 0} />
+  // Unassessed GLB panels must accept clicks to register the first repair.
+  const unassessed = state?.assessed === false;
+  return <mesh position={panel.position} onClick={click} onPointerEnter={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = canOpen ? "pointer" : "default"; }} onPointerLeave={() => { setHovered(false); document.body.style.cursor = "default"; }}>
+    <boxGeometry args={panel.size} /><meshStandardMaterial transparent={overlayOnly} opacity={overlayOnly && !unassessed ? .72 : 1} color={color} metalness={.45} roughness={.35} emissive={selected || hovered ? "#ffffff" : "#000000"} emissiveIntensity={selected ? .32 : hovered ? .12 : 0} />
     {(state?.repairType === "ALUMINIO_PDR" || state?.repairType === "ALUMINIO_PINTURA") && Array.from({ length: 5 }, (_, i) => {
       const offset = (i - 2) * (panel.size[2] / 6);
       const side = panel.size[0] < .4;
@@ -45,7 +46,20 @@ function VehiclePanel({ panel, state, selected, canOpen, onSelect, overlayOnly }
 
 function LicensedVehicleModel({ asset }: { asset: VehicleAsset }) {
   const gltf = useGLTF(asset.assetPath!, true, true);
-  const scene = useMemo(() => gltf.scene.clone(true) as Object3D, [gltf.scene]);
+  const scene = useMemo(() => {
+    const clone = gltf.scene.clone(true) as Object3D;
+    clone.traverse(object => {
+      if (!(object instanceof Mesh)) return;
+      const whitenBody = (material: MeshStandardMaterial) => {
+        if (!/lataria|body|carpaint/i.test(material.name)) return material;
+        const copy = material.clone();
+        copy.color.set("#FFFFFF");
+        return copy;
+      };
+      object.material = Array.isArray(object.material) ? object.material.map(whitenBody) : whitenBody(object.material);
+    });
+    return clone;
+  }, [gltf.scene]);
   return <Center><primitive object={scene} /></Center>;
 }
 
@@ -54,7 +68,7 @@ function Vehicle(props: CarDiagramProps) {
   const asset = resolveVehicleAsset(props.vehicleModel);
   const hasRealModel = Boolean(asset?.assetPath);
   return <group rotation={[0, -.42, 0]} scale={profile.scale}>
-    {hasRealModel ? <Suspense fallback={null}><LicensedVehicleModel asset={asset!} /></Suspense> : <><mesh position={[0, .44, 0]}><boxGeometry args={[1.95, .62, 4.28]} /><meshStandardMaterial color="#242a34" metalness={.55} roughness={.34} /></mesh><mesh position={[0, 1.01, .12]}><boxGeometry args={[1.62, .66, 1.82]} /><meshStandardMaterial color="#17202c" metalness={.7} roughness={.18} transparent opacity={.88} /></mesh>{[-1, 1].flatMap((x) => [-1.3, 1.35].map((z) => <mesh key={`${x}-${z}`} position={[x, .28, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.37, .37, .2, 28]} /><meshStandardMaterial color="#080b10" roughness={.48} /></mesh>))}</>}
+    {hasRealModel ? <Suspense fallback={null}><LicensedVehicleModel asset={asset!} /></Suspense> : <><mesh position={[0, .44, 0]}><boxGeometry args={[1.95, .62, 4.28]} /><meshStandardMaterial color="#FFFFFF" metalness={.55} roughness={.34} /></mesh><mesh position={[0, 1.01, .12]}><boxGeometry args={[1.62, .66, 1.82]} /><meshStandardMaterial color="#17202c" metalness={.7} roughness={.18} transparent opacity={.88} /></mesh>{[-1, 1].flatMap((x) => [-1.3, 1.35].map((z) => <mesh key={`${x}-${z}`} position={[x, .28, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.37, .37, .2, 28]} /><meshStandardMaterial color="#080b10" roughness={.48} /></mesh>))}</>}
     {PANELS.map((panel) => { const state = props.partsState[panel.id]; const canOpen = props.canEdit || (state && state.repairType !== "SEM_DANO"); return <VehiclePanel key={panel.id} panel={panel} state={state} selected={props.selectedPartId === panel.id} canOpen={Boolean(canOpen)} overlayOnly={hasRealModel} onSelect={() => props.onSelectPart(panel.id)} />; })}
   </group>;
 }

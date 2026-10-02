@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { CarDiagram } from "@/components/pericia/CarDiagram";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,7 +19,7 @@ import type { PartInspection, RepairType } from "@/types/carParts";
 import type { ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
-  defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS, resolveDetailedPrices,
+  localTodayISO, defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS, resolveDetailedPrices,
   type DetailedPrices, type DetailedPriceKey, type SuggestionPriceKey, type VehiclePhotoKey, type VehiclePhotoMap,
 } from "./serviceDetails";
 
@@ -27,6 +28,9 @@ export interface ServiceAdminFormState {
   workshopId: string;
   status: ServiceStatus;
   technicianId: string;
+  registeredTechnician: boolean;
+  manualTechnicianName: string;
+  serviceDate: string;
   plate: string;
   chassis: string;
   model: string; // legado: marca+modelo para evitar quebrar consumidores antigos
@@ -42,6 +46,7 @@ export interface ServiceAdminFormState {
 }
 export function initialServiceForm(): ServiceAdminFormState {
   return {
+    serviceDate: localTodayISO(), registeredTechnician: false, manualTechnicianName: "",
     workshopId: "", status: "aguardando", technicianId: "", plate: "", chassis: "", model: "",
     brand: "", vehicleModel: "", vehiclePhotos: emptyVehiclePhotos(), inspectionType: "simples",
     detailedPrices: defaultPrices(), price: "0", compensationType: "none", compensationValue: "0", notes: "",
@@ -62,7 +67,7 @@ interface Props {
   actionBusy?: boolean;
   errors?: Record<string, string>;
 }
-const STATUS_KEYS = Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[];
+const STATUS_KEYS = (Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[]).filter(status => !["finalizado", "retrabalho", "aceito", "concluido"].includes(status));
 const TYPE_KEYS: RepairType[] = ["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"];
 function resolvePhoto(photo: string): string {
   if (/^https?:\/\//.test(photo)) return photo;
@@ -131,9 +136,10 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   }
   function bulk(type: RepairType) {
     if (!onPartChange) return;
+    const deselect = SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === type);
     for (const id of SERVICE_PARTS_ORDER) {
       const current = partsState[id];
-      onPartChange(id, { ...current, repairType: type });
+      onPartChange(id, { ...current, repairType: deselect ? "SEM_DANO" : type, assessed: !deselect });
     }
   }
   function updatePrice(key: DetailedPriceKey | SuggestionPriceKey, update: Partial<DetailedPrices[DetailedPriceKey | SuggestionPriceKey]>) {
@@ -146,20 +152,32 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante</h2>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label>Oficina</Label><SearchableSelect value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
-        <div className="space-y-2"><Label>Status</Label><Select value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{STATUS_KEYS.map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-2"><Label>Técnico</Label><Select value={value.technicianId || "none"} onValueChange={v => onChange("technicianId", v === "none" ? "" : v)}><SelectTrigger><SelectValue placeholder="Sem técnico" /></SelectTrigger><SelectContent><SelectItem value="none">Sem técnico</SelectItem>{technicians.map(t => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}</SelectContent></Select></div>
-        {(onAccept || onRefuse) && <div className="flex items-end gap-2"><Button type="button" disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>Aceitar</Button><Button type="button" variant="outline" disabled={actionBusy || !canRefuse} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button></div>}
+        <div className="space-y-2"><Label>Status</Label><Select value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{STATUS_KEYS.map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
+        <div className="space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
+        <div className="space-y-2">
+          <Button type="button" aria-pressed={value.registeredTechnician} variant={value.registeredTechnician ? "default" : "outline"} onClick={() => {
+            onChange("registeredTechnician", !value.registeredTechnician);
+            onChange("technicianId", "");
+          }}>Técnico</Button>
+          {value.registeredTechnician
+            ? <SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico cadastrado" options={technicians.map(t => ({ value: String(t.id), label: t.name }))} />
+            : <Input aria-label="Nome do técnico" value={value.manualTechnicianName} maxLength={150} placeholder="Digite o nome do técnico" onChange={e => onChange("manualTechnicianName", e.target.value)} />}
+        </div>
+        {(onAccept || onRefuse) && <div className="flex items-end gap-2">
+          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
+          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+        </div>}
       </div>
-      {(onAccept || onRefuse) && <p className="text-xs text-muted-foreground">Aceitar confirma administrativamente o técnico selecionado; recusar libera a vaga. Não representa uma ação realizada pelo técnico no celular.</p>}
+
     </section>
 
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CarFront className="h-5 w-5"/>Carro</h2>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cameraField("placa", "plate", "Placa")}{cameraField("chassi", "chassis", "Chassi")}
         {cameraField("marca", "brand", "Marca")}{cameraField("modelo", "vehicleModel", "Modelo")}
       </div>
-      <p className="text-xs text-muted-foreground">A câmera anexa a imagem. O preenchimento por IA depende da configuração do servidor e deve ser conferido manualmente.</p>
+
       <h3 className="font-medium">Fotos do veículo</h3><div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {VEHICLE_PHOTOS.slice(0, 4).map(({ key, label }) => <VehiclePhotoCard key={key} label={label} photo={value.vehiclePhotos[key]} onChange={photo => photoChange(key, photo)}/>) }
       </div>
@@ -172,9 +190,9 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         <Button type="button" variant={value.inspectionType === "completa" ? "default" : "outline"} onClick={() => onChange("inspectionType", "completa")}>Perícia detalhada</Button>
       </div>
       <p className="text-xs text-muted-foreground">Por enquanto, essa escolha identifica o serviço sem modificar automaticamente os cálculos.</p>
-      <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" variant="outline" disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
+      <div className="flex flex-wrap gap-2"><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
       <CarDiagram partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />
-      <div className="flex flex-wrap items-center gap-3 text-xs">{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
+      <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
       <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="rounded-xl border p-3">
         <summary className="cursor-pointer font-medium">Detalhes do serviço (clique para {detailsOpen ? "recolher" : "expandir"})</summary>
         <div className="mt-3 overflow-x-auto"><table className="w-full min-w-185 text-sm"><thead><tr className="text-left text-muted-foreground"><th className="p-2">Tipo</th><th className="p-2">Peça</th><th className="p-2">Até 2 cm</th><th className="p-2">Até 5 cm</th><th className="p-2">Acima de 5 cm</th><th className="p-2">Observação</th><th className="p-2">Fotos</th></tr></thead><tbody>
@@ -182,7 +200,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
             const part = partsState[id];
             function update(changes: Partial<PartInspection>) { onPartChange?.(id, { ...part, ...changes }); }
             function count(value: string): number { return Math.min(9999, Number(value.replace(/\D/g, "").slice(0, 4)) || 0); }
-            return <tr key={id} className="border-t"><td className="p-1"><select aria-label={`Tipo ${getCarPartLabel(id)}`} className="h-9 max-w-35 rounded border bg-background p-1" value={part.repairType} disabled={!onPartChange} onChange={e => update({ repairType: e.target.value as RepairType })}>{TYPE_KEYS.map(type => <option key={type} value={type}>{REPAIR_TYPE_LABEL[type]}</option>)}</select></td>
+            return <tr key={id} className="border-t"><td className="p-1"><select aria-label={`Tipo ${getCarPartLabel(id)}`} className="h-9 max-w-35 rounded border bg-background p-1" value={part.assessed === false ? "unassessed" : part.repairType} disabled={!onPartChange} onChange={e => update({ repairType: e.target.value === "unassessed" ? "SEM_DANO" : e.target.value as RepairType, assessed: e.target.value !== "unassessed" })}><option value="unassessed">Não avaliada</option>{TYPE_KEYS.map(type => <option key={type} value={type}>{REPAIR_TYPE_LABEL[type]}</option>)}</select></td>
               <td className="whitespace-nowrap p-1">{getCarPartLabel(id)}</td>
               {(["dentsUpTo2", "dentsUpTo5", "dentsOver5"] as const).map(key => <td className="p-1" key={key}><Input aria-label={`${getCarPartLabel(id)} ${key}`} type="number" min={0} max={9999} className="min-w-19" value={part[key] ?? 0} disabled={!onPartChange} onChange={e => update({ [key]: count(e.target.value) })}/></td>)}
               <td className="p-1"><Input maxLength={255} className="min-w-30" aria-label={`Observação ${getCarPartLabel(id)}`} value={part.notes} disabled={!onPartChange} onChange={e => update({ notes: e.target.value })}/></td>
@@ -200,10 +218,10 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       <div className="overflow-x-auto">
         <div className="min-w-[980px] space-y-2">
           <div className="grid grid-cols-[9rem_minmax(9rem,1fr)_5.5rem_minmax(19rem,1.8fr)_minmax(10rem,1fr)_5.5rem] items-center gap-3 border-b pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            <span>Item</span>
-            <span>Preço</span>
+            <span aria-hidden="true" />
+            <span>Fatura</span>
             <span className="text-center">Visível</span>
-            <span>Comissão</span>
+            <span>Técnico</span>
             <span>Sugestão Técnico</span>
             <span className="text-center">Visível</span>
           </div>
@@ -223,7 +241,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
 
               <Input
                 inputMode="decimal"
-                aria-label={`Preço — ${heading}`}
+                aria-label={`Fatura — ${heading}`}
                 value={office.valor}
                 onChange={e => updatePrice(officeKey, { tipo: "valor", valor: e.target.value.replace(/[^0-9,.]/g, "") })}
                 placeholder="0,00"
@@ -231,7 +249,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
 
               <div className="flex justify-center">
                 <Switch
-                  aria-label={`Preço visível — ${heading}`}
+                  aria-label={`Fatura visível — ${heading}`}
                   checked={office.visivel_app}
                   onCheckedChange={checked => updatePrice(officeKey, { visivel_app: checked })}
                 />
@@ -258,7 +276,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                 <Input
                   className="min-w-24"
                   inputMode="decimal"
-                  aria-label={`Comissão — ${heading}`}
+                  aria-label={`Técnico — ${heading}`}
                   value={tech.valor}
                   onChange={e => updatePrice(techKey, { valor: e.target.value.replace(/[^0-9,.]/g, "") })}
                   placeholder={tech.tipo === "porcentagem" ? "0%" : "0,00"}
@@ -267,9 +285,9 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                 {tech.tipo === "porcentagem" && <Input
                   className="min-w-28"
                   readOnly
-                  aria-label={`Resultado da comissão — ${heading}`}
+                  aria-label={`Valor do técnico — ${heading}`}
                   value={formatted(calculated?.tecnico)}
-                  title="Resultado da comissão em dinheiro"
+                  title="Valor do técnico em dinheiro"
                 />}
               </div>
 
@@ -291,15 +309,19 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
             </div>;
           })}
 
-          <div className="grid grid-cols-[9rem_1fr_1fr] items-center gap-3 rounded-lg border bg-muted/40 px-3 py-3">
+          <div className="grid grid-cols-[9rem_1fr_1fr_1fr] items-center gap-3 rounded-lg border bg-muted/40 px-3 py-3">
             <span className="font-semibold">TOTAL</span>
             <div className="flex items-center gap-2">
-              <Label className="w-16 shrink-0 text-xs">Oficina</Label>
+              <Label className="w-24 shrink-0 text-xs">Oficina / Fatura</Label>
               <Input readOnly aria-label="Total oficina" value={totals ? formatted(totals.carro.oficina + totals.desmontagem.oficina) : "—"} />
             </div>
             <div className="flex items-center gap-2">
               <Label className="w-16 shrink-0 text-xs">Técnico</Label>
               <Input readOnly aria-label="Total técnico" value={totals ? formatted(totals.carro.tecnico + totals.desmontagem.tecnico) : "—"} />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="w-16 shrink-0 text-xs">Empresa</Label>
+              <Input readOnly aria-label="Total empresa" value={totals ? formatted(totals.carro.oficina + totals.desmontagem.oficina - totals.carro.tecnico - totals.desmontagem.tecnico) : "—"} />
             </div>
           </div>
         </div>
