@@ -1,6 +1,7 @@
+import { FinanceRecordDetails, FinanceVehicleSummary } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Eye, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -31,7 +32,7 @@ import { formatCurrency } from "@/utils/currency";
 import { endOfMonth, formatDate, startOfMonth, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
-import { PAGE_SIZE, StatusBadge, OriginBadge, shopName } from "./shared";
+import { PAGE_SIZE, StatusBadge, shopName } from "./shared";
 
 interface ReceivableForm {
   id?: number;
@@ -196,6 +197,7 @@ export function Receivables() {
 
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
 
+  const [viewing, setViewing] = useState<Receivable | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ReceivableForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -448,14 +450,10 @@ export function Receivables() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="hidden md:table-cell">Oficina / Cliente</TableHead>
-              <TableHead>Valor</TableHead>
-              <TableHead className="hidden lg:table-cell">Plataforma</TableHead>
-              <TableHead className="hidden xl:table-cell">Quem pagou / Forma</TableHead>
-              <TableHead className="hidden xl:table-cell">Lançamento</TableHead>
-              <TableHead className="hidden md:table-cell">Vencimento</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Veículo / Referência</TableHead>
+              <TableHead>Oficina / Cliente</TableHead>
+              <TableHead>Valor a receber</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
@@ -463,50 +461,34 @@ export function Receivables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10">
+                <TableCell colSpan={6} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((r) => (
-                <TableRow key={r.id} onClick={() => openEdit(r)} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell>
-                    <OriginBadge origin={r.origin} />
-                  </TableCell>
-                  <TableCell className="font-medium">{r.description}</TableCell>
-                  <TableCell className="text-sm hidden md:table-cell">
-                    {r.origin === "avulsa" ? (r.client ?? "-") : shopName(workshops, r.workshopId)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{formatCurrency(r.serviceAmount)}</TableCell>
-                  <TableCell className="font-medium hidden lg:table-cell whitespace-nowrap">
-                    {formatCurrency(r.platformAmount)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell">
-                    {r.origin === "avulsa" ? (r.paymentMethod ?? "-") : (r.paidBy ?? "-")}
-                  </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell whitespace-nowrap">
-                    {formatDate(r.origin === "avulsa" ? r.issueDate : r.launchDate)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden md:table-cell whitespace-nowrap">
-                    {formatDate(r.dueDate)}
-                  </TableCell>
+                <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer hover:bg-accent/50">
+                  <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>
+                  <TableCell><FinanceVehicleSummary record={r} /></TableCell>
+                  <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
+                  <TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
                   <TableCell>
                     <StatusBadge status={r.status} />
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(r); }}>
-                        <Pencil className="w-4 h-4" />
+                      <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(r); }}>
+                        <Eye className="w-4 h-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" aria-label="Excluir lançamento" onClick={(e) => e.stopPropagation()}>
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
@@ -517,7 +499,7 @@ export function Receivables() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => remove(r.id)}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(r.id); }}>Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -549,6 +531,9 @@ export function Receivables() {
           </div>
         )}
       </div>
+
+      <FinanceRecordDetails kind="receber" record={viewing} workshops={workshops}
+        onClose={() => setViewing(null)} onEdit={() => { if (viewing) { openEdit(viewing); setViewing(null); } }} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

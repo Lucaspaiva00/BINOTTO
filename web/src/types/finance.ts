@@ -79,7 +79,9 @@ export interface Payable {
   vehicleReferenceType?: "placa" | "chassi" | null;
   vehicleReference?: string | null;
   technicianId: number | null;
+  technician?: string | null;
   workshopId: number | null;
+  workshop?: string | null;
   description: string;
   amountDue: number;
   amountPaid: number;

@@ -1,6 +1,7 @@
+import { FinanceRecordDetails, FinanceVehicleSummary } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Eye, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -32,7 +33,7 @@ import { endOfMonth, formatDate, startOfMonth } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { emptyForm, toForm, toPayload, type PayableForm } from "./payableForm";
-import { PAGE_SIZE, StatusBadge, OriginBadge, techName, shopName } from "./shared";
+import { PAGE_SIZE, StatusBadge, techName } from "./shared";
 
 const FIELD_MAP: Record<string, string> = {
   origem: "origin",
@@ -76,6 +77,7 @@ export function Payables() {
   const [technicians, setTechnicians] = useState<UserSelectionItem[]>([]);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
 
+  const [viewing, setViewing] = useState<Payable | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<PayableForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -355,14 +357,10 @@ export function Payables() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tipo</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="hidden md:table-cell">Técnico / Fornecedor</TableHead>
-              <TableHead className="hidden lg:table-cell">Oficina (pagou)</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead>Veículo / Referência</TableHead>
+              <TableHead>Técnico / Fornecedor</TableHead>
               <TableHead>Valor a pagar</TableHead>
-              <TableHead className="hidden lg:table-cell">Valor pago</TableHead>
-              <TableHead className="hidden xl:table-cell">Lançamento</TableHead>
-              <TableHead className="hidden md:table-cell">Vencimento</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
@@ -370,50 +368,34 @@ export function Payables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10">
+                <TableCell colSpan={6} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((p) => (
-                <TableRow key={p.id} onClick={() => openEdit(p)} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell>
-                    <OriginBadge origin={p.origin} />
-                  </TableCell>
-                  <TableCell className="font-medium">{p.description}</TableCell>
-                  <TableCell className="text-sm hidden md:table-cell">
-                    {p.origin === "avulsa" ? (p.supplier ?? "-") : techName(technicians, p.technicianId)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden lg:table-cell">
-                    {p.origin === "avulsa" ? (p.paymentMethod ?? "-") : shopName(workshops, p.workshopId)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">{formatCurrency(p.amountDue)}</TableCell>
-                  <TableCell className="font-medium hidden lg:table-cell whitespace-nowrap">
-                    {formatCurrency(p.amountPaid)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden xl:table-cell whitespace-nowrap">
-                    {formatDate(p.origin === "avulsa" ? p.issueDate : p.launchDate)}
-                  </TableCell>
-                  <TableCell className="text-sm hidden md:table-cell whitespace-nowrap">
-                    {formatDate(p.dueDate)}
-                  </TableCell>
+                <TableRow key={p.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(p); }} className="cursor-pointer hover:bg-accent/50">
+                  <TableCell className="whitespace-nowrap text-sm">{formatDate(p.serviceDate ?? p.issueDate ?? p.launchDate ?? p.dueDate)}</TableCell>
+                  <TableCell><FinanceVehicleSummary record={p} /></TableCell>
+                  <TableCell className="text-sm">{p.origin === "avulsa" ? (p.supplier ?? "—") : (p.technician || p.supplier || techName(technicians, p.technicianId))}</TableCell>
+                  <TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
                   <TableCell>
                     <StatusBadge status={p.status} />
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openEdit(p); }}>
-                        <Pencil className="w-4 h-4" />
+                      <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(p); }}>
+                        <Eye className="w-4 h-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost">
+                          <Button size="sm" variant="ghost" aria-label="Excluir lançamento" onClick={(e) => e.stopPropagation()}>
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
@@ -424,7 +406,7 @@ export function Payables() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => remove(p.id)}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id); }}>Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
@@ -456,6 +438,9 @@ export function Payables() {
           </div>
         )}
       </div>
+
+      <FinanceRecordDetails kind="pagar" record={viewing} workshops={workshops} technicians={technicians}
+        onClose={() => setViewing(null)} onEdit={() => { if (viewing) { openEdit(viewing); setViewing(null); } }} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
