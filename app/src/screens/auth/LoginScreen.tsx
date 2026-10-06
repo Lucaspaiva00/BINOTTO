@@ -173,10 +173,26 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
         return;
       }
     } catch (error) {
-      const apiMessage =
-        (error as any)?.response?.data?.error || t("loginScreen.loginFailed");
+      const axiosError = error as any;
+      const status = axiosError?.response?.status;
+      const data = axiosError?.response?.data;
+      const endpoint = `${GLOBAL.baseURL}/auth/login`;
 
-      setError(apiMessage);
+      const debugPayload = {
+        endpoint,
+        status: status ?? "NO_RESPONSE",
+        data: data ?? null,
+        message: axiosError?.message ?? String(error),
+        code: axiosError?.code ?? null,
+      };
+
+      console.log("[LOGIN_ERROR]", debugPayload);
+
+      setError(
+        data?.error || data?.message
+          ? `${data?.error || data?.message}\n\n${JSON.stringify(debugPayload, null, 2)}`
+          : `${t("loginScreen.loginFailed")}\n\n${JSON.stringify(debugPayload, null, 2)}`,
+      );
     } finally {
       setIsSubmitting(false);
     }

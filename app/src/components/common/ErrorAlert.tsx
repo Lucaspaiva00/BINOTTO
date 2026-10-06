@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "@/theme/colors";
 
@@ -19,7 +19,9 @@ export function ErrorAlert({ message, onClose }: Props) {
       </View>
 
       <View style={{ flex: 1 }}>
-        <Text style={styles.errorMessage}>{message}</Text>
+        <Text style={styles.errorMessage} selectable>
+          {message}
+        </Text>
       </View>
 
       <TouchableOpacity onPress={onClose} hitSlop={10}>
@@ -52,7 +54,8 @@ const styles = StyleSheet.create({
 
   errorMessage: {
     color: "#fca5a5",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
 });

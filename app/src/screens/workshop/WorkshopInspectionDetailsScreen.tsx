@@ -24,7 +24,7 @@ import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
 import InfiniteImageCarousel from "@/components/common/InfiniteImageCarousel";
 import { formatDate } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import LegendDot from "@/components/common/LegendDot";
 import { REPAIR_COLORS } from "@/theme/repairColors";
 import CarDiagram from "@/components/common/CarDiagram";
@@ -39,6 +39,7 @@ import * as Sharing from "expo-sharing";
 import { FileText, Wrench } from "lucide-react-native";
 import WorkshopManagementService from "@/services/WorkshopManagementService";
 import SecureStorageService from "../../services/SecureStorageService";
+import { getVehicleName } from "@/utils/vehicle";
 
 const storage = GLOBAL.storage;
 
@@ -211,15 +212,18 @@ export default function WorkshopInspectionDetailsScreen() {
               <View style={styles.summaryCardPlateRow}>
                 <Text style={styles.summaryCardPlate}>{inspection?.placa ?? "--"}</Text>
               </View>
-              <Text style={styles.summaryCardModel}>{inspection?.marca_modelo ?? "--"}</Text>
+              <Text style={styles.summaryCardModel}>{getVehicleName(inspection, inspection)}</Text>
+              {!!inspection?.numero_publico && (
+                <Text style={styles.summaryCardDate}>{inspection.numero_publico}</Text>
+              )}
             </View>
             <View style={styles.summaryCardPriceContainer}>
               <View style={styles.summaryCardDateRow}>
                 <Text style={styles.summaryCardDate}>{formatDate(inspection.created_at)}</Text>
               </View>
               <Text style={styles.summaryCardInspectionPrice}>
-                {formatCurrency(
-                  inspection?.valor_pericia ?? inspection?.preco_sugerido ?? 0,
+                {formatMoneyOrDash(
+                  inspection?.valor_pericia ?? inspection?.preco_sugerido,
                   inspection?.moeda,
                   locale
                 )}
@@ -244,8 +248,14 @@ export default function WorkshopInspectionDetailsScreen() {
           </View>
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>{t("technicianNewServiceScreen.modelLabel")}</Text>
-            <Text style={styles.detailValue}>{inspection?.marca_modelo ?? "--"}</Text>
+            <Text style={styles.detailValue}>{getVehicleName(inspection, inspection)}</Text>
           </View>
+          {!!inspection?.prazo && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Prazo</Text>
+              <Text style={styles.detailValue}>{formatDate(inspection.prazo)}</Text>
+            </View>
+          )}
         </View>
 
         {photosPericia && photosPericia.length > 0 && (
@@ -305,7 +315,7 @@ export default function WorkshopInspectionDetailsScreen() {
           <View style={{ ...styles.summaryAlterationsCard, flexDirection: "row", justifyContent: "space-between" }}>
             <Text style={styles.alterationValueLabel}>{t("workshopInspectionDetailsScreen.inspectionValueLabel")}</Text>
             <Text style={styles.alterationValue}>
-              {formatCurrency(inspection?.valor_pericia ?? 0, inspection?.moeda, locale)}
+              {formatMoneyOrDash(inspection?.valor_pericia, inspection?.moeda, locale)}
             </Text>
           </View>
         </View>

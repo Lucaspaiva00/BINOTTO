@@ -33,7 +33,7 @@ import {
   formatDateKey,
   formatHour,
 } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { isServiceAvailableForTechnician } from "@/utils/serviceAvailability";
 import { useAuth } from "@/contexts/AuthContext";
 import { getStatusLabelKey } from "@/utils/status";
@@ -42,6 +42,8 @@ import ConfirmRefuseModal from "@/components/common/ConfirmRefuseModal";
 import { Calendar, Car, Clock, Euro, MapPin } from "lucide-react-native";
 import { colorStatus } from "@/services/ColorStatusService";
 import { SafeAreaView } from "react-native-safe-area-context";
+import ServicePriceSection from "@/components/common/ServicePriceSection";
+import { getVehicleName, resolveMediaUrl } from "@/utils/vehicle";
 
 const storage = GLOBAL.storage;
 
@@ -93,7 +95,7 @@ export default function TechnicianServiceDetailsScreen() {
 
   // functions
   const handleOpenImage = (uri: string) => {
-    setSelectedImage(`${storage}/${uri}`);
+    setSelectedImage(resolveMediaUrl(uri, storage));
     setViewerVisible(true);
   };
 
@@ -417,11 +419,18 @@ export default function TechnicianServiceDetailsScreen() {
               <View style={styles.infoItem}>
                 <Euro size={14} color={colors.primary} style={{ marginTop: 2}}/>
                 <Text style={styles.price}>
-                  {formatCurrency(
-                    service.valor_total ?? 0,
+                  {formatMoneyOrDash(
+                    service.valor_total,
                     service.moeda,
                     locale,
                   )}
+                </Text>
+              </View>
+
+              <View style={styles.infoItem}>
+                <Car size={16} color={colors.primary} />
+                <Text style={styles.infoText}>
+                  {getVehicleName(service?.primeiro_veiculo, service)}
                 </Text>
               </View>
             </View>
@@ -436,6 +445,12 @@ export default function TechnicianServiceDetailsScreen() {
               </View>
             )}
           </View>
+
+          <ServicePriceSection
+            serviceId={Number(service.id)}
+            profile="TECNICO"
+            moeda={service.moeda}
+          />
 
           {service.status === "aguardando_aprovacao" && (
             <View style={styles.card}>

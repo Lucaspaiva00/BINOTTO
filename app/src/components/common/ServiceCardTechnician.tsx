@@ -14,7 +14,7 @@ import { colorStatus } from "@/services/ColorStatusService";
 import { getStatusLabelKey } from "@/utils/status";
 import { Calendar, Car, Wrench } from "lucide-react-native";
 import { formatDate } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 
 type ServiceCardTechnicianProps = {
   service: any;
@@ -143,7 +143,7 @@ export default function ServiceCardTechnician({
 
             <View style={styles.priceMetaItem}>
               <Text style={styles.priceText}>
-                {formatCurrency(
+                {formatMoneyOrDash(
                   service.valor_total,
                   service.moeda,
                   locale,

@@ -151,7 +151,7 @@ export default function InspectionModalVisualizer({
             {inspectionComplete && hasDentInfo && (
               <View style={styles.dentsContainer}>
                 <View style={styles.dentsRow}>
-                  { local.quantidadeImpactosMaior25 > 0 && (
+                  {local.quantidadeImpactosMaior25 > 0 && (
                     <View style={styles.dentField}>
                       <Text style={styles.label}>
                         {t("inspectionModal.quantityImpactsGreater25")}
@@ -174,7 +174,7 @@ export default function InspectionModalVisualizer({
                     </View>
                   )}
 
-                  { local.quantidadeImpactosMenor25 > 0 && (
+                  {local.quantidadeImpactosMenor25 > 0 && (
                     <View style={styles.dentField}>
                       <Text style={styles.label}>
                         {t("inspectionModal.quantityImpactsLess25")}
@@ -197,6 +197,22 @@ export default function InspectionModalVisualizer({
                     </View>
                   )}
                 </View>
+
+                {!!local.amassadosAte2 &&
+                  !!local.amassadosAte5 &&
+                  !!local.amassadosAcima5 && (
+                    <View style={styles.dentsRow}>
+                      <Text style={styles.label}>
+                        Amassados até 2 cm: {local.amassadosAte2 ?? 0}
+                      </Text>
+                      <Text style={styles.label}>
+                        Amassados até 5 cm: {local.amassadosAte5 ?? 0}
+                      </Text>
+                      <Text style={styles.label}>
+                        Amassados acima de 5 cm: {local.amassadosAcima5 ?? 0}
+                      </Text>
+                    </View>
+                  )}
 
                 {/* <View style={styles.dentsRow}>
                   {local.quantidadeAmassados > 0 && (
@@ -323,9 +339,7 @@ export default function InspectionModalVisualizer({
 
             <View style={styles.actions}>
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={styles.cancelButtonText}>
-                  {t("common.close")}
-                </Text>
+                <Text style={styles.cancelButtonText}>{t("common.close")}</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

@@ -33,7 +33,7 @@ import {
   normalizeReparos,
 } from "@/utils/carParts";
 import { REPAIR_COLORS } from "@/theme/repairColors";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { formatDate } from "@/utils/date";
 import ImageViewerModal from "@/components/common/ImageViewerModal";
 import { GLOBAL } from "@/constants/global";
@@ -293,8 +293,8 @@ export default function TechnicianCompleteCarScreen() {
               <View style={styles.priceRow}>
                 <Euro size={16} color={colors.primary} />
                 <Text style={styles.servicePriceText}>
-                  {formatCurrency(
-                    service?.valor_total ?? 0,
+                  {formatMoneyOrDash(
+                    service?.valor_total,
                     service?.moeda,
                     locale,
                   )}

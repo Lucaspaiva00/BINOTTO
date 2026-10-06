@@ -22,7 +22,7 @@ import {
   eachDayOfInterval,
 } from "@/utils/calendar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import {
   formatDateKey,
   formatHour,
@@ -365,8 +365,8 @@ export default function TechnicianCalendarScreen() {
             const status = isRefused ? "recusado" : service.status;
             
             const baseColor = colorStatus(status, true);
-            const price = formatCurrency(
-              service.valor_total ?? 0,
+            const price = formatMoneyOrDash(
+              service.valor_total,
               service.moeda,
               locale,
             );

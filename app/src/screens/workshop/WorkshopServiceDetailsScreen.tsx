@@ -23,7 +23,7 @@ import {
 
 import { colors } from "@/theme/colors";
 import WorkshopManagementService from "@/services/WorkshopManagementService";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { formatDate, formatHour } from "@/utils/date";
 
 import { GLOBAL } from "@/constants/global";
@@ -50,6 +50,8 @@ import ConfirmModal from "@/components/common/ConfirmModal";
 import SecureStorageService from "@/services/SecureStorageService";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
+import ServicePriceSection from "@/components/common/ServicePriceSection";
+import { getVehicleName, resolveMediaUrl } from "@/utils/vehicle";
 
 const storage = GLOBAL.storage;
 
@@ -134,7 +136,7 @@ export default function WorkshopServiceDetailsScreen() {
   };
 
   const handleOpenImage = (uri: string) => {
-    setSelectedImage(`${storage}/${uri}`);
+    setSelectedImage(resolveMediaUrl(uri, storage));
     setViewerVisible(true);
   };
 
@@ -199,7 +201,12 @@ export default function WorkshopServiceDetailsScreen() {
       setLoading(true);
       const res = await WorkshopManagementService.getServiceById(serviceId);
       setService(res.data);
-      setPartsState(normalizeReparos(res.data.primeiro_veiculo?.reparos_execucao ?? []));
+      const vehicle = res.data.primeiro_veiculo;
+      setPartsState(
+        normalizeReparos(
+          vehicle?.reparos_execucao_urls ?? vehicle?.reparos_execucao ?? [],
+        ),
+      );
     } catch (err) {
       setError(t("workshopServiceDetailsScreen.loadingServiceError"));
     } finally {
@@ -338,8 +345,8 @@ export default function WorkshopServiceDetailsScreen() {
                 <View style={styles.infoItem}>
                   <Euro size={14} color={colors.primary} />
                   <Text style={styles.price}>
-                    {formatCurrency(
-                      service.valor_total ?? 0,
+                    {formatMoneyOrDash(
+                      service.valor_total,
                       service.moeda,
                       locale,
                     )}
@@ -373,16 +380,14 @@ export default function WorkshopServiceDetailsScreen() {
                     </View>
 
                     <Text style={styles.vehicleModel}>
-                      {service?.primeiro_veiculo?.marca_modelo ??
-                        service?.modelo ??
-                        "--"}
+                      {getVehicleName(service?.primeiro_veiculo, service)}
                     </Text>
                   </View>
 
                   <View style={styles.priceContainer}>
                     <Text style={styles.servicePrice}>
-                      {formatCurrency(
-                        service?.valor_total ?? 0,
+                      {formatMoneyOrDash(
+                        service?.valor_total,
                         service?.moeda,
                         locale,
                       )}
@@ -399,6 +404,31 @@ export default function WorkshopServiceDetailsScreen() {
                     </View>
                   </View>
                 </View>
+              </View>
+            )}
+
+            <ServicePriceSection
+              serviceId={Number(service.id)}
+              profile="OFICINA"
+              moeda={service.moeda}
+            />
+
+            {!!Object.keys(service.primeiro_veiculo?.fotos_veiculo_urls ?? {}).length && (
+              <View style={styles.photosSection}>
+                <Text style={styles.photosTitle}>Fotos do veículo</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {(Object.values(service.primeiro_veiculo.fotos_veiculo_urls) as string[]).map(
+                    (uri: string, index: number) => (
+                      <TouchableOpacity
+                        key={`${uri}-${index}`}
+                        onPress={() => handleOpenImage(uri)}
+                        style={styles.photoBox}
+                      >
+                        <Image source={{ uri }} style={styles.photo} />
+                      </TouchableOpacity>
+                    ),
+                  )}
+                </ScrollView>
               </View>
             )}
 

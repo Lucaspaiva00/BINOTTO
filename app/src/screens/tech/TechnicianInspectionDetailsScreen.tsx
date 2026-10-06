@@ -17,6 +17,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { colors } from "@/theme/colors";
 import { GLOBAL } from "@/constants/global";
+import { getVehicleName } from "@/utils/vehicle";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import ImageViewerModal from "@/components/common/ImageViewerModal";
 import { useTranslation } from "react-i18next";
@@ -24,7 +25,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import AppHeader from "@/components/common/AppHeader";
 import EmptyState from "@/components/common/EmptyState";
 import { formatDate } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import LegendDot from "@/components/common/LegendDot";
 import { REPAIR_COLORS } from "@/theme/repairColors";
 import CarDiagram from "@/components/common/CarDiagram";
@@ -319,8 +320,13 @@ const displayOrder: RepairType[] = [
                 </Text>
               </View>
               <Text style={styles.summaryCardModel}>
-                {inspection?.marca_modelo ?? "--"}
+                {getVehicleName(inspection, inspection)}
               </Text>
+              {!!inspection?.numero_publico && (
+                <Text style={styles.summaryCardDate}>
+                  {inspection.numero_publico}
+                </Text>
+              )}
             </View>
 
             <View style={styles.summaryCardPriceContainer}>
@@ -330,8 +336,8 @@ const displayOrder: RepairType[] = [
                 </Text>
               </View>
               <Text style={styles.summaryCardInspectionPrice}>
-                {formatCurrency(
-                  inspection?.valor_pericia ?? inspection?.preco_sugerido ?? 0,
+                  {formatMoneyOrDash(
+                    inspection?.valor_pericia ?? inspection?.preco_sugerido,
                   inspection?.moeda,
                   locale,
                 )}
@@ -367,9 +373,15 @@ const displayOrder: RepairType[] = [
               {t("technicianNewServiceScreen.modelLabel")}
             </Text>
             <Text style={styles.detailValue}>
-              {inspection?.marca_modelo ?? "--"}
+              {getVehicleName(inspection, inspection)}
             </Text>
           </View>
+          {!!inspection?.prazo && (
+            <View style={styles.detailItem}>
+              <Text style={styles.detailLabel}>Prazo</Text>
+              <Text style={styles.detailValue}>{formatDate(inspection.prazo)}</Text>
+            </View>
+          )}
         </View>
 
         {/* {photosBase && photosBase.length > 0 && (
@@ -519,8 +531,8 @@ const displayOrder: RepairType[] = [
                 {t("technicianInspectionDetailsScreen.inspectionValueLabel")}
               </Text>
               <Text style={styles.alterationValue}>
-                {formatCurrency(
-                  inspection?.valor_pericia ?? 0,
+                {formatMoneyOrDash(
+                  inspection?.valor_pericia,
                   inspection?.moeda,
                   locale,
                 )}

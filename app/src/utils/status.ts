@@ -7,7 +7,8 @@ export const statusLabelMap: Record<string, string> = {
   cancelado: "Cancelado",
   aceito: "Téc. Aceitou",
   em_breve: "Em breve",
-  retrabalho: "Rilavorazione",
+  em_execucao: "Em Execução",
+  retrabalho: "Retrabalho",
 };
 
 export const statusDotStyles = {
@@ -81,7 +82,7 @@ export const getStatusLabelKey = (
     aceito: "accepted",
     em_breve: "comingSoon",
     retrabalho: "rework",
-    recusado: "refused"
+    recusado: "refused",
   };
 
   if (isTecnico && status === "aguardando") {

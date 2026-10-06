@@ -19,7 +19,7 @@ import { colors } from "@/theme/colors";
 import AppHeader from "@/components/common/AppHeader";
 import WorkshopManagementService from "@/services/WorkshopManagementService";
 import { formatDate, formatHour } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -495,7 +495,7 @@ export default function WorkshopDashboardScreen() {
                       key: "price",
                       node: (
                         <Text style={styles.infoText}>
-                          {formatCurrency(
+                          {formatMoneyOrDash(
                             service.valor_total,
                             service.moeda,
                             locale,
@@ -631,7 +631,7 @@ export default function WorkshopDashboardScreen() {
                 subtitle={service.placa || ""}
                 rightContent={
                   <Text style={styles.historyPrice}>
-                    {formatCurrency(service.valor_total, service.moeda, locale)}
+                    {formatMoneyOrDash(service.valor_total, service.moeda, locale)}
                   </Text>
                 }
                 body={
@@ -648,7 +648,7 @@ export default function WorkshopDashboardScreen() {
                       </Text>
                     </View>
                     <Text style={styles.historyPrice}>
-                      {formatCurrency(
+                      {formatMoneyOrDash(
                         service.valor_total,
                         service.moeda,
                         locale,

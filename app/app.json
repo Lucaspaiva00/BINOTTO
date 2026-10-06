@@ -3,7 +3,7 @@
     "name": "Binotto",
     "owner": "binotto-team",
     "slug": "binotto",
-    "version": "2.1",
+    "version": "2.4",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./src/assets/icon.png",
@@ -36,7 +36,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "googleServicesFile": "./google-services.json",
-      "versionCode": 21
+      "versionCode": 25
     },
     "extra": {
       "eas": {

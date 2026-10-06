@@ -42,6 +42,8 @@ import {
 } from "@/utils/carParts";
 import InspectionModalVisualizer from "@/components/common/InspectionModalVisualizer";
 import { Photo } from "@/types/carParts";
+import ServicePriceSection from "@/components/common/ServicePriceSection";
+import { getVehicleName } from "@/utils/vehicle";
 
 const storage = GLOBAL.storage;
 
@@ -191,10 +193,10 @@ export default function WorkshopConfirmServiceScreen() {
         return;
       }
 
-      const payload = {
-        avaliacao: rating,
-        valor_final: (Number(carValue) / 100).toFixed(2),
-      };
+      const payload: Record<string, unknown> = { avaliacao: rating };
+      if (!service?.precos_detalhados) {
+        payload.valor_final = (Number(carValue) / 100).toFixed(2);
+      }
 
       const res = await WorkshopManagementService.confirmWorkshopService(
         id,
@@ -326,27 +328,25 @@ export default function WorkshopConfirmServiceScreen() {
 
           <View style={styles.modelRow}>
             <Text style={styles.model}>
-              {service.primeiro_veiculo?.marca_modelo ?? "--"}
+              {getVehicleName(service.primeiro_veiculo, service)}
             </Text>
 
-            <View style={styles.priceInput}>
-              <TextInput
-                value={formatCurrencyInput(carValue, locale)}
-                onChangeText={(text) => {
-                  if(complete){
-                    return;
-                  }
-
-                  const value = parseCurrencyInput(text);
-                  setCarValue(value);
-                }}
-                keyboardType="numeric"
-                placeholder="Valor"
-                placeholderTextColor={colors.textMuted}
-                style={styles.input}
-                editable={!complete}
-              />
-            </View>
+            {!service.precos_detalhados && (
+              <View style={styles.priceInput}>
+                <TextInput
+                  value={formatCurrencyInput(carValue, locale)}
+                  onChangeText={(text) => {
+                    if (complete) return;
+                    setCarValue(parseCurrencyInput(text));
+                  }}
+                  keyboardType="numeric"
+                  placeholder="Valor"
+                  placeholderTextColor={colors.textMuted}
+                  style={styles.input}
+                  editable={!complete}
+                />
+              </View>
+            )}
           </View>
 
           <View style={styles.techRow}>
@@ -358,6 +358,12 @@ export default function WorkshopConfirmServiceScreen() {
             </Text>
           </View>
         </View>
+
+        <ServicePriceSection
+          serviceId={Number(service.id)}
+          profile="OFICINA"
+          moeda={service.moeda}
+        />
 
         {/* DIAGRAMA DA EXECUÇÃO */}
         {true && (

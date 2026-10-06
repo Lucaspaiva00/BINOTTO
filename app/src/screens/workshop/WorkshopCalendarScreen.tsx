@@ -22,7 +22,7 @@ import {
   eachDayOfInterval,
 } from "@/utils/calendar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import {
   formatDateKey,
   formatHour,
@@ -335,8 +335,8 @@ export default function WorkshopCalendarScreen() {
              const isAccept = service.status === "aceito";
             const baseColor = colorStatus(service.status, true);
  const inCanceled = service.status === "cancelado";
-             const price = formatCurrency(
-                          service.valor_total ?? 0,
+             const price = formatMoneyOrDash(
+                          service.valor_total,
                           service.moeda,
                           locale,
                         );
@@ -431,7 +431,7 @@ export default function WorkshopCalendarScreen() {
                             key: "price",
                             node: (
                               <Text style={styles.servicePrice}>
-                                {formatCurrency(
+                                {formatMoneyOrDash(
                                   service.valor_total,
                                   service.moeda,
                                   locale,

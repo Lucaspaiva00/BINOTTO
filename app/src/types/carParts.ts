@@ -37,6 +37,10 @@ export type PartInspection = {
   quantidadeAmassados: number;
   quantidadeImpactosMaior25: number;
   quantidadeImpactosMenor25: number;
+  amassadosAte2?: number;
+  amassadosAte5?: number;
+  amassadosAcima5?: number;
+  avaliada?: boolean;
   tamanhoAmassado: "P" | "M" | "G" | null;
   coeficiente: number;
   fotos: Photo[];

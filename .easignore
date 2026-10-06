@@ -1,0 +1,17 @@
+# Monorepo — só o app mobile no archive EAS
+/api/
+/web/
+/node_modules/
+**/.git/
+**/node_modules/
+**/vendor/
+**/.expo/
+**/dist/
+**/.npm-cache/
+**/.env
+**/.env.*
+**/credentials.json
+**/credentials/
+**/*.jks
+**/upload_certificate.pem
+**/google-service-account.json

@@ -15,6 +15,15 @@ export function formatCurrency(
   }).format(value);
 }
 
+export function formatMoneyOrDash(
+  value: number | string | null | undefined,
+  currency: string = "BRL",
+  locale: string = "pt-BR",
+) {
+  if (value === null || value === undefined || value === "") return "--";
+  return formatCurrency(Number(value), currency, locale);
+}
+
 export function formatCurrencyInput(raw: string, locale: string = "pt-BR") {
   const value = Number(raw || 0) / 100;
 

@@ -1243,9 +1243,9 @@ export default function TechnicianNewServiceScreen() {
           visible={inspectionModalVisible}
           title={t("technicianNewServiceScreen.selectInspectionTitle")}
           data={inspections}
-          getLabel={(item) => `${item.placa} - ${formatDate(item.created_at)}`}
+          getLabel={(item: any) => `${item.placa} - ${formatDate(item.created_at)}`}
           onClose={() => setInspectionModalVisible(false)}
-          onSelect={(inspection) => {
+          onSelect={(inspection: any) => {
             setInspectionModalVisible(false);
             handleUseInspection(inspection);
           }}
@@ -1257,11 +1257,11 @@ export default function TechnicianNewServiceScreen() {
           visible={serviceModalVisible}
           title={t("technicianNewServiceScreen.selectServiceTitle")}
           data={simultaneousServices || []}
-          getLabel={(item) =>
+          getLabel={(item: any) =>
             `${item.tecnico_label} - ${formatHour(item.horario_previsto_chegada)}`
           }
           onClose={() => setServiceModalVisible(false)}
-          onSelect={(service) => {
+          onSelect={(service: any) => {
             setServiceModalVisible(false);
             navigation.navigate("ServiceDetail", {
               serviceId: service.id,

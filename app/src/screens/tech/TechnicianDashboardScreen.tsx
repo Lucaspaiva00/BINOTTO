@@ -22,7 +22,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/theme/colors";
 import AppHeader from "@/components/common/AppHeader";
 import { formatDate, formatDateKey, formatHour } from "@/utils/date";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -807,7 +807,7 @@ export default function TechnicianDashboardScreen() {
                 subtitle={service.placa || ""}
                 rightContent={
                   <Text style={styles.historyPrice}>
-                    {formatCurrency(service.valor_total, service.moeda, locale)}
+                    {formatMoneyOrDash(service.valor_total, service.moeda, locale)}
                   </Text>
                 }
                 body={
@@ -824,7 +824,7 @@ export default function TechnicianDashboardScreen() {
                       {service.placa || ""}
                     </Text>
                     <Text style={styles.historyPrice}>
-                      {formatCurrency(
+                      {formatMoneyOrDash(
                         service.valor_total,
                         service.moeda,
                         locale,

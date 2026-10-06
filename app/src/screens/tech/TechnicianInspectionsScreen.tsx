@@ -26,7 +26,7 @@ import TechnicianInspectionService from "@/services/TechnicianInspectionService"
 import dayjs from "dayjs";
 import { Car, FileDown, Search } from "lucide-react-native";
 import ListCard from "@/components/common/ListCard";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import TechnicianManagementService from "@/services/TechnicianManagementService";
 import SecureStorageService from "../../services/SecureStorageService";
 import PdfActionModal from "@/components/common/PdfActionModal";
@@ -414,7 +414,7 @@ export default function TechnicianInspectionsScreen() {
                         </Text>
                         <Text style={styles.priceText}>
                           {item.valor_pericia
-                            ? formatCurrency(
+                            ? formatMoneyOrDash(
                                 item.valor_pericia,
                                 item.moeda,
                                 locale,

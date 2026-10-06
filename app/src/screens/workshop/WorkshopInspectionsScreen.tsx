@@ -20,7 +20,7 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/utils/date";
 import ListCard from "@/components/common/ListCard";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { DateRangeValue, SearchDateRangeInput } from "@/components/common/SearchDateRangeInput";
 import { SearchInput } from "@/components/common/SearchInput";
 import WorkshopManagementService from "@/services/WorkshopManagementService";
@@ -251,7 +251,7 @@ export default function WorkshopInspectionsScreen() {
               </Text>
               <Text style={styles.priceText}>
                 {item.valor_pericia
-                  ? formatCurrency(item.valor_pericia, item.moeda, locale)
+                  ? formatMoneyOrDash(item.valor_pericia, item.moeda, locale)
                   : ""}
               </Text>
             </View>

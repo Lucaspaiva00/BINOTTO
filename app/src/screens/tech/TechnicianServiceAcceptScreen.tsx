@@ -30,7 +30,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import AppHeader from "@/components/common/AppHeader";
 import TechnicianManagementService from "@/services/TechnicianManagementService";
 import { Input } from "@/components/common/Input";
-import { formatCurrency, formatCurrencyInput, parseCurrencyInput } from "@/utils/currency";
+import { formatMoneyOrDash, formatCurrencyInput, parseCurrencyInput } from "@/utils/currency";
 import { CustomSwitch } from "@/components/common/CustomSwitch";
 import CarDiagram from "@/components/common/CarDiagram";
 import LegendDot from "@/components/common/LegendDot";
@@ -701,8 +701,8 @@ export default function TechnicianServiceAcceptScreen() {
               <View style={styles.infoItem}>
                 <Euro size={14} color={colors.primary} style={{ marginTop: 2}}/>
                 <Text style={styles.price}>
-                  {formatCurrency(
-                    service.valor_total ?? 0,
+                  {formatMoneyOrDash(
+                    service.valor_total,
                     service.moeda,
                     locale,
                   )}

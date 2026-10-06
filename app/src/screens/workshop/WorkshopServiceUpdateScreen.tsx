@@ -91,6 +91,7 @@ export default function WorkshopServiceUpdateScreen() {
   const [quantity, setQuantity] = useState("1");
   const [observations, setObservations] = useState("");
   const [totalValue, setTotalValue] = useState("");
+  const [hasDetailedPrices, setHasDetailedPrices] = useState(false);
   const [unitType, setUnitType] = useState<"carros" | "dias">("carros");
   const [photos, setPhotos] = useState<Record<StandardPhotoType, Photo | null>>(
     {
@@ -264,6 +265,7 @@ export default function WorkshopServiceUpdateScreen() {
       setLoading(true);
       const res = await WorkshopManagementService.getServiceById(serviceId);
       const service = res.data;
+      setHasDetailedPrices(Boolean(service.precos_detalhados));
 
       if (service.data_inicio || service.data_fim) {
         setDateRange({
@@ -384,10 +386,15 @@ export default function WorkshopServiceUpdateScreen() {
         quantidade_tipo: unitType,
         quantidade: quantity,
         moeda: CURRENCY,
-        valor_total: totalValue ? (Number(totalValue) / 100).toFixed(2) : "",
         pericia_completa: inspectionData.periciaCompleta ? "1" : "0",
         observacoes: observations,
       };
+      if (!hasDetailedPrices) {
+        formData.append(
+          "valor_total",
+          totalValue ? (Number(totalValue) / 100).toFixed(2) : "",
+        );
+      }
 
       Object.entries(payload).forEach(([key, value]) => {
         formData.append(key, value);
@@ -694,7 +701,7 @@ export default function WorkshopServiceUpdateScreen() {
             </View>
           )}
 
-          {!inspectionData.periciaCompleta && (
+          {!inspectionData.periciaCompleta && !hasDetailedPrices && (
             <View style={styles.section}>
               <Text style={[styles.label, { marginBottom: 8 }]}>
                 {t("workshopServiceUpdateScreen.value", { currency: CURRENCY })}

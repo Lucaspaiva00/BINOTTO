@@ -36,7 +36,7 @@ import {
 import { PartInspection, RepairType } from "@/types/carParts";
 import { REPAIR_COLORS } from "@/theme/repairColors";
 import InspectionModal from "@/components/common/InspectionModal";
-import { formatCurrency } from "@/utils/currency";
+import { formatMoneyOrDash } from "@/utils/currency";
 import { getStatusLabelKey } from "@/utils/status";
 import { formatDate } from "@/utils/date";
 import ImageViewerModal from "@/components/common/ImageViewerModal";
@@ -51,6 +51,8 @@ import {
   MessageSquare,
 } from "lucide-react-native";
 import InspectionModalVisualizer from "@/components/common/InspectionModalVisualizer";
+import ServicePriceSection from "@/components/common/ServicePriceSection";
+import { getVehicleName, resolveMediaUrl } from "@/utils/vehicle";
 
 type Photo =
   | { type: "existing"; uri: string }
@@ -398,8 +400,8 @@ export default function TechnicianServiceExecutionScreen() {
               <View style={styles.priceRow}>
                 <Euro size={16} color={colors.primary} />
                 <Text style={styles.servicePriceText}>
-                  {formatCurrency(
-                    service?.valor_total ?? 0,
+                  {formatMoneyOrDash(
+                    service?.valor_total,
                     service?.moeda,
                     locale,
                   )}
@@ -410,9 +412,7 @@ export default function TechnicianServiceExecutionScreen() {
             <View style={styles.serviceCardRow}>
               <View>
                 <Text style={styles.vehicleModelRow}>
-                  {service?.primeiro_veiculo?.marca_modelo ??
-                    service?.modelo ??
-                    "--"}
+                  {getVehicleName(service?.primeiro_veiculo, service)}
                 </Text>
               </View>
 
@@ -427,6 +427,12 @@ export default function TechnicianServiceExecutionScreen() {
               </View>
             </View>
           </View>
+
+          <ServicePriceSection
+            serviceId={Number(service.id)}
+            profile="TECNICO"
+            moeda={service.moeda}
+          />
 
           <View style={styles.inspectionContainer}>
             <TouchableOpacity
@@ -615,7 +621,7 @@ export default function TechnicianServiceExecutionScreen() {
                     key={index}
                     style={styles.photoBox}
                     onPress={() => {
-                      setSelectedImage(`${storage}/${foto}`);
+                      setSelectedImage(resolveMediaUrl(foto, storage));
                       setViewerVisible(true);
                     }}
                   >
@@ -642,7 +648,7 @@ export default function TechnicianServiceExecutionScreen() {
                     key={index}
                     style={styles.photoBox}
                     onPress={() => {
-                      setSelectedImage(`${storage}/${foto}`);
+                      setSelectedImage(resolveMediaUrl(foto, storage));
                       setViewerVisible(true);
                     }}
                   >
@@ -661,7 +667,7 @@ export default function TechnicianServiceExecutionScreen() {
             <InfiniteImageCarousel
               images={photosPericia}
               onImagePress={(uri) => {
-                setSelectedImage(`${storage}/${uri}`);
+                setSelectedImage(resolveMediaUrl(uri, storage));
                 setViewerVisible(true);
               }}
               title={t("technicianServiceExecutionScreen.photos.inspection")}
