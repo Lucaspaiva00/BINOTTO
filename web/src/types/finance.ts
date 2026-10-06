@@ -90,6 +90,7 @@ export interface Payable {
   invoice?: string | null;
   invoiceNumber?: string | null;
   settleDate: string | null;
+  paymentDate?: string | null;
   notes: string | null;
   // "Data do lançamento" — só existe no modo aplicativo.
   launchDate: string | null;

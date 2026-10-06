@@ -5,6 +5,7 @@ namespace App\Observers;
 use App\Enums\PericiaStatusEnum;
 use App\Models\Servico;
 use App\Support\ServicoPericiaStatusMap;
+use App\Support\ServicoFinanceiro;
 
 /** Atualização do serviço é a fonte de verdade para status das perícias vinculadas. */
 class ServicoStatusObserver
@@ -28,5 +29,6 @@ class ServicoStatusObserver
             'status' => $new->value,
             'concluida_em' => $new === PericiaStatusEnum::CONCLUIDA ? now() : null,
         ]);
+        ServicoFinanceiro::sincronizarFinalizado($servico);
     }
 }

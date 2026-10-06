@@ -3,9 +3,11 @@
 namespace App\Support;
 
 use App\Enums\FinanceiroStatusEnum;
+use App\Enums\ServicoStatusEnum;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\Servico;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Mantém os lançamentos financeiros originados por um serviço finalizado.
@@ -13,12 +15,34 @@ use App\Models\Servico;
  */
 final class ServicoFinanceiro
 {
+    /** Outros fluxos de conclusão usam os preços já persistidos no serviço. */
+    public static function sincronizarFinalizado(Servico $servico): void
+    {
+        if (! in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true)) return;
+        DB::transaction(function () use ($servico) {
+            // Serializa as conclusões simultâneas do mesmo serviço, sem duplicar contas.
+            $atual = Servico::whereKey($servico->id)->lockForUpdate()->firstOrFail();
+            if (! in_array($atual->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true)) return;
+
+            $precos = $atual->precos_detalhados ?? [
+                'oficina_carro' => ['tipo' => 'valor', 'valor' => (float) ($atual->valor_total ?? 0)],
+                'oficina_desmontagem' => ['tipo' => 'valor', 'valor' => 0],
+                'tecnico_carro' => [
+                    'tipo' => $atual->percentual_tecnico !== null ? 'porcentagem' : 'valor',
+                    'valor' => (float) ($atual->percentual_tecnico ?? $atual->preco_tecnico ?? 0),
+                ],
+                'tecnico_desmontagem' => ['tipo' => 'valor', 'valor' => 0],
+            ];
+            self::sincronizar($atual, $precos, ServicoPrecos::calcularSeguro($precos));
+        });
+    }
+
     public static function sincronizar(Servico $servico, array $precos, array $calculados): void
     {
         $servico->loadMissing(['oficina', 'tecnico', 'primeiroVeiculo']);
         $totais = ServicoPrecos::somarCalculados($calculados);
         $veiculo = $servico->primeiroVeiculo;
-        $data = ($servico->data_servico ?? now())->format('Y-m-d');
+        $data = ($servico->data_servico ?? $servico->data_inicio ?? $servico->created_at ?? now())->format('Y-m-d');
         $referenciaTipo = $veiculo?->placa ? 'placa' : ($veiculo?->chassi ? 'chassi' : null);
         $descricaoVeiculo = trim(implode(' ', array_filter([$veiculo?->marca, $veiculo?->modelo])));
         $referencia = $referenciaTipo === 'placa' ? $veiculo?->placa : $veiculo?->chassi;

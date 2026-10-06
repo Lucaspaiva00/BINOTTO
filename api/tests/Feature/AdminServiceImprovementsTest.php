@@ -153,6 +153,62 @@ class AdminServiceImprovementsTest extends TestCase
         $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'valor_a_pagar' => 480]);
     }
 
+    public function test_finalized_edit_preserves_invoices_settlement_and_financial_status(): void
+    {
+        $s = $this->service();
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'finalizado']))->assertOk();
+        DB::table('contas_receber')->where('servico_id', $s->id)->update([
+            'fatura' => 'Oficina', 'numero_fatura' => 'OF-123', 'status_fatura' => 'paga',
+            'data_recebimento' => '2026-10-05', 'status' => 'confirmado', 'referencia_veiculo_tipo' => 'chassi',
+        ]);
+        DB::table('contas_pagar')->where('servico_id', $s->id)->update([
+            'fatura' => 'Técnico', 'numero_fatura' => 'TEC-123', 'valor_pago' => 100,
+            'data_pagamento' => '2026-10-06', 'status' => 'confirmado',
+        ]);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'finalizado']))->assertOk();
+        $this->assertDatabaseCount('contas_receber', 1);
+        $this->assertDatabaseCount('contas_pagar', 1);
+        $this->assertDatabaseHas('contas_receber', [
+            'numero_fatura' => 'OF-123', 'status_fatura' => 'paga', 'data_recebimento' => '2026-10-05',
+            'status' => 'confirmado', 'referencia_veiculo_tipo' => 'chassi',
+        ]);
+        $id = DB::table('contas_pagar')->where('servico_id', $s->id)->value('id');
+        $this->getJson("/api/admin/contas-pagar/{$id}")->assertOk()
+            ->assertJsonPath('data.paymentDate', '2026-10-06')->assertJsonPath('data.settleDate', '2026-10-06')
+            ->assertJsonPath('data.invoiceNumber', 'TEC-123')->assertJsonPath('data.amountPaid', 100)
+            ->assertJsonPath('data.status', 'confirmado');
+    }
+
+    public function test_status_transition_outside_details_generates_finance_with_legacy_percentage(): void
+    {
+        $s = $this->service(['valor_total' => 1000, 'percentual_tecnico' => 30, 'tecnico_id' => 2]);
+        $s->update(['status' => ServicoStatusEnum::FINALIZADO]);
+        $this->assertDatabaseHas('contas_receber', ['servico_id' => $s->id, 'valor_servico' => 1000]);
+        $this->assertSame('2026-09-01', \App\Models\ContaReceber::where('servico_id', $s->id)->firstOrFail()->data_lancamento->format('Y-m-d'));
+        $id = DB::table('contas_receber')->where('servico_id', $s->id)->value('id');
+        $this->getJson("/api/admin/contas-receber/{$id}")->assertOk()->assertJsonPath('data.serviceDate', '2026-09-01');
+        $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'valor_a_pagar' => 300]);
+        $s->update(['status' => ServicoStatusEnum::CONCLUIDO]);
+        $this->assertDatabaseCount('contas_receber', 1);
+        $this->assertDatabaseCount('contas_pagar', 1);
+    }
+
+    public function test_only_the_last_pending_inspection_generates_finance(): void
+    {
+        $s = $this->service(['status' => ServicoStatusEnum::EM_EXECUCAO, 'valor_total' => 1000, 'preco_tecnico' => 300]);
+        DB::table('pericias')->insert([
+            ['id' => 1, 'servico_id' => $s->id, 'status' => 'em_execucao'],
+            ['id' => 2, 'servico_id' => $s->id, 'status' => 'aberta'],
+        ]);
+        \App\Models\Pericia::findOrFail(1)->update(['status' => \App\Enums\PericiaStatusEnum::CONCLUIDA]);
+        $this->assertDatabaseCount('contas_receber', 0);
+        $this->assertDatabaseCount('contas_pagar', 0);
+        \App\Models\Pericia::findOrFail(2)->update(['status' => \App\Enums\PericiaStatusEnum::CONCLUIDA]);
+        $this->assertSame(ServicoStatusEnum::FINALIZADO, $s->fresh()->status);
+        $this->assertDatabaseHas('contas_receber', ['servico_id' => $s->id, 'valor_servico' => 1000]);
+        $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'valor_a_pagar' => 300]);
+    }
+
     public function test_finalized_service_status_cannot_be_reopened_from_the_edit_form(): void
     {
         $s = $this->service(['status' => ServicoStatusEnum::FINALIZADO]);

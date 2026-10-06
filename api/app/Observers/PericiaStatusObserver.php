@@ -6,6 +6,7 @@ use App\Enums\PericiaStatusEnum;
 use App\Models\Pericia;
 use App\Models\Servico;
 use App\Support\ServicoPericiaStatusMap;
+use App\Support\ServicoFinanceiro;
 
 /** Sincroniza alterações feitas na perícia, preservando serviços com múltiplas perícias. */
 class PericiaStatusObserver
@@ -29,6 +30,8 @@ class PericiaStatusObserver
         if ($servico->status !== $target) {
             // Suprime apenas a propagação de volta para este mesmo evento.
             Servico::withoutEvents(fn () => $servico->update(['status' => $target]));
+            // withoutEvents evita recursão de status; o financeiro ainda precisa ser atualizado.
+            ServicoFinanceiro::sincronizarFinalizado($servico);
         }
     }
 }

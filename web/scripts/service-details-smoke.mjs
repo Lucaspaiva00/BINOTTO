@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
-const server = await createServer({ server: { middlewareMode: true } });
+const server = await createServer({ server: { middlewareMode: true }, optimizeDeps: { noDiscovery: true, include: [] } });
 try {
   const helpers = await server.ssrLoadModule('/src/pages/servicos/serviceDetails.ts');
   const { normalizeServiceRepairs, buildServiceDetailsFormData, defaultPrices, resolveDetailedPrices, localTodayISO, SERVICE_PARTS_ORDER } = helpers;
@@ -45,6 +45,20 @@ try {
   assert.equal(serializedPrices.tecnico_carro.tipo, 'porcentagem');
   form.technicianId = '2';
   assert.equal(buildServiceDetailsFormData(form, saved).get('tecnico_nome_manual'), '');
+  const { toForm, toPayload } = await server.ssrLoadModule('/src/pages/financeiro/tabs/payableForm.ts');
+  const payable = { id: 7, origin: 'aplicativo', serviceId: 3, technicianId: 2, workshopId: 1,
+    amountDue: 330, amountPaid: 100, paymentDate: '2026-10-06', dueDate: '2026-10-10', status: 'pendente',
+    invoice: 'Fatura técnico', invoiceNumber: 'TEC-123', commission: 'Reparação: 30%' };
+  const payableForm = toForm(payable);
+  assert.equal(payableForm.settleDate, '2026-10-06');
+  const payablePayload = toPayload(payableForm);
+  assert.equal(payablePayload.data_pagamento, '2026-10-06');
+  assert.equal(payablePayload.valor_pago, 100);
+  assert.equal(payablePayload.fatura, 'Fatura técnico');
+  assert.equal(payablePayload.numero_fatura, 'TEC-123');
+  assert.equal(payablePayload.comissao, 'Reparação: 30%');
+  assert.equal(toForm({ ...payable, paymentDate: undefined, settleDate: '2026-10-05' }).settleDate, '2026-10-05');
+  assert.equal(toPayload(toForm({ ...payable, paymentDate: null, settleDate: null })).data_pagamento, null);
   const RealDate = globalThis.Date;
   const priorTimezone = process.env.TZ;
   try {

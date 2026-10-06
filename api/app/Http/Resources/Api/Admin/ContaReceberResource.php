@@ -19,7 +19,7 @@ class ContaReceberResource extends JsonResource
             'technicianId' => $this->tecnico_id,
             'technician' => $this->tecnico?->nome_completo ?? $this->servico?->tecnico_nome_manual,
             'serviceId' => $this->servico_id,
-            'serviceDate' => $this->servico?->data_servico?->format('Y-m-d'),
+            'serviceDate' => ($this->servico?->data_servico ?? $this->servico?->data_inicio ?? $this->servico?->created_at)?->format('Y-m-d'),
             'brand' => $veiculo?->marca,
             'vehicleModel' => $veiculo?->modelo,
             'plate' => $veiculo?->placa,
