@@ -47,6 +47,24 @@ class AdminServiceImprovementsTest extends TestCase
             $t->id(); $t->unsignedBigInteger('servico_id'); $t->unsignedBigInteger('oficina_id')->nullable();
             $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('tipo'); $t->text('descricao')->nullable(); $t->timestamps();
         });
+        Schema::create('contas_receber', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('referencia_veiculo_tipo')->nullable();
+            $t->unsignedBigInteger('tecnico_id')->nullable(); $t->unsignedBigInteger('oficina_id')->nullable(); $t->string('origem')->default('aplicativo');
+            $t->string('descricao')->nullable(); $t->decimal('valor_servico', 12, 2)->default(0); $t->decimal('valor_plataforma', 12, 2)->nullable();
+            $t->string('quem_pagou')->nullable(); $t->string('cliente')->nullable(); $t->string('categoria')->nullable(); $t->string('forma_pagamento')->nullable();
+            $t->string('fatura')->nullable(); $t->string('numero_fatura')->nullable(); $t->string('status_fatura')->nullable();
+            $t->date('data_emissao')->nullable(); $t->date('data_recebimento')->nullable(); $t->text('observacoes')->nullable();
+            $t->date('data_lancamento')->nullable(); $t->date('data_vencimento')->nullable(); $t->string('status')->default('pendente'); $t->timestamps();
+        });
+        Schema::create('contas_pagar', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('referencia_veiculo_tipo')->nullable();
+            $t->unsignedBigInteger('oficina_id')->nullable(); $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('origem')->default('aplicativo');
+            $t->string('descricao')->nullable(); $t->string('fornecedor')->nullable(); $t->string('categoria')->nullable(); $t->string('forma_pagamento')->nullable();
+            $t->string('fatura')->nullable(); $t->string('numero_fatura')->nullable();
+            $t->decimal('valor_a_pagar', 12, 2)->default(0); $t->decimal('valor_pago', 12, 2)->default(0); $t->string('comissao')->nullable();
+            $t->date('data_emissao')->nullable(); $t->date('data_pagamento')->nullable(); $t->text('observacoes')->nullable();
+            $t->date('data_lancamento')->nullable(); $t->date('data_vencimento')->nullable(); $t->string('status')->default('pendente'); $t->timestamps();
+        });
         DB::table('oficinas')->insert(['id' => 1, 'nome_fantasia' => 'Oficina Teste', 'cidade' => 'Milão', 'pais' => 'Itália']);
         DB::table('tecnicos')->insert(['id' => 2, 'nome_completo' => 'Técnico Teste']);
     }
@@ -113,6 +131,34 @@ class AdminServiceImprovementsTest extends TestCase
         $this->assertDatabaseHas('pericias', ['id' => 1, 'status' => 'concluida']);
         $this->assertDatabaseHas('pericias', ['id' => 2, 'status' => 'cancelada']);
         $this->assertNotNull(DB::table('pericias')->where('id', 1)->value('concluida_em'));
+        $this->assertDatabaseHas('contas_receber', ['servico_id' => $s->id, 'origem' => 'aplicativo', 'valor_servico' => 1200]);
+        $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'origem' => 'aplicativo', 'valor_a_pagar' => 330]);
+        $this->assertDatabaseCount('contas_receber', 1);
+        $this->assertDatabaseCount('contas_pagar', 1);
+    }
+
+    public function test_editing_finalized_service_updates_the_same_financial_entries(): void
+    {
+        $s = $this->service();
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'finalizado']))->assertOk();
+        $payload = $this->payload(['status' => 'finalizado']);
+        $prices = json_decode($payload['precos_detalhados'], true);
+        $prices['oficina_carro']['valor'] = 1500;
+        $prices['tecnico_carro']['valor'] = 450;
+        $payload['precos_detalhados'] = json_encode($prices);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+        $this->assertDatabaseCount('contas_receber', 1);
+        $this->assertDatabaseCount('contas_pagar', 1);
+        $this->assertDatabaseHas('contas_receber', ['servico_id' => $s->id, 'valor_servico' => 1700]);
+        $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'valor_a_pagar' => 480]);
+    }
+
+    public function test_finalized_service_status_cannot_be_reopened_from_the_edit_form(): void
+    {
+        $s = $this->service(['status' => ServicoStatusEnum::FINALIZADO]);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'aguardando']))
+            ->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->assertSame(ServicoStatusEnum::FINALIZADO, $s->fresh()->status);
     }
 
     public function test_invalid_photo_rolls_back_service_and_vehicle_before_finalization(): void

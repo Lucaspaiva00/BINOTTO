@@ -12,7 +12,7 @@ class ContaPagarController extends Controller
 {
     public function index(Request $request)
     {
-        $contasPagar = ContaPagar::query()
+        $contasPagar = ContaPagar::query()->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })
@@ -52,7 +52,7 @@ class ContaPagarController extends Controller
 
     public function show(int $id)
     {
-        $contaPagar = ContaPagar::find($id);
+        $contaPagar = ContaPagar::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaPagar) {
             return response()->json(['message' => __('main.conta_pagar_not_found')], 404);
@@ -63,7 +63,7 @@ class ContaPagarController extends Controller
 
     public function update(StoreUpdateContaPagarRequest $request, int $id)
     {
-        $contaPagar = ContaPagar::find($id);
+        $contaPagar = ContaPagar::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaPagar) {
             return response()->json(['message' => __('main.conta_pagar_not_found')], 404);
@@ -73,13 +73,13 @@ class ContaPagarController extends Controller
 
         return response()->json([
             'message' => __('main.conta_pagar_updated_success'),
-            'data' => new ContaPagarResource($contaPagar->fresh()),
+            'data' => new ContaPagarResource($contaPagar->fresh()->load(['oficina', 'tecnico', 'servico.primeiroVeiculo'])),
         ]);
     }
 
     public function destroy(int $id)
     {
-        $contaPagar = ContaPagar::find($id);
+        $contaPagar = ContaPagar::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaPagar) {
             return response()->json(['message' => __('main.conta_pagar_not_found')], 404);

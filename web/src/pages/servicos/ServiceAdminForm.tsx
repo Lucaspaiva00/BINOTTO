@@ -65,6 +65,7 @@ interface Props {
   canAccept?: boolean;
   canRefuse?: boolean;
   actionBusy?: boolean;
+  statusLocked?: boolean;
   errors?: Record<string, string>;
 }
 const STATUS_KEYS = (Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[]).filter(status => !["finalizado", "retrabalho", "aceito", "concluido"].includes(status));
@@ -102,7 +103,7 @@ function VehiclePhotoCard({ label, photo, onChange }: {
 }
 
 export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, onPartSelect, onPartChange,
-  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, errors = {},
+  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusLocked = false, errors = {},
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -152,17 +153,9 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante</h2>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label>Oficina</Label><SearchableSelect value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
-        <div className="space-y-2"><Label>Status</Label><Select value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{STATUS_KEYS.map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
         <div className="space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
-        <div className="space-y-2">
-          <Button type="button" aria-pressed={value.registeredTechnician} variant={value.registeredTechnician ? "default" : "outline"} onClick={() => {
-            onChange("registeredTechnician", !value.registeredTechnician);
-            onChange("technicianId", "");
-          }}>Técnico</Button>
-          {value.registeredTechnician
-            ? <SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico cadastrado" options={technicians.map(t => ({ value: String(t.id), label: t.name }))} />
-            : <Input aria-label="Nome do técnico" value={value.manualTechnicianName} maxLength={150} placeholder="Digite o nome do técnico" onChange={e => onChange("manualTechnicianName", e.target.value)} />}
-        </div>
+        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={technicians.map(t => ({ value: String(t.id), label: t.name }))} /></div>
+        <div className="space-y-2"><Label>Status</Label><Select disabled={statusLocked} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{STATUS_KEYS.map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
         {(onAccept || onRefuse) && <div className="flex items-end gap-2">
           <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
           <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>

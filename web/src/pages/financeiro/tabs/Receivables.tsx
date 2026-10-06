@@ -38,6 +38,13 @@ interface ReceivableForm {
   origin: FinanceOrigin;
   workshopId: string;
   serviceId: number | null;
+  serviceDate: string;
+  brand: string;
+  vehicleModel: string;
+  plate: string;
+  chassis: string;
+  vehicleReferenceType: "placa" | "chassi";
+  technician: string;
   description: string;
   serviceValue: number;
   platformValue: number;
@@ -45,6 +52,9 @@ interface ReceivableForm {
   client: string;
   category: string;
   paymentMethod: string;
+  invoice: string;
+  invoiceNumber: string;
+  invoiceStatus: string;
   settleDate: string;
   notes: string;
   entryDate: string;
@@ -58,6 +68,7 @@ function emptyForm(): ReceivableForm {
     origin: "aplicativo",
     workshopId: "",
     serviceId: null,
+    serviceDate: "", brand: "", vehicleModel: "", plate: "", chassis: "", vehicleReferenceType: "placa", technician: "",
     description: "",
     serviceValue: 0,
     platformValue: 0,
@@ -65,6 +76,7 @@ function emptyForm(): ReceivableForm {
     client: "",
     category: "",
     paymentMethod: "",
+    invoice: "", invoiceNumber: "", invoiceStatus: "",
     settleDate: "",
     notes: "",
     entryDate: todayISO(),
@@ -80,6 +92,13 @@ function toForm(r: Receivable): ReceivableForm {
     origin: r.origin,
     workshopId: r.workshopId != null ? String(r.workshopId) : "",
     serviceId: r.serviceId,
+    serviceDate: r.serviceDate ?? "",
+    brand: r.brand ?? "",
+    vehicleModel: r.vehicleModel ?? "",
+    plate: r.plate ?? "",
+    chassis: r.chassis ?? "",
+    vehicleReferenceType: r.vehicleReferenceType ?? (r.plate ? "placa" : "chassi"),
+    technician: r.technician ?? "",
     description: r.description,
     serviceValue: r.serviceAmount,
     platformValue: r.platformAmount,
@@ -87,6 +106,9 @@ function toForm(r: Receivable): ReceivableForm {
     client: r.client ?? "",
     category: r.category ?? "",
     paymentMethod: r.paymentMethod ?? "",
+    invoice: r.invoice ?? "",
+    invoiceNumber: r.invoiceNumber ?? "",
+    invoiceStatus: r.invoiceStatus ?? "",
     settleDate: r.receivedDate ?? "",
     notes: r.notes ?? "",
     entryDate: r.launchDate ?? todayISO(),
@@ -100,8 +122,13 @@ function toPayload(form: ReceivableForm): ReceivablePayload {
   const base = {
     origem: form.origin,
     servico_id: form.serviceId,
+    referencia_veiculo_tipo: form.vehicleReferenceType,
     descricao: form.description,
     data_vencimento: form.dueDate,
+    fatura: form.invoice || null,
+    numero_fatura: form.invoiceNumber || null,
+    status_fatura: form.invoiceStatus || null,
+    data_recebimento: form.settleDate || null,
     status: form.status,
   };
 
@@ -133,6 +160,7 @@ const FIELD_MAP: Record<string, string> = {
   origem: "origin",
   oficina_id: "workshopId",
   servico_id: "serviceId",
+  referencia_veiculo_tipo: "vehicleReferenceType",
   descricao: "description",
   valor_servico: "serviceValue",
   valor_plataforma: "platformValue",
@@ -140,6 +168,9 @@ const FIELD_MAP: Record<string, string> = {
   cliente: "client",
   categoria: "category",
   forma_pagamento: "paymentMethod",
+  fatura: "invoice",
+  numero_fatura: "invoiceNumber",
+  status_fatura: "invoiceStatus",
   data_emissao: "emissionDate",
   data_recebimento: "settleDate",
   observacoes: "notes",
@@ -660,6 +691,27 @@ export function Receivables() {
                 </>
               ) : (
                 <>
+                  <div className="col-span-2 rounded-xl border bg-muted/30 p-4">
+                    <p className="mb-3 text-sm font-semibold">Dados do serviço</p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                      <div><span className="text-muted-foreground">Data</span><p>{editing.serviceDate ? formatDate(editing.serviceDate) : "—"}</p></div>
+                      <div><span className="text-muted-foreground">Marca / Modelo</span><p>{[editing.brand, editing.vehicleModel].filter(Boolean).join(" ") || "—"}</p></div>
+                      <div><span className="text-muted-foreground">Técnico</span><p>{editing.technician || "—"}</p></div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Referência do veículo</Label>
+                    <Select value={editing.vehicleReferenceType} onValueChange={(v) => setEditing({ ...editing, vehicleReferenceType: v as "placa" | "chassi" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="placa">Placa</SelectItem><SelectItem value="chassi">Chassi</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label>Referência</Label><Input readOnly value={editing.vehicleReferenceType === "chassi" ? editing.chassis : editing.plate} /></div>
+                  <div className="col-span-2 grid gap-3 md:grid-cols-3">
+                    <div className="space-y-2"><Label>Fatura da oficina</Label><Input value={editing.invoice} onChange={(e) => setEditing({ ...editing, invoice: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Nº da fatura</Label><Input value={editing.invoiceNumber} onChange={(e) => setEditing({ ...editing, invoiceNumber: e.target.value })} /></div>
+                    <div className="space-y-2"><Label>Status da fatura</Label><Input value={editing.invoiceStatus} onChange={(e) => setEditing({ ...editing, invoiceStatus: e.target.value })} placeholder="Pendente, emitida, paga..." /></div>
+                  </div>
                   <div className="col-span-2 space-y-2">
                     <Label>Descrição do serviço</Label>
                     <Input
@@ -724,6 +776,10 @@ export function Receivables() {
                       onChange={(e) => setEditing({ ...editing, dueDate: e.target.value })}
                     />
                     {errors.dueDate && <p className="text-xs text-destructive">{errors.dueDate}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data de recebimento</Label>
+                    <DateInput value={editing.settleDate} onChange={(e) => setEditing({ ...editing, settleDate: e.target.value })} />
                   </div>
                   <div className="col-span-2 space-y-2">
                     <Label>Status</Label>

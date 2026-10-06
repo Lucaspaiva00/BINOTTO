@@ -37,6 +37,15 @@ interface PayableForm {
   id?: number;
   origin: FinanceOrigin;
   serviceId: number | null;
+  serviceDate: string;
+  brand: string;
+  vehicleModel: string;
+  plate: string;
+  chassis: string;
+  vehicleReferenceType: "placa" | "chassi";
+  commission: string;
+  invoice: string;
+  invoiceNumber: string;
   technicianId: string;
   workshopId: string;
   description: string;
@@ -57,6 +66,7 @@ function emptyForm(): PayableForm {
   return {
     origin: "aplicativo",
     serviceId: null,
+    serviceDate: "", brand: "", vehicleModel: "", plate: "", chassis: "", vehicleReferenceType: "placa", commission: "", invoice: "", invoiceNumber: "",
     technicianId: "",
     workshopId: "",
     description: "",
@@ -79,6 +89,10 @@ function toForm(p: Payable): PayableForm {
     id: p.id,
     origin: p.origin,
     serviceId: p.serviceId,
+    serviceDate: p.serviceDate ?? "",
+    brand: p.brand ?? "", vehicleModel: p.vehicleModel ?? "", plate: p.plate ?? "", chassis: p.chassis ?? "",
+    vehicleReferenceType: p.vehicleReferenceType ?? (p.plate ? "placa" : "chassi"),
+    commission: p.commission ?? "", invoice: p.invoice ?? "", invoiceNumber: p.invoiceNumber ?? "",
     technicianId: p.technicianId != null ? String(p.technicianId) : "",
     workshopId: p.workshopId != null ? String(p.workshopId) : "",
     description: p.description,
@@ -100,8 +114,13 @@ function toPayload(form: PayableForm): PayablePayload {
   const base = {
     origem: form.origin,
     servico_id: form.serviceId,
+    referencia_veiculo_tipo: form.vehicleReferenceType,
     descricao: form.description,
     data_vencimento: form.dueDate,
+    comissao: form.commission || null,
+    fatura: form.invoice || null,
+    numero_fatura: form.invoiceNumber || null,
+    data_pagamento: form.settleDate || null,
     status: form.status,
   };
 
@@ -132,14 +151,18 @@ function toPayload(form: PayableForm): PayablePayload {
 const FIELD_MAP: Record<string, string> = {
   origem: "origin",
   servico_id: "serviceId",
+  referencia_veiculo_tipo: "vehicleReferenceType",
   tecnico_id: "technicianId",
   oficina_id: "workshopId",
   descricao: "description",
   valor_a_pagar: "amountDue",
   valor_pago: "amountPaid",
+  comissao: "commission",
   fornecedor: "supplier",
   categoria: "category",
   forma_pagamento: "paymentMethod",
+  fatura: "invoice",
+  numero_fatura: "invoiceNumber",
   data_emissao: "emissionDate",
   data_pagamento: "settleDate",
   observacoes: "notes",
@@ -692,6 +715,24 @@ export function Payables() {
                 </>
               ) : (
                 <>
+                  <div className="col-span-2 rounded-xl border bg-muted/30 p-4">
+                    <p className="mb-3 text-sm font-semibold">Dados do serviço</p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+                      <div><span className="text-muted-foreground">Data</span><p>{editing.serviceDate ? formatDate(editing.serviceDate) : "—"}</p></div>
+                      <div><span className="text-muted-foreground">Marca / Modelo</span><p>{[editing.brand, editing.vehicleModel].filter(Boolean).join(" ") || "—"}</p></div>
+                      <div><span className="text-muted-foreground">Comissão</span><p>{editing.commission || "—"}</p></div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Referência do veículo</Label>
+                    <Select value={editing.vehicleReferenceType} onValueChange={(v) => setEditing({ ...editing, vehicleReferenceType: v as "placa" | "chassi" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent><SelectItem value="placa">Placa</SelectItem><SelectItem value="chassi">Chassi</SelectItem></SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2"><Label>Referência</Label><Input readOnly value={editing.vehicleReferenceType === "chassi" ? editing.chassis : editing.plate} /></div>
+                  <div className="space-y-2"><Label>Fatura do técnico</Label><Input value={editing.invoice} onChange={(e) => setEditing({ ...editing, invoice: e.target.value })} /></div>
+                  <div className="space-y-2"><Label>Nº da fatura do técnico</Label><Input value={editing.invoiceNumber} onChange={(e) => setEditing({ ...editing, invoiceNumber: e.target.value })} /></div>
                   <div className="col-span-2 space-y-2">
                     <Label>Descrição do serviço</Label>
                     <Input
@@ -769,6 +810,10 @@ export function Payables() {
                       onChange={(e) => setEditing({ ...editing, dueDate: e.target.value })}
                     />
                     {errors.dueDate && <p className="text-xs text-destructive">{errors.dueDate}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data do pagamento</Label>
+                    <DateInput value={editing.settleDate} onChange={(e) => setEditing({ ...editing, settleDate: e.target.value })} />
                   </div>
                   <div className="col-span-2 space-y-2">
                     <Label>Status</Label>

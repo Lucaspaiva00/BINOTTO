@@ -9,6 +9,7 @@ use App\Http\Resources\Api\Admin\ServicoResource;
 use App\Models\Servico;
 use App\Models\ServicoLog;
 use App\Support\ServicoPrecos;
+use App\Support\ServicoFinanceiro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -121,6 +122,10 @@ class ServicoDetalhesController extends Controller
                 if (($metadata['status'] ?? null) === 'finalizado' && $servico->status === ServicoStatusEnum::CANCELADO) {
                     throw ValidationException::withMessages(['status' => ['Um serviço cancelado não pode ser finalizado.']]);
                 }
+                if (in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true)
+                    && isset($metadata['status']) && $metadata['status'] !== $servico->status->value) {
+                    throw ValidationException::withMessages(['status' => ['O status de um serviço finalizado não pode ser alterado nesta edição.']]);
+                }
                 $veiculo = $servico->primeiroVeiculo ?: $servico->veiculos()->create(['preco_total' => 0, 'reparos_execucao' => []]);
                 $anteriores = $veiculo->fotos_veiculo ?? [];
                 $fotos = [];
@@ -209,6 +214,9 @@ class ServicoDetalhesController extends Controller
                     'tipo' => ServicoLogTipoEnum::SERVICO_ATUALIZADO,
                     'descricao' => 'Administrador atualizou os detalhes de carro, reparos e preços',
                 ]);
+                if (in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true)) {
+                    ServicoFinanceiro::sincronizar($servico, $precos, $valoresCalculados);
+                }
             });
             if ($pathsRemovidos) Storage::disk('public')->delete(array_unique($pathsRemovidos));
         } catch (Throwable $e) {

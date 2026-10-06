@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Cog, Eye, Save, Wrench, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Building2, Cog, Eye, Save, Wrench, CheckCircle2, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +86,7 @@ export default function ServicoDetail() {
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [editingPart, setEditingPart] = useState<PartInspection | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [editingFinalized, setEditingFinalized] = useState(false);
   const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function ServicoDetail() {
         setPartsState(normalizeServiceRepairs(data.vehicleRepairs));
         setTechnicians(techs);
         setWorkshops(shops);
+        setEditingFinalized(false);
         markSaved();
       } catch {
         if (!cancelled) setNotFound(true);
@@ -117,13 +119,23 @@ export default function ServicoDetail() {
   }, [id, markSaved]);
 
 
+  const lockedByStatus = service ? ["finalizado", "concluido"].includes(service.status ?? "") : false;
+  const editingEnabled = !lockedByStatus || editingFinalized;
+
+  function requestEditFinalized() {
+    if (!lockedByStatus) return;
+    const confirmed = window.confirm("VOCÊ TEM CERTEZA QUE DESEJA EDITAR UM SERVIÇO JÁ FINALIZADO?");
+    if (confirmed) setEditingFinalized(true);
+  }
+
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
+    if (!editingEnabled) return;
     setForm((current) => current ? { ...current, [field]: value } : current);
     markDirty();
   }
 
   async function persist(finalize = false): Promise<Service | null> {
-    if (!form) return null;
+    if (!form || (!editingEnabled && !finalize)) return null;
     const next: Record<string, string> = {};
     const detailError = validateDetails(form, partsState);
     if (detailError) { toast.error(detailError); return null; }
@@ -147,8 +159,13 @@ export default function ServicoDetail() {
     try {
       const completed = await persist(finalize);
       if (!completed) return;
-      toast.success(finalize ? "Serviço finalizado." : "Serviço atualizado.");
-      navigate("/servicos");
+      toast.success(finalize ? "Serviço finalizado e enviado ao Financeiro." : "Serviço atualizado.");
+      const isNowLocked = ["finalizado", "concluido"].includes(completed.status ?? "");
+      if (finalize || isNowLocked) {
+        setEditingFinalized(false);
+      } else {
+        navigate("/servicos");
+      }
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -157,6 +174,7 @@ export default function ServicoDetail() {
   }
 
   function changePart(id: string, next: PartInspection) {
+    if (!editingEnabled) return;
     setPartsState(prev => ({ ...prev, [id]: next }));
     markDirty();
   }
@@ -186,15 +204,17 @@ export default function ServicoDetail() {
         <Button variant="outline" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
         <div className="flex items-center gap-2">
           {service.status && <Badge variant="outline" className={SERVICE_STATUS_CLASS[service.status]}>{SERVICE_STATUS_LABEL[service.status]}</Badge>}
-          <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="w-4 h-4 mr-2" />{saving ? "Salvando..." : "Salvar alterações"}</Button>
+          {lockedByStatus && !editingFinalized
+            ? <Button onClick={requestEditFinalized} variant="outline"><Pencil className="w-4 h-4 mr-2" />Editar</Button>
+            : <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="w-4 h-4 mr-2" />{saving ? "Salvando..." : "Salvar alterações"}</Button>}
         </div>
       </div>
 
-      <fieldset disabled={saving || actionBusy} className="min-w-0">
+      <fieldset disabled={saving || actionBusy || !editingEnabled} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
-        onPartSelect={partId => {setSelectedPartId(partId);setEditingPart({...partsState[partId],photos:[...partsState[partId].photos]});}}
-        onPartChange={changePart} onAccept={() => void adminAction("accept")} onRefuse={() => void adminAction("refuse")}
-        canAccept={["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} canRefuse={["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} actionBusy={actionBusy}/>
+        onPartSelect={editingEnabled ? (partId => {setSelectedPartId(partId);setEditingPart({...partsState[partId],photos:[...partsState[partId].photos]});}) : undefined}
+        onPartChange={editingEnabled ? changePart : undefined} onAccept={editingEnabled ? (() => void adminAction("accept")) : undefined} onRefuse={editingEnabled ? (() => void adminAction("refuse")) : undefined}
+        canAccept={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} canRefuse={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} actionBusy={actionBusy} statusLocked={lockedByStatus}/>
       </fieldset>
       <ServicePartDialog partId={selectedPartId} value={editingPart} onClose={() => {setSelectedPartId(null);setEditingPart(null);}}
         onSave={part => {if(selectedPartId)changePart(selectedPartId,part);setSelectedPartId(null);setEditingPart(null);}}/>
@@ -246,10 +266,10 @@ export default function ServicoDetail() {
       )}
 
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-4"><span>Criado em {formatDateTime(service.createdAt)}</span><span>Atualizado em {formatDateTime(service.updatedAt)}</span></div>
-      <div className="mt-6 flex flex-wrap justify-end gap-3 border-t pt-4">
+      {editingEnabled && <div className="mt-6 flex flex-wrap justify-end gap-3 border-t pt-4">
         <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar alterações"}</Button>
-        <Button className="bg-green-600 text-white hover:bg-green-700" disabled={saving || actionBusy || form.status === "finalizado" || form.status === "cancelado"} onClick={() => void save(true)}><CheckCircle2 className="mr-2 h-4 w-4" />Finalizado</Button>
-      </div>
+        {!lockedByStatus && <Button className="bg-green-600 text-white hover:bg-green-700" disabled={saving || actionBusy || form.status === "cancelado"} onClick={() => void save(true)}><CheckCircle2 className="mr-2 h-4 w-4" />Finalizar</Button>}
+      </div>}
     </AppLayout>
   );
 }

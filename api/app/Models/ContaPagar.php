@@ -15,6 +15,7 @@ class ContaPagar extends Model
 
     protected $fillable = [
         'servico_id',
+        'referencia_veiculo_tipo',
         'origem',
         'oficina_id',
         'tecnico_id',
@@ -22,8 +23,11 @@ class ContaPagar extends Model
         'fornecedor',
         'categoria',
         'forma_pagamento',
+        'fatura',
+        'numero_fatura',
         'valor_a_pagar',
         'valor_pago',
+        'comissao',
         'data_emissao',
         'data_pagamento',
         'observacoes',

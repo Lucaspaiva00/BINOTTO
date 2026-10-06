@@ -12,7 +12,7 @@ class ContaReceberController extends Controller
 {
     public function index(Request $request)
     {
-        $contasReceber = ContaReceber::query()
+        $contasReceber = ContaReceber::query()->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })
@@ -49,7 +49,7 @@ class ContaReceberController extends Controller
 
     public function show(int $id)
     {
-        $contaReceber = ContaReceber::find($id);
+        $contaReceber = ContaReceber::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaReceber) {
             return response()->json(['message' => __('main.conta_receber_not_found')], 404);
@@ -60,7 +60,7 @@ class ContaReceberController extends Controller
 
     public function update(StoreUpdateContaReceberRequest $request, int $id)
     {
-        $contaReceber = ContaReceber::find($id);
+        $contaReceber = ContaReceber::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaReceber) {
             return response()->json(['message' => __('main.conta_receber_not_found')], 404);
@@ -70,13 +70,13 @@ class ContaReceberController extends Controller
 
         return response()->json([
             'message' => __('main.conta_receber_updated_success'),
-            'data' => new ContaReceberResource($contaReceber->fresh()),
+            'data' => new ContaReceberResource($contaReceber->fresh()->load(['oficina', 'tecnico', 'servico.primeiroVeiculo'])),
         ]);
     }
 
     public function destroy(int $id)
     {
-        $contaReceber = ContaReceber::find($id);
+        $contaReceber = ContaReceber::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
 
         if (!$contaReceber) {
             return response()->json(['message' => __('main.conta_receber_not_found')], 404);
