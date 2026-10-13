@@ -59,6 +59,9 @@ try {
   assert.equal(payablePayload.comissao, 'Reparação: 30%');
   assert.equal(toForm({ ...payable, paymentDate: undefined, settleDate: '2026-10-05' }).settleDate, '2026-10-05');
   assert.equal(toPayload(toForm({ ...payable, paymentDate: null, settleDate: null })).data_pagamento, null);
+  const { toPayload: receivablePayload } = await server.ssrLoadModule('/src/pages/financeiro/tabs/Receivables.tsx');
+  assert.equal(receivablePayload({ origin: 'aplicativo', emissionDate: '2025-12-31', invoiceStatus: 'emitida' }).data_emissao, '2025-12-31');
+  assert.equal(receivablePayload({ origin: 'aplicativo', emissionDate: '', invoiceStatus: 'pendente' }).data_emissao, null);
   const RealDate = globalThis.Date;
   const priorTimezone = process.env.TZ;
   try {

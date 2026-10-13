@@ -120,7 +120,7 @@ function toForm(r: Receivable): ReceivableForm {
   };
 }
 
-function toPayload(form: ReceivableForm): ReceivablePayload {
+export function toPayload(form: ReceivableForm): ReceivablePayload {
   const base = {
     origem: form.origin,
     servico_id: form.serviceId,
@@ -130,6 +130,7 @@ function toPayload(form: ReceivableForm): ReceivablePayload {
     fatura: form.invoice || null,
     numero_fatura: form.invoiceNumber || null,
     status_fatura: form.invoiceStatus || null,
+    data_emissao: form.emissionDate || null,
     data_recebimento: form.settleDate || null,
     status: form.status,
   };
