@@ -7,6 +7,7 @@ export type ServiceStatus =
   | "retrabalho"
   | "concluido"
   | "finalizado"
+  | "recusado"
   | "cancelado";
 
 export interface ServiceLog {

@@ -12,7 +12,7 @@ class ContaPagarController extends Controller
 {
     public function index(Request $request)
     {
-        $contasPagar = ContaPagar::query()->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
+        $contasPagar = ContaPagar::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_pagar'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })

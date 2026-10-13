@@ -248,4 +248,28 @@ class AdminServiceImprovementsTest extends TestCase
         $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'finalizado']))->assertUnprocessable();
         $this->assertSame(ServicoStatusEnum::CANCELADO, $s->fresh()->status);
     }
+    public function test_admin_refusal_locks_service_and_cancels_linked_inspection(): void
+    {
+        $s = $this->service(['tecnico_id' => 1, 'status' => ServicoStatusEnum::AGUARDANDO_APROVACAO]);
+        DB::table('pericias')->insert(['servico_id' => $s->id, 'status' => 'aberta']);
+        $this->patchJson("/api/admin/servicos/{$s->id}/recusar")->assertOk();
+        $this->assertSame(ServicoStatusEnum::RECUSADO, $s->fresh()->status);
+        $this->assertSame(1, $s->fresh()->tecnico_id);
+        $this->assertDatabaseHas('pericias', ['servico_id' => $s->id, 'status' => 'cancelada']);
+    }
+
+    public function test_invoice_upload_roundtrip_and_annual_billing(): void
+    {
+        (require database_path('migrations/2026_10_13_200000_add_finance_invoice_attachments.php'))->up();
+        $c = \App\Models\ContaReceber::create(['origem'=>'aplicativo','descricao'=>'Fatura','valor_servico'=>1250,'valor_plataforma'=>0,'status'=>'pendente','status_fatura'=>'emitida','data_emissao'=>now()->toDateString()]);
+        $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('fatura.pdf', "%PDF-1.4\nFatura de teste");
+        $this->post("/api/admin/contas-receber/{$c->id}/fatura", ['arquivo'=>$file])->assertOk();
+        $this->get("/api/admin/contas-receber/{$c->id}/fatura")->assertOk()->assertHeader('Content-Type','application/pdf')->assertSee('%PDF-1.4');
+        $this->getJson('/api/admin/contas-receber')->assertOk()->assertJsonPath('data.0.invoiceAttachment',true)->assertDontSee('JVBER');
+        $this->getJson('/api/admin/dashboard/faturamento')->assertOk()->assertJsonPath('billedAmount',1250);
+        $c->update(['status'=>'cancelado']);
+        $this->getJson('/api/admin/dashboard/faturamento')->assertJsonPath('billedAmount',0);
+        $this->post("/api/admin/contas-receber/{$c->id}/fatura", ['arquivo'=>\Illuminate\Http\UploadedFile::fake()->create('bad.exe',1)])->assertSessionHasErrors('arquivo');
+    }
+
 }

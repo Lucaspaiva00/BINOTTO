@@ -34,6 +34,8 @@ class ContaReceberResource extends JsonResource
             'category' => $this->categoria,
             'paymentMethod' => $this->forma_pagamento,
             'invoice' => $this->fatura,
+            'invoiceAttachment' => (bool) $this->fatura_nome,
+            'invoiceFileName' => $this->fatura_nome,
             'invoiceNumber' => $this->numero_fatura,
             'invoiceStatus' => $this->status_fatura,
             'receivedDate' => $this->data_recebimento?->format('Y-m-d'),

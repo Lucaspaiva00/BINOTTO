@@ -32,6 +32,8 @@ export interface Receivable {
   category: string | null;
   paymentMethod: string | null;
   invoice?: string | null;
+  invoiceAttachment?: boolean;
+  invoiceFileName?: string | null;
   invoiceNumber?: string | null;
   invoiceStatus?: string | null;
   receivedDate: string | null;
@@ -90,6 +92,8 @@ export interface Payable {
   category: string | null;
   paymentMethod: string | null;
   invoice?: string | null;
+  invoiceAttachment?: boolean;
+  invoiceFileName?: string | null;
   invoiceNumber?: string | null;
   settleDate: string | null;
   paymentDate?: string | null;

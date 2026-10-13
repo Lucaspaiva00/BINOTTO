@@ -1,3 +1,5 @@
+import { useAuth } from "@/contexts/AuthContext";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Languages, Calculator } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext";
 
 export default function Settings() {
+  const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
   const [coefficient, setCoefficient] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -30,6 +33,10 @@ export default function Settings() {
   }
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
+      <Tabs defaultValue="usuario">
+      <TabsList className="mb-5 flex w-fit max-w-full flex-wrap h-auto"><TabsTrigger value="usuario">Usuário</TabsTrigger><TabsTrigger value="coeficiente">Coeficiente</TabsTrigger><TabsTrigger value="idioma">Idioma</TabsTrigger></TabsList>
+      <TabsContent value="usuario"><section className="max-w-2xl rounded-2xl border bg-card p-6"><h2 className="font-semibold">Usuário</h2><p className="mt-3">{user?.name}</p><p className="text-muted-foreground">{user?.email}</p><p className="mt-2 text-sm">Administrador</p></section></TabsContent>
+      <TabsContent value="idioma">
       <section className="max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent"><Languages className="h-5 w-5" /></div>
@@ -47,12 +54,14 @@ export default function Settings() {
           </Select>
         </div>
       </section>
+      </TabsContent><TabsContent value="coeficiente">
       <section className="mt-5 max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
         <div className="flex items-center gap-3"><Calculator className="h-5 w-5" /><div><h2 className="font-semibold">Coeficiente da perícia convencional</h2><p className="text-sm text-muted-foreground">Regra inicial: quantidade de amassados × coeficiente em euros. Não altera perícias já cadastradas.</p></div></div>
         <div className="max-w-xs space-y-2"><Label>Coeficiente (€ por amassado)</Label><CurrencyInput value={coefficient} onChange={setCoefficient} disabled={loading || saving} /></div>
         {coefficient === 0 && <p className="text-sm text-amber-600">Defina um coeficiente maior que zero para habilitar novas perícias convencionais.</p>}
         <Button onClick={saveCoefficient} disabled={loading || saving || coefficient <= 0}>{saving ? "Salvando..." : "Salvar coeficiente"}</Button>
       </section>
+      </TabsContent></Tabs>
     </AppLayout>
   );
 }

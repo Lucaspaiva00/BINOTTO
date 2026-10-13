@@ -1,4 +1,5 @@
-import { FinanceRecordDetails, FinanceVehicleSummary } from "./FinanceRecordDetails";
+import { InvoiceAttachment } from "./InvoiceAttachment";
+import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Eye, Trash2, Search } from "lucide-react";
@@ -33,7 +34,7 @@ import { endOfMonth, formatDate, startOfMonth } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { emptyForm, toForm, toPayload, type PayableForm } from "./payableForm";
-import { PAGE_SIZE, StatusBadge, techName } from "./shared";
+import { PAGE_SIZE, shopName, StatusBadge, techName } from "./shared";
 
 const FIELD_MAP: Record<string, string> = {
   origem: "origin",
@@ -358,9 +359,9 @@ export function Payables() {
           <TableHeader>
             <TableRow>
               <TableHead>Data</TableHead>
-              <TableHead>Veículo / Referência</TableHead>
+              <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Técnico / Fornecedor</TableHead>
-              <TableHead>Valor a pagar</TableHead>
+              <TableHead>Oficina</TableHead><TableHead>Valor a pagar</TableHead><TableHead className="border-l">Fatura</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
@@ -368,13 +369,13 @@ export function Payables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={9} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
@@ -382,9 +383,10 @@ export function Payables() {
               items.map((p) => (
                 <TableRow key={p.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(p); }} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="whitespace-nowrap text-sm">{formatDate(p.serviceDate ?? p.issueDate ?? p.launchDate ?? p.dueDate)}</TableCell>
-                  <TableCell><FinanceVehicleSummary record={p} /></TableCell>
+                  <TableCell>{[p.brand, p.vehicleModel].filter(Boolean).join(" ") || p.description || "—"}</TableCell><TableCell>{p.vehicleReference || p.plate || p.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{p.origin === "avulsa" ? (p.supplier ?? "—") : (p.technician || p.supplier || techName(technicians, p.technicianId))}</TableCell>
-                  <TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
+                  <TableCell>{p.workshop || shopName(workshops, p.workshopId)}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
+                  <TableCell className="border-l"><div className="flex items-center gap-2"><span>{p.invoiceNumber || "—"}</span><InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} /></div></TableCell>
                   <TableCell>
                     <StatusBadge status={p.status} />
                   </TableCell>
@@ -706,6 +708,7 @@ export function Payables() {
               )}
             </div>
           )}
+          {editing?.id && <InvoiceAttachment kind="pagar" id={editing.id} attached={items.find(item => item.id === editing.id)?.invoiceAttachment} onUploaded={() => { setReloadToken(n => n + 1); } } />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar

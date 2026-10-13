@@ -13,6 +13,7 @@ enum ServicoStatusEnum: string
     case CONCLUIDO = 'concluido';
     case FINALIZADO = 'finalizado';
     case CANCELADO = 'cancelado';
+    case RECUSADO = 'recusado';
 
     public function label(): string
     {
@@ -26,6 +27,7 @@ enum ServicoStatusEnum: string
             self::CONCLUIDO => 'Concluido',
             self::FINALIZADO => 'Finalizado',
             self::CANCELADO => 'Cancelado',
+            self::RECUSADO => 'Recusado',
         };
     }
 
@@ -41,6 +43,7 @@ enum ServicoStatusEnum: string
             self::CONCLUIDO => 'Concluido',
             self::FINALIZADO => 'Finalizado',
             self::CANCELADO => 'Cancelado',
+            self::RECUSADO => 'Recusado',
         };
     }
 
@@ -56,6 +59,7 @@ enum ServicoStatusEnum: string
             self::CONCLUIDO => 'Concluido',
             self::FINALIZADO => 'Finalizado',
             self::CANCELADO => 'Cancelado',
+            self::RECUSADO => 'Recusado',
         };
     }
 }

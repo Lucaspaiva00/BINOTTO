@@ -81,6 +81,16 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
             Route::delete('/{id}', [ContaPagarController::class, 'destroy']);
         });
 
+        Route::post('/{tipo}/{id}/fatura', [\App\Http\Controllers\Api\Admin\FinanceiroFaturaController::class, 'store'])->where('tipo', 'contas-receber|contas-pagar');
+        Route::get('/{tipo}/{id}/fatura', [\App\Http\Controllers\Api\Admin\FinanceiroFaturaController::class, 'show'])->where('tipo', 'contas-receber|contas-pagar');
+        Route::get('/dashboard/faturamento', function () {
+            $year = now()->year;
+            $total = \App\Models\ContaReceber::query()->where('status', '!=', 'cancelado')
+                ->whereYear('data_emissao', $year)->whereDate('data_emissao', '<=', now()->toDateString())
+                ->whereIn('status_fatura', ['emitida', 'enviada', 'paga'])->sum('valor_servico');
+            return response()->json(['year' => $year, 'billedAmount' => (float) $total]);
+        });
+
         Route::get('/fluxo-caixa', [FluxoCaixaController::class, 'index']);
 
         Route::prefix('servicos')->group(function () {

@@ -34,6 +34,8 @@ class ContaPagarResource extends JsonResource
             'category' => $this->categoria,
             'paymentMethod' => $this->forma_pagamento,
             'invoice' => $this->fatura,
+            'invoiceAttachment' => (bool) $this->fatura_nome,
+            'invoiceFileName' => $this->fatura_nome,
             'invoiceNumber' => $this->numero_fatura,
             'issueDate' => $this->data_emissao?->format('Y-m-d'),
             'launchDate' => $this->data_lancamento?->format('Y-m-d'),

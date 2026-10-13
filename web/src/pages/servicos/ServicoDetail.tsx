@@ -119,22 +119,22 @@ export default function ServicoDetail() {
   }, [id, markSaved]);
 
 
-  const lockedByStatus = service ? ["finalizado", "concluido"].includes(service.status ?? "") : false;
+  const lockedByStatus = service ? ["finalizado", "concluido", "recusado", "cancelado"].includes(service.status ?? "") : false;
   const editingEnabled = !lockedByStatus || editingFinalized;
 
   function requestEditFinalized() {
     if (!lockedByStatus) return;
-    const confirmed = window.confirm("VOCÊ TEM CERTEZA QUE DESEJA EDITAR UM SERVIÇO JÁ FINALIZADO?");
+    const confirmed = window.confirm(["finalizado", "concluido"].includes(service?.status ?? "") ? "VOCÊ TEM CERTEZA QUE DESEJA EDITAR UM SERVIÇO JÁ FINALIZADO?" : "VOCÊ TEM CERTEZA QUE DESEJA EDITAR ESTE SERVIÇO?");
     if (confirmed) setEditingFinalized(true);
   }
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
     if (!editingEnabled) return;
-    setForm((current) => current ? { ...current, [field]: value } : current);
+    setForm((current) => current ? { ...current, [field]: value, ...(field === "technicianId" && ["aguardando", "aguardando_aprovacao", "recusado", "cancelado"].includes(current.status) ? { status: value ? "aguardando_aprovacao" as const : "aguardando" as const } : {}) } : current);
     markDirty();
   }
 
-  async function persist(finalize = false): Promise<Service | null> {
+  async function persist(finalize = false, nextStatus?: Service["status"]): Promise<Service | null> {
     if (!form || (!editingEnabled && !finalize)) return null;
     const next: Record<string, string> = {};
     const detailError = validateDetails(form, partsState);
@@ -144,7 +144,7 @@ export default function ServicoDetail() {
     setErrors(next);
     if (Object.keys(next).length) return null;
     const completed = await serviceService.saveDetails(id, buildServiceDetailsFormData(
-      finalize ? { ...form, status: "finalizado" } : form, partsState,
+      finalize ? { ...form, status: "finalizado" } : nextStatus ? { ...form, status: nextStatus } : form, partsState,
     ));
     setService(completed);
     setForm(formFromService(completed));
@@ -160,7 +160,7 @@ export default function ServicoDetail() {
       const completed = await persist(finalize);
       if (!completed) return;
       toast.success(finalize ? "Serviço finalizado e enviado ao Financeiro." : "Serviço atualizado.");
-      const isNowLocked = ["finalizado", "concluido"].includes(completed.status ?? "");
+      const isNowLocked = ["finalizado", "concluido", "recusado", "cancelado"].includes(completed.status ?? "");
       if (finalize || isNowLocked) {
         setEditingFinalized(false);
       } else {
@@ -190,9 +190,18 @@ export default function ServicoDetail() {
       const fresh = await serviceService.show(updated.id);
       setService(fresh); setForm(formFromService(fresh));
       setPartsState(normalizeServiceRepairs(fresh.vehicleRepairs));
+      setEditingFinalized(false);
       markSaved();
-      toast.success(type === "accept" ? "Aceite registrado." : "Técnico liberado e solicitação reaberta.");
+      toast.success(type === "accept" ? "Aceite registrado." : "Serviço recusado.");
     } catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
+  }
+
+  async function transition(status: "em_execucao" | "cancelado") {
+    if (saving || actionBusy) return;
+    if (status === "cancelado" && !window.confirm("Deseja cancelar este serviço?")) return;
+    setActionBusy(true);
+    try { const saved = await persist(false, status); if (!saved) return; setEditingFinalized(false); toast.success(status === "cancelado" ? "Serviço cancelado." : "Serviço em execução."); }
+    catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
   }
 
   if (loading) return <AppLayout title="Serviço"><div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div></AppLayout>;
@@ -268,7 +277,9 @@ export default function ServicoDetail() {
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-4"><span>Criado em {formatDateTime(service.createdAt)}</span><span>Atualizado em {formatDateTime(service.updatedAt)}</span></div>
       {editingEnabled && <div className="mt-6 flex flex-wrap justify-end gap-3 border-t pt-4">
         <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar alterações"}</Button>
-        {!lockedByStatus && <Button className="bg-green-600 text-white hover:bg-green-700" disabled={saving || actionBusy || form.status === "cancelado"} onClick={() => void save(true)}><CheckCircle2 className="mr-2 h-4 w-4" />Finalizar</Button>}
+        {!lockedByStatus && form.status === "em_execucao" && <Button className="bg-green-600 text-white hover:bg-green-700" disabled={saving || actionBusy} onClick={() => void save(true)}><CheckCircle2 className="mr-2 h-4 w-4" />Finalizar serviço</Button>}
+        {!lockedByStatus && form.status === "aceito" && <Button disabled={saving || actionBusy} onClick={() => void transition("em_execucao")}>Iniciar serviço</Button>}
+        {!lockedByStatus && <Button variant="destructive" disabled={saving || actionBusy} onClick={() => void transition("cancelado")}>Cancelar serviço</Button>}
       </div>}
     </AppLayout>
   );

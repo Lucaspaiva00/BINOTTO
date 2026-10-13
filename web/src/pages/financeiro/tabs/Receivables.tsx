@@ -1,4 +1,5 @@
-import { FinanceRecordDetails, FinanceVehicleSummary } from "./FinanceRecordDetails";
+import { InvoiceAttachment, InvoiceStatus } from "./InvoiceAttachment";
+import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Eye, Trash2, Search } from "lucide-react";
@@ -451,9 +452,9 @@ export function Receivables() {
           <TableHeader>
             <TableRow>
               <TableHead>Data</TableHead>
-              <TableHead>Veículo / Referência</TableHead>
+              <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Oficina / Cliente</TableHead>
-              <TableHead>Valor a receber</TableHead>
+              <TableHead>Técnico</TableHead><TableHead>Valor a receber</TableHead><TableHead className="border-l">Fatura</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
@@ -461,13 +462,13 @@ export function Receivables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={9} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
@@ -475,11 +476,12 @@ export function Receivables() {
               items.map((r) => (
                 <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>
-                  <TableCell><FinanceVehicleSummary record={r} /></TableCell>
+                  <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
-                  <TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
+                  <TableCell>{r.technician || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
+                  <TableCell className="border-l"><div className="flex items-center gap-2"><span>{r.invoiceNumber || "—"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div></TableCell>
                   <TableCell>
-                    <StatusBadge status={r.status} />
+                    <div className="space-y-1"><InvoiceStatus status={r.invoiceStatus}/><StatusBadge status={r.status}/></div>
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
@@ -695,8 +697,9 @@ export function Receivables() {
                   <div className="col-span-2 grid gap-3 md:grid-cols-3">
                     <div className="space-y-2"><Label>Fatura da oficina</Label><Input value={editing.invoice} onChange={(e) => setEditing({ ...editing, invoice: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Nº da fatura</Label><Input value={editing.invoiceNumber} onChange={(e) => setEditing({ ...editing, invoiceNumber: e.target.value })} /></div>
-                    <div className="space-y-2"><Label>Status da fatura</Label><Input value={editing.invoiceStatus} onChange={(e) => setEditing({ ...editing, invoiceStatus: e.target.value })} placeholder="Pendente, emitida, paga..." /></div>
+                    <div className="space-y-2"><Label>Status da fatura</Label><Select value={editing.invoiceStatus || "pendente"} onValueChange={v => setEditing({...editing, invoiceStatus:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="emitida">Emitida</SelectItem><SelectItem value="enviada">Enviada ao cliente</SelectItem><SelectItem value="paga">Paga pelo cliente</SelectItem></SelectContent></Select></div>
                   </div>
+                  <div className="space-y-2"><Label>Data de emissão da fatura</Label><DateInput value={editing.emissionDate} onChange={e => setEditing({...editing, emissionDate:e.target.value})}/></div>
                   <div className="col-span-2 space-y-2">
                     <Label>Descrição do serviço</Label>
                     <Input
@@ -786,6 +789,7 @@ export function Receivables() {
               )}
             </div>
           )}
+          {editing?.id && <InvoiceAttachment kind="receber" id={editing.id} attached={items.find(item => item.id === editing.id)?.invoiceAttachment} onUploaded={() => { setReloadToken(n => n + 1); } } />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancelar

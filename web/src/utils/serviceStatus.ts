@@ -10,6 +10,7 @@ export const SERVICE_STATUS_LABEL: Record<ServiceStatus, string> = {
   concluido: "Concluído",
   finalizado: "Finalizado",
   cancelado: "Cancelado",
+  recusado: "Recusado",
 };
 
 export const SERVICE_STATUS_CLASS: Record<ServiceStatus, string> = {
@@ -21,5 +22,6 @@ export const SERVICE_STATUS_CLASS: Record<ServiceStatus, string> = {
   retrabalho: "bg-rose-500/15 text-rose-600 border-rose-500/30",
   concluido: "bg-blue-500/15 text-blue-600 border-blue-500/30",
   finalizado: "bg-teal-500/15 text-teal-600 border-teal-500/30",
+  recusado: "bg-red-500/15 text-red-600 border-red-500/30",
   cancelado: "bg-red-500/15 text-red-600 border-red-500/30",
 };

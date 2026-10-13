@@ -36,6 +36,8 @@ class ContaPagar extends Model
         'status',
     ];
 
+    protected $hidden = ['fatura_conteudo'];
+
     protected $casts = [
         'valor_a_pagar' => 'decimal:2',
         'valor_pago' => 'decimal:2',

@@ -11,6 +11,14 @@ class StoreUpdateContaReceberRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (in_array($this->input('status_fatura'), ['emitida', 'enviada', 'paga'], true) && ! $this->filled('data_emissao')) {
+            $existing = $this->route('id') ? \App\Models\ContaReceber::find($this->route('id')) : null;
+            $this->merge(['data_emissao' => $existing?->data_emissao?->format('Y-m-d') ?? now()->toDateString()]);
+        }
+    }
+
     public function rules(): array
     {
         return [

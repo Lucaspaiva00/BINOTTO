@@ -13,7 +13,7 @@ $expected = [
     S::ACEITO->value => P::ABERTA, S::EM_BREVE->value => P::ABERTA,
     S::EM_EXECUCAO->value => P::EM_EXECUCAO, S::RETRABALHO->value => P::EM_EXECUCAO,
     S::FINALIZADO->value => P::CONCLUIDA, S::CONCLUIDO->value => P::CONCLUIDA,
-    S::CANCELADO->value => P::CANCELADA,
+    S::CANCELADO->value => P::CANCELADA, S::RECUSADO->value => P::CANCELADA,
 ];
 $tests = 0;
 foreach (S::cases() as $status) {

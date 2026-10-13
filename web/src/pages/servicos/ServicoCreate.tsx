@@ -36,7 +36,7 @@ export default function ServicoCreate() {
   }, []);
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => ({ ...current, [field]: value, ...(field === "technicianId" ? { status: value ? "aguardando_aprovacao" as const : "aguardando" as const } : {}) }));
     markDirty();
   }
 
@@ -78,7 +78,7 @@ export default function ServicoCreate() {
       await serviceService.saveDetails(created.id, buildServiceDetailsFormData(form, partsState));
       markSaved();
       toast.success(`Serviço #${created.id} criado.`);
-      navigate("/servicos");
+      navigate(`/servicos/${created.id}`);
     } catch (error) {
       if (createdId) {
         toast.warning(`Serviço #${createdId} foi criado, mas os detalhes não foram salvos. Abra o cadastro para completar.`);

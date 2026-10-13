@@ -12,7 +12,7 @@ class ContaReceberController extends Controller
 {
     public function index(Request $request)
     {
-        $contasReceber = ContaReceber::query()->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
+        $contasReceber = ContaReceber::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_receber'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })

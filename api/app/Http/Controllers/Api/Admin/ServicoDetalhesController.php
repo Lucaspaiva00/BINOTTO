@@ -256,8 +256,8 @@ class ServicoDetalhesController extends Controller
                 throw ValidationException::withMessages(['status' => ['Não é permitido recusar um serviço em execução ou finalizado.']]);
             }
             $oldTech = $s->tecnico_id;
-            $s->update(['tecnico_id' => null, 'status' => ServicoStatusEnum::AGUARDANDO, 'aceito_em' => null, 'disponivel_para_todos' => true, 'liberado_para_todos_em' => now()]);
-            ServicoLog::create(['servico_id' => $s->id, 'tecnico_id' => $oldTech, 'tipo' => ServicoLogTipoEnum::SERVICO_ATUALIZADO, 'descricao' => 'Administrador recusou/liberou a atribuição do técnico']);
+            $s->update(['status' => ServicoStatusEnum::RECUSADO, 'aceito_em' => null, 'disponivel_para_todos' => false]);
+            ServicoLog::create(['servico_id' => $s->id, 'tecnico_id' => $oldTech, 'tipo' => ServicoLogTipoEnum::SERVICO_ATUALIZADO, 'descricao' => 'Administrador recusou o serviço']);
             return $s;
         });
         return response()->json(['data' => new ServicoResource($servico->fresh()->load(['oficina', 'tecnico', 'primeiroVeiculo', 'pericias']))]);

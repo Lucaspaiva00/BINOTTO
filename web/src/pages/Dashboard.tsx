@@ -9,6 +9,9 @@ import { periciaService } from "@/services/periciaService";
 import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
 import { formatDateTime } from "@/utils/date";
 import type { Pericia } from "@/types/pericia";
+import { api } from "@/services/api/client";
+import { formatCurrency } from "@/utils/currency";
+import { toast } from "sonner";
 import { kpis } from "@/data/dashboardMock";
 
 const cards = [
@@ -20,6 +23,8 @@ const cards = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [billing, setBilling] = useState<{year: number; billedAmount: number} | null>(null);
+  useEffect(() => { api.get("/dashboard/faturamento").then(({data}) => setBilling(data)).catch(() => toast.error("Não foi possível carregar o faturamento anual.")); }, []);
   const [pericias, setPericias] = useState<Pericia[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,9 +39,9 @@ export default function Dashboard() {
   return (
     <AppLayout title="Dashboard" subtitle="Visão geral do painel administrativo">
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {cards.map(({ label, value, icon: Icon }) => (
+        {cards.map(({ label, value, icon: Icon }, index) => (
           <div key={label} className="rounded-2xl border border-border bg-card p-5">
-            <div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold">{value}</p></div><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--app-accent))]/15"><Icon className="h-5 w-5" /></div></div>
+            <div className="flex items-start justify-between"><div><p className="text-sm text-muted-foreground">{index === 0 ? `Faturado em ${billing?.year ?? new Date().getFullYear()}` : label}</p><p className="mt-2 text-3xl font-bold">{index === 0 ? (billing ? formatCurrency(billing.billedAmount) : "—") : value}</p></div><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[hsl(var(--app-accent))]/15"><Icon className="h-5 w-5" /></div></div>
           </div>
         ))}
       </div>

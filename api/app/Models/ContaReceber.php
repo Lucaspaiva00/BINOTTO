@@ -37,6 +37,8 @@ class ContaReceber extends Model
         'status',
     ];
 
+    protected $hidden = ['fatura_conteudo'];
+
     protected $casts = [
         'valor_servico' => 'decimal:2',
         'valor_plataforma' => 'decimal:2',

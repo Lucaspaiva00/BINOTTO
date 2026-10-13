@@ -13,7 +13,7 @@ final class ServicoPericiaStatusMap
         return match ($status) {
             ServicoStatusEnum::EM_EXECUCAO, ServicoStatusEnum::RETRABALHO => PericiaStatusEnum::EM_EXECUCAO,
             ServicoStatusEnum::CONCLUIDO, ServicoStatusEnum::FINALIZADO => PericiaStatusEnum::CONCLUIDA,
-            ServicoStatusEnum::CANCELADO => PericiaStatusEnum::CANCELADA,
+            ServicoStatusEnum::CANCELADO, ServicoStatusEnum::RECUSADO => PericiaStatusEnum::CANCELADA,
             default => PericiaStatusEnum::ABERTA,
         };
     }

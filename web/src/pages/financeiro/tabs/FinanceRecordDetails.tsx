@@ -1,3 +1,4 @@
+import { InvoiceAttachment } from "./InvoiceAttachment";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Pencil } from "lucide-react";
@@ -95,7 +96,7 @@ export function FinanceRecordDetails({ kind, record, workshops, technicians = []
           <Field label="Categoria">{record.category}</Field>
         </Section>
         <Section title={payable ? "Fatura do técnico" : "Fatura da oficina"}>
-          <Field label="Fatura">{record.invoice}</Field>
+          <Field label="Fatura">{record.invoice}<InvoiceAttachment kind={kind} id={record.id} attached={record.invoiceAttachment}/></Field>
           <Field label="Número da fatura">{record.invoiceNumber}</Field>
           {receivable && <Field label="Status da fatura">{receivable.invoiceStatus}</Field>}
         </Section>

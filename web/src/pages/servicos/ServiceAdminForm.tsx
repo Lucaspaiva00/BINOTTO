@@ -3,6 +3,7 @@ import { Camera, CarFront, CircleDollarSign, ClipboardList, Loader2, Paintbrush,
 import { toast } from "sonner";
 import { CarDiagram } from "@/components/pericia/CarDiagram";
 import { Button } from "@/components/ui/button";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +20,7 @@ import type { PartInspection, RepairType } from "@/types/carParts";
 import type { ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
-  localTodayISO, defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS, resolveDetailedPrices,
+  parseAmount, localTodayISO, defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, VEHICLE_PHOTOS, resolveDetailedPrices,
   type DetailedPrices, type DetailedPriceKey, type SuggestionPriceKey, type VehiclePhotoKey, type VehiclePhotoMap,
 } from "./serviceDetails";
 
@@ -68,7 +69,6 @@ interface Props {
   statusLocked?: boolean;
   errors?: Record<string, string>;
 }
-const STATUS_KEYS = (Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[]).filter(status => !["finalizado", "retrabalho", "aceito", "concluido"].includes(status));
 const TYPE_KEYS: RepairType[] = ["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"];
 function resolvePhoto(photo: string): string {
   if (/^https?:\/\//.test(photo)) return photo;
@@ -103,7 +103,7 @@ function VehiclePhotoCard({ label, photo, onChange }: {
 }
 
 export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, onPartSelect, onPartChange,
-  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusLocked = false, errors = {},
+  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusLocked: _statusLocked = false, errors = {},
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -154,12 +154,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label>Oficina</Label><SearchableSelect value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
         <div className="space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
-        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={technicians.map(t => ({ value: String(t.id), label: t.name }))} /></div>
-        <div className="space-y-2"><Label>Status</Label><Select disabled={statusLocked} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{STATUS_KEYS.map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
-        {(onAccept || onRefuse) && <div className="flex items-end gap-2">
-          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
-          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
-        </div>}
+
       </div>
 
     </section>
@@ -232,13 +227,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
             return <div key={item} className="grid grid-cols-[9rem_minmax(9rem,1fr)_5.5rem_minmax(19rem,1.8fr)_minmax(10rem,1fr)_5.5rem] items-center gap-3 rounded-lg border px-3 py-3">
               <span className="font-semibold">{heading}</span>
 
-              <Input
-                inputMode="decimal"
-                aria-label={`Fatura — ${heading}`}
-                value={office.valor}
-                onChange={e => updatePrice(officeKey, { tipo: "valor", valor: e.target.value.replace(/[^0-9,.]/g, "") })}
-                placeholder="0,00"
-              />
+              <CurrencyInput aria-label={`Fatura — ${heading}`} value={parseAmount(office.valor)} onChange={amount => updatePrice(officeKey, { tipo: "valor", valor: String(amount) })} />
 
               <div className="flex justify-center">
                 <Switch
@@ -266,14 +255,9 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                   >$</Button>
                 </div>
 
-                <Input
-                  className="min-w-24"
-                  inputMode="decimal"
-                  aria-label={`Técnico — ${heading}`}
-                  value={tech.valor}
-                  onChange={e => updatePrice(techKey, { valor: e.target.value.replace(/[^0-9,.]/g, "") })}
-                  placeholder={tech.tipo === "porcentagem" ? "0%" : "0,00"}
-                />
+                {tech.tipo === "valor" ? <CurrencyInput aria-label={`Técnico — ${heading}`} value={parseAmount(tech.valor)} onChange={amount => updatePrice(techKey, { valor: String(amount) })} /> :
+                  <div className="relative"><Input className="min-w-24 pr-7" inputMode="decimal" aria-label={`Técnico — ${heading}`} value={tech.valor.includes(".") ? Number(tech.valor).toFixed(2).replace(".", ",") : tech.valor} onChange={e => updatePrice(techKey, { valor: e.target.value.replace(/[^0-9,]/g, "") })} onBlur={() => updatePrice(techKey, { valor: Math.min(100, Math.max(0, parseAmount(tech.valor))).toFixed(2).replace(".", ",") })} /><span className="absolute right-3 top-2 text-muted-foreground">%</span></div>}
+
 
                 {tech.tipo === "porcentagem" && <Input
                   className="min-w-28"
@@ -284,13 +268,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                 />}
               </div>
 
-              <Input
-                inputMode="decimal"
-                aria-label={`Sugestão técnico — ${heading}`}
-                value={suggestion.valor}
-                onChange={e => updatePrice(suggestionKey, { tipo: "valor", valor: e.target.value.replace(/[^0-9,.]/g, "") })}
-                placeholder="0,00"
-              />
+              <CurrencyInput aria-label={`Sugestão técnico — ${heading}`} value={parseAmount(suggestion.valor)} onChange={amount => updatePrice(suggestionKey, { tipo: "valor", valor: String(amount) })} />
 
               <div className="flex justify-center">
                 <Switch
@@ -321,6 +299,16 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
+        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={[{ value: "", label: "Sem técnico" }, ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
+        <div className="space-y-2"><Label>Status</Label><Select disabled={true} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{[value.status].map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
+        <div className="flex items-end gap-2">
+          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
+          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+        </div>
+      </div>
+    </section>
   </div>;
 }
 export function parseDecimalInput(value: string): number {
