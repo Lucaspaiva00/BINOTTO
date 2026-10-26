@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Play, Plus, Search, ScanSearch } from "lucide-react";
+import { Play, Plus, Search, ScanSearch, Eye, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -108,36 +108,37 @@ export default function PericiasList() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-215">
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow>
-              <TableHead>Perícia</TableHead><TableHead>Oficina</TableHead><TableHead>Técnico</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead>Status</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead>Serviço</TableHead><TableHead className="text-right sticky right-0 bg-card">Ações</TableHead>
+              <TableHead>Perícia</TableHead><TableHead>Veículo</TableHead><TableHead>Oficina / Técnico</TableHead><TableHead>Status</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
             ) : pericias.length === 0 ? (
               <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
             ) : pericias.map((p) => (
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
                 <TableCell className="font-semibold text-[hsl(var(--app-accent))]">{p.publicNumber || `#${p.id}`}</TableCell>
-                <TableCell className="text-muted-foreground">{p.workshop ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{p.technician ?? "—"}</TableCell>
-                <TableCell>{p.licensePlate ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{p.model ?? "—"}</TableCell>
+                <TableCell><div className="font-medium">{p.licensePlate ?? "Sem placa"}</div><div className="text-xs text-muted-foreground">{p.model ?? "Modelo não informado"}</div></TableCell>
+                <TableCell><div>{p.workshop ?? "—"}</div><div className="text-xs text-muted-foreground">{p.technician ?? "Sem técnico"}</div></TableCell>
                 <TableCell>{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
                 <TableCell>{formatCurrency(displayValue(p))}</TableCell>
                 <TableCell className="text-muted-foreground">{formatDateTime(p.createdAt)}</TableCell>
-                <TableCell>{p.serviceId ? <Button variant="link" className="h-auto p-0" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>#{p.serviceId}</Button> : "—"}</TableCell>
-                <TableCell className="text-right sticky right-0 bg-card">
-                  {p.status !== "em_execucao" && p.status !== "concluida" ? (
-                    <Button size="sm" variant="outline" disabled={startingId === p.id} onClick={(event) => { event.stopPropagation(); startRepairs(p); }}>
-                      <Play className="w-4 h-4 mr-1" />{startingId === p.id ? "Iniciando..." : "Iniciar reparações"}
-                    </Button>
-                  ) : p.serviceId ? (
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>Ver serviço</Button>
-                  ) : null}
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1 flex-wrap">
+                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/pericias/${p.id}`); }} aria-label="Visualizar perícia"><Eye className="w-4 h-4" /></Button>
+                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/pericias/${p.id}/editar`); }} aria-label="Editar perícia"><Pencil className="w-4 h-4" /></Button>
+                    {p.status !== "em_execucao" && p.status !== "concluida" ? (
+                      <Button size="sm" variant="outline" disabled={startingId === p.id} onClick={(event) => { event.stopPropagation(); startRepairs(p); }}>
+                        <Play className="w-4 h-4 mr-1" />{startingId === p.id ? "Iniciando..." : "Iniciar"}
+                      </Button>
+                    ) : p.serviceId ? (
+                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>Serviço</Button>
+                    ) : null}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
