@@ -7,6 +7,9 @@ use App\Http\Requests\Api\Admin\StoreUpdateContaReceberRequest;
 use App\Http\Resources\Api\Admin\ContaReceberResource;
 use App\Models\ContaReceber;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Servico;
+use App\Models\ContaPagar;
 
 class ContaReceberController extends Controller
 {
@@ -74,16 +77,43 @@ class ContaReceberController extends Controller
         ]);
     }
 
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
-        $contaReceber = ContaReceber::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
+        $validated = $request->validate(['excluir_servico' => ['sometimes', 'boolean']]);
+        $excluirServico = (bool) ($validated['excluir_servico'] ?? false);
 
-        if (!$contaReceber) {
-            return response()->json(['message' => __('main.conta_receber_not_found')], 404);
-        }
+        return DB::transaction(function () use ($id, $excluirServico) {
+            $conta = ContaReceber::query()->lockForUpdate()->find($id);
+            if (!$conta) {
+                return response()->json(['message' => __('main.conta_receber_not_found')], 404);
+            }
 
-        $contaReceber->delete();
+            $servico = $conta->servico_id
+                ? Servico::query()->lockForUpdate()->find($conta->servico_id)
+                : null;
 
-        return response()->json(['message' => __('main.conta_receber_deleted_success')]);
+            if ($excluirServico && $servico) {
+                $outrasContas = ContaReceber::where('servico_id', $servico->id)
+                    ->where('id', '!=', $id)->exists()
+                    || ContaPagar::where('servico_id', $servico->id)
+                    ->exists();
+                if ($outrasContas || $servico->pericias()->exists()) {
+                    return response()->json([
+                        'message' => 'Este serviço possui outras movimentações financeiras ou perícias. Exclua apenas o lançamento ou trate os vínculos antes de excluir o serviço.',
+                    ], 409);
+                }
+            }
+
+            $conta->delete();
+            if ($excluirServico && $servico) {
+                $servico->delete();
+            }
+
+            return response()->json([
+                'message' => $excluirServico && $servico
+                    ? 'Lançamento e serviço excluídos com sucesso.'
+                    : __('main.conta_receber_deleted_success'),
+            ]);
+        });
     }
 }
