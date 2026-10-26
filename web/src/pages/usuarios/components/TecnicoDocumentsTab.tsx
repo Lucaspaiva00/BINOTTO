@@ -4,6 +4,7 @@ import { FileText, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { userService } from "@/services/userService";
+import { API_BASE_URL } from "@/services/api/config";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import type { OficinaDocument } from "@/types/user";
 
@@ -55,6 +56,18 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
       setUploadingTipo(null);
       const input = inputRefs.current[tipo];
       if (input) input.value = "";
+    }
+  }
+
+  function documentUrl(url: string | null | undefined): string | undefined {
+    if (!url) return undefined;
+    try {
+      const apiOrigin = new URL(API_BASE_URL).origin;
+      const parsed = new URL(url, apiOrigin);
+      if (parsed.origin !== apiOrigin || !["http:", "https:"].includes(parsed.protocol)) return undefined;
+      return parsed.href;
+    } catch {
+      return undefined;
     }
   }
 
@@ -125,7 +138,7 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                       <FileText className="w-5 h-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
                         <a
-                          href={doc.arquivo_url ?? undefined}
+                          href={documentUrl(doc.arquivo_url)}
                           target="_blank"
                           rel="noreferrer"
                           className="font-medium text-sm truncate block hover:underline"
