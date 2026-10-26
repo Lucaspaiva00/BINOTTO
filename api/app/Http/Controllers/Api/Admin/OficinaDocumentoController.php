@@ -10,6 +10,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
 class OficinaDocumentoController extends Controller
@@ -119,6 +120,8 @@ class OficinaDocumentoController extends Controller
                 'message' => __('main.document_uploaded_success'),
                 'document' => $documento,
             ], 201);
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (Exception $e) {
             Log::error('Erro ao fazer upload de documento (admin)', [
                 'usuario_id' => $usuarioId,
