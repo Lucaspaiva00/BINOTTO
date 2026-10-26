@@ -41,6 +41,8 @@ export default function ServicosList() {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -99,7 +101,22 @@ export default function ServicosList() {
     return () => {
       cancelled = true;
     };
-  }, [page, status, country, workshop, debouncedCity, startDate, endDate, debouncedSearch]);
+  }, [page, status, country, workshop, debouncedCity, startDate, endDate, debouncedSearch, reloadToken]);
+
+  async function deleteService(id: number) {
+    if (!window.confirm("Deseja excluir este serviço definitivamente? A exclusão será bloqueada caso existam perícias ou lançamentos financeiros vinculados.")) return;
+    setDeletingId(id);
+    try {
+      const message = await serviceService.remove(id);
+      toast.success(message);
+      if (services.length === 1 && page > 1) setPage((current) => current - 1);
+      else setReloadToken((current) => current + 1);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   const invalidDateRange = Boolean(startDate && endDate && endDate < startDate);
   function clearFilters() {
@@ -216,7 +233,7 @@ export default function ServicosList() {
               </TableRow>
             ) : services.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                   <ClipboardList className="w-8 h-8 mx-auto mb-2 opacity-60" />
                   Nenhum serviço encontrado.
                 </TableCell>
@@ -255,7 +272,7 @@ export default function ServicosList() {
                         <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => navigate(`/servicos/${s.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" />Editar
                         </button>
-                        <button type="button" disabled className="flex w-full cursor-not-allowed items-center rounded px-3 py-2 text-sm opacity-50" title="A exclusão segura depende de validação dos vínculos financeiros e perícias">
+                        <button type="button" disabled={deletingId === s.id} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:opacity-50" onClick={() => void deleteService(s.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />Deletar
                         </button>
                       </div>
