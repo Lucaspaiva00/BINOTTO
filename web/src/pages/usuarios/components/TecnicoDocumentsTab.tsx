@@ -137,14 +137,20 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                     <div className="flex items-center gap-3 min-w-0">
                       <FileText className="w-5 h-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
-                        <a
-                          href={documentUrl(doc.arquivo_url)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-medium text-sm truncate block hover:underline"
-                        >
-                          {doc.nome}
-                        </a>
+                        {documentUrl(doc.arquivo_url) ? (
+                          <a
+                            href={documentUrl(doc.arquivo_url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-sm truncate block hover:underline"
+                          >
+                            {doc.nome}
+                          </a>
+                        ) : (
+                          <span className="font-medium text-sm truncate block text-muted-foreground" title="Arquivo sem endereço disponível">
+                            {doc.nome} (link indisponível)
+                          </span>
+                        )}
                         <p className="text-xs text-muted-foreground">
                           {doc.tamanho_formatado ?? ""}
                           {doc.created_at
