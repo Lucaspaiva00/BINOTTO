@@ -22,7 +22,7 @@ const PER_PAGE = 20;
 
 export default function UsersList() {
   const navigate = useNavigate();
-  const [type, setType] = useState<TypeFilter>("all");
+  const [type, setType] = useState<TypeFilter>("TECNICO");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [country, setCountry] = useState<string>("all");
   const [city, setCity] = useState("");
@@ -101,9 +101,9 @@ export default function UsersList() {
           }}
         >
           <TabsList>
+            <TabsTrigger value="TECNICO">Técnico</TabsTrigger>
+            <TabsTrigger value="OFICINA">Oficina</TabsTrigger>
             <TabsTrigger value="all">Todos</TabsTrigger>
-            <TabsTrigger value="TECNICO">Técnicos</TabsTrigger>
-            <TabsTrigger value="OFICINA">Oficinas</TabsTrigger>
           </TabsList>
         </Tabs>
 
