@@ -36,8 +36,8 @@ export const receivableService = {
     return data.data;
   },
 
-  async remove(id: number | string): Promise<{ message: string }> {
-    const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}`);
+  async remove(id: number | string, deleteService = false): Promise<{ message: string }> {
+    const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}`, { params: { excluir_servico: deleteService ? 1 : 0 } });
     return data;
   },
 };
