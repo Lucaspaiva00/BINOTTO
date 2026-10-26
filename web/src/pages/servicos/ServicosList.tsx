@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Search, ClipboardList, X } from "lucide-react";
+import { Plus, Search, ClipboardList, X, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { serviceService } from "@/services/serviceService";
@@ -204,12 +205,13 @@ export default function ServicosList() {
               <TableHead>País</TableHead>
               <TableHead className="text-right">Preço da oficina (total)</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-14 text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10">
+                <TableCell colSpan={7} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
@@ -225,7 +227,7 @@ export default function ServicosList() {
                 <TableRow key={s.id} onClick={() => navigate(`/servicos/${s.id}`)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell className="font-medium text-foreground whitespace-nowrap">
                     {formatDate(s.serviceDate ?? s.startDate ?? s.createdAt?.slice(0, 10))}
-                    <div className="text-xs text-muted-foreground">ID: {s.id}</div>
+
                   </TableCell>
                   <TableCell className="text-muted-foreground">{s.workshop ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{s.workshopCity ?? "—"}</TableCell>
@@ -244,6 +246,23 @@ export default function ServicosList() {
                     ) : (
                       "—"
                     )}
+                  </TableCell>
+                  <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={`Ações do serviço ${s.id}`}>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => navigate(`/servicos/${s.id}`)}>
+                          <Pencil className="mr-2 h-4 w-4" />Editar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled>
+                          <Trash2 className="mr-2 h-4 w-4" />Deletar (indisponível)
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
