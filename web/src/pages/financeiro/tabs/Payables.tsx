@@ -202,9 +202,10 @@ export function Payables() {
     }
   }
 
-  async function remove(id: number) {
+  async function remove(id: number, hasService: boolean) {
+    const deleteService = hasService && window.confirm("Este lançamento está vinculado a um serviço. Deseja excluir TAMBÉM o serviço?\n\nOK: excluir ambos (se não houver outros vínculos).\nCancelar: manter o serviço e excluir apenas o lançamento.");
     try {
-      const { message } = await payableService.remove(id);
+      const { message } = await payableService.remove(id, deleteService);
       toast.success(message);
       setReloadToken((n) => n + 1);
     } catch (error) {
@@ -408,7 +409,7 @@ export function Payables() {
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id); }}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id, Boolean(p.serviceId)); }}>Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
