@@ -88,6 +88,14 @@ export const userService = {
     return data.document;
   },
 
+  async downloadDocument(id: number | string, documentId: number): Promise<Blob> {
+    const { data } = await api.get<Blob>(
+      `${BASE_URL}/${id}/documentos/${documentId}/download`,
+      { responseType: "blob" },
+    );
+    return data;
+  },
+
   async deleteDocument(id: number | string, documentId: number): Promise<{ message: string }> {
     const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}/documentos/${documentId}`);
     return data;
