@@ -139,7 +139,9 @@ export default function PericiaDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+      <section className="mb-5 space-y-3">
+        <h2 className="font-semibold text-lg">Dados do veículo e da perícia</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SummaryCard label="Número da perícia" value={pericia.publicNumber || `#${pericia.id}`} />
         <SummaryCard label="Oficina" value={pericia.workshop} />
         <SummaryCard label={pericia.inspectorName ? "Perito" : "Técnico (perícia antiga)"} value={pericia.inspectorName ?? pericia.technician} />
@@ -150,6 +152,11 @@ export default function PericiaDetail() {
         <SummaryCard label="Tipo de perícia" value={pericia.tipo === "simples" ? "Básica" : pericia.tipo === "completa" ? "Convencional" : "—"} />
         <SummaryCard label="Data" value={formatDateTime(pericia.createdAt)} />
         <SummaryCard label="Prazo" value={pericia.deadline ? new Date(`${pericia.deadline}T12:00:00`).toLocaleDateString("pt-BR") : "—"} />
+        </div>
+      </section>
+      <section className="mb-5 space-y-3">
+        <h2 className="font-semibold text-lg">Valores e execução</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <SummaryCard label="Valor do veículo" value={formatCurrency(value)} />
         <SummaryCard label="Desmontagem" value={formatCurrency(pericia.disassemblyValue ?? null)} />
         <SummaryCard label="Total" value={formatCurrency(pericia.totalValue ?? value)} />
@@ -163,8 +170,8 @@ export default function PericiaDetail() {
             </Link>
           ) : "—"}
         />
-      </div>
-
+        </div>
+      </section>
       <div className="space-y-4">
         <PhotoGallery title="Fotos técnicas" slots={TECH_PHOTO_SLOTS} photos={pericia.photos} />
         <PhotoGallery title="Identificação do veículo (T2)" slots={VEHICLE_CAMERA_PHOTO_SLOTS} photos={pericia.photos} />
@@ -172,7 +179,7 @@ export default function PericiaDetail() {
         {hasCompletePhotos && <PhotoGallery title="Fotos adicionais" slots={COMPLETE_PHOTO_SLOTS} photos={pericia.completePhotos} />}
 
         <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="text-sm font-semibold mb-1">Modelo visual 3D do veículo</h3>
+          <h3 className="text-sm font-semibold mb-1">Desenho interativo das peças do veículo</h3>
           <p className="text-xs text-muted-foreground mb-4">Clique em uma peça marcada para ver os detalhes do reparo.</p>
           <CarDiagram
             partsState={partsState}
