@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { serviceService } from "@/services/serviceService";
@@ -248,21 +247,19 @@ export default function ServicosList() {
                     )}
                   </TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Ações do serviço ${s.id}`}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => navigate(`/servicos/${s.id}`)}>
+                    <details className="relative inline-block text-left group">
+                      <summary className="inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${s.id}`}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </summary>
+                      <div className="absolute right-0 z-20 mt-1 min-w-40 rounded-md border bg-popover p-1 shadow-lg">
+                        <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => navigate(`/servicos/${s.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" />Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>
-                          <Trash2 className="mr-2 h-4 w-4" />Deletar (indisponível)
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        </button>
+                        <button type="button" disabled className="flex w-full cursor-not-allowed items-center rounded px-3 py-2 text-sm opacity-50" title="A exclusão segura depende de validação dos vínculos financeiros e perícias">
+                          <Trash2 className="mr-2 h-4 w-4" />Deletar
+                        </button>
+                      </div>
+                    </details>
                   </TableCell>
                 </TableRow>
               ))
