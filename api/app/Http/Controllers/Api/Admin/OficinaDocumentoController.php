@@ -77,6 +77,10 @@ class OficinaDocumentoController extends Controller
                     'public',
                 );
 
+                if ($path === false) {
+                    throw new Exception('Não foi possível salvar o arquivo.');
+                }
+
                 $documento = OficinaDocumento::create([
                     'oficina_id' => $usuario->oficina->id,
                     'nome' => $file->getClientOriginalName(),
@@ -102,6 +106,10 @@ class OficinaDocumentoController extends Controller
                     Str::uuid() . '.' . $file->getClientOriginalExtension(),
                     'public',
                 );
+
+                if ($path === false) {
+                    throw new Exception('Não foi possível salvar o arquivo.');
+                }
 
                 $documento = TecnicoDocumento::create([
                     'tecnico_id' => $usuario->tecnico->id,
