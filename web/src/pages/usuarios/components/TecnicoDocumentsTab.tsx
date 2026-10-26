@@ -22,6 +22,7 @@ type Props = {
 export default function TecnicoDocumentsTab({ userId }: Props) {
   const [documents, setDocuments] = useState<OficinaDocument[]>([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -59,6 +60,8 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
   }
 
   async function handleDownload(doc: OficinaDocument) {
+    if (downloadingId !== null) return;
+    setDownloadingId(doc.id);
     try {
       const blob = await userService.downloadDocument(userId, doc.id);
       const objectUrl = URL.createObjectURL(blob);
@@ -71,10 +74,13 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
+    } finally {
+      setDownloadingId(null);
     }
   }
 
   async function handleDelete(documentId: number) {
+    if (!window.confirm("Deseja realmente excluir este documento? Esta ação não pode ser desfeita.")) return;
     try {
       await userService.deleteDocument(userId, documentId);
       toast.success("Documento removido");
@@ -143,6 +149,7 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                         <button
                             type="button"
                             onClick={() => void handleDownload(doc)}
+                            disabled={downloadingId !== null}
                             className="font-medium text-sm truncate block hover:underline text-left"
                             title="Baixar documento com autenticação"
                           >
