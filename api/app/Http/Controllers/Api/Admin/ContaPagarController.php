@@ -7,6 +7,9 @@ use App\Http\Requests\Api\Admin\StoreUpdateContaPagarRequest;
 use App\Http\Resources\Api\Admin\ContaPagarResource;
 use App\Models\ContaPagar;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use App\Models\Servico;
+use App\Models\ContaReceber;
 
 class ContaPagarController extends Controller
 {
@@ -77,16 +80,43 @@ class ContaPagarController extends Controller
         ]);
     }
 
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
-        $contaPagar = ContaPagar::with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])->find($id);
+        $validated = $request->validate(['excluir_servico' => ['sometimes', 'boolean']]);
+        $excluirServico = (bool) ($validated['excluir_servico'] ?? false);
 
-        if (!$contaPagar) {
-            return response()->json(['message' => __('main.conta_pagar_not_found')], 404);
-        }
+        return DB::transaction(function () use ($id, $excluirServico) {
+            $conta = ContaPagar::query()->lockForUpdate()->find($id);
+            if (!$conta) {
+                return response()->json(['message' => __('main.conta_pagar_not_found')], 404);
+            }
 
-        $contaPagar->delete();
+            $servico = $conta->servico_id
+                ? Servico::query()->lockForUpdate()->find($conta->servico_id)
+                : null;
 
-        return response()->json(['message' => __('main.conta_pagar_deleted_success')]);
+            if ($excluirServico && $servico) {
+                $outrasContas = ContaReceber::where('servico_id', $servico->id)
+                    ->exists()
+                    || ContaPagar::where('servico_id', $servico->id)
+                    ->where('id', '!=', $id)->exists();
+                if ($outrasContas || $servico->pericias()->exists()) {
+                    return response()->json([
+                        'message' => 'Este serviço possui outras movimentações financeiras ou perícias. Exclua apenas o lançamento ou trate os vínculos antes de excluir o serviço.',
+                    ], 409);
+                }
+            }
+
+            $conta->delete();
+            if ($excluirServico && $servico) {
+                $servico->delete();
+            }
+
+            return response()->json([
+                'message' => $excluirServico && $servico
+                    ? 'Lançamento e serviço excluídos com sucesso.'
+                    : __('main.conta_pagar_deleted_success'),
+            ]);
+        });
     }
 }
