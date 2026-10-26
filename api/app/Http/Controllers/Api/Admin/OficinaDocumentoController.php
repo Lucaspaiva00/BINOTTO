@@ -15,8 +15,16 @@ use Illuminate\Support\Str;
 
 class OficinaDocumentoController extends Controller
 {
-    public function index(int $usuarioId)
+    public function index(Request $request, int $usuarioId)
     {
+        if ($request->has('download')) {
+            $documentoId = filter_var($request->query('download'), FILTER_VALIDATE_INT);
+            if ($documentoId === false || $documentoId < 1) {
+                return response()->json(['message' => 'Documento inválido.'], 422);
+            }
+            return $this->download($usuarioId, $documentoId);
+        }
+
         $usuario = $this->resolveUsuario($usuarioId);
 
         if (!$usuario) {
