@@ -148,17 +148,6 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                           >
                             {doc.nome}
                           </button>
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-sm truncate block hover:underline"
-                          >
-                            {doc.nome}
-                          </a>
-                        ) : (
-                          <span className="font-medium text-sm truncate block text-muted-foreground" title="Arquivo sem endereço disponível">
-                            {doc.nome} (link indisponível)
-                          </span>
-                        )}
                         <p className="text-xs text-muted-foreground">
                           {doc.tamanho_formatado ?? ""}
                           {doc.created_at
