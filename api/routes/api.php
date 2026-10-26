@@ -99,6 +99,7 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
             Route::post('/direto', [AdminServicoController::class, 'storeDirect']);
             Route::get('/{id}', [AdminServicoController::class, 'show']);
             Route::put('/{id}', [AdminServicoController::class, 'update']);
+            Route::delete('/{id}', [AdminServicoController::class, 'destroy']);
             Route::post('/{id}/detalhes', [ServicoDetalhesController::class, 'salvar']);
             Route::patch('/{id}/aceitar', [ServicoDetalhesController::class, 'aceitar']);
             Route::patch('/{id}/recusar', [ServicoDetalhesController::class, 'recusar']);
