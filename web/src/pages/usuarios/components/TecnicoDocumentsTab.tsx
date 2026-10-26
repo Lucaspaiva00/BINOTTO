@@ -4,7 +4,6 @@ import { FileText, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { userService } from "@/services/userService";
-import { API_BASE_URL } from "@/services/api/config";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import type { OficinaDocument } from "@/types/user";
 
@@ -59,15 +58,19 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
     }
   }
 
-  function documentUrl(url: string | null | undefined): string | undefined {
-    if (!url) return undefined;
+  async function handleDownload(doc: OficinaDocument) {
     try {
-      const apiOrigin = new URL(API_BASE_URL).origin;
-      const parsed = new URL(url, apiOrigin);
-      if (parsed.origin !== apiOrigin || !["http:", "https:"].includes(parsed.protocol)) return undefined;
-      return parsed.href;
-    } catch {
-      return undefined;
+      const blob = await userService.downloadDocument(userId, doc.id);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = doc.nome || "documento";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
     }
   }
 
@@ -137,9 +140,14 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                     <div className="flex items-center gap-3 min-w-0">
                       <FileText className="w-5 h-5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0">
-                        {documentUrl(doc.arquivo_url) ? (
-                          <a
-                            href={documentUrl(doc.arquivo_url)}
+                        <button
+                            type="button"
+                            onClick={() => void handleDownload(doc)}
+                            className="font-medium text-sm truncate block hover:underline text-left"
+                            title="Baixar documento com autenticação"
+                          >
+                            {doc.nome}
+                          </button>
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-sm truncate block hover:underline"
