@@ -9,6 +9,8 @@ use App\Http\Requests\Api\Admin\StoreServicoRequest;
 use App\Http\Resources\Api\Admin\ServicoResource;
 use App\Http\Services\CriarServicoService;
 use App\Models\Oficina;
+use App\Models\ContaReceber;
+use App\Models\ContaPagar;
 use App\Models\Servico;
 use App\Models\ServicoLog;
 use Exception;
@@ -394,6 +396,34 @@ class ServicoController extends Controller
 
             return response()->json(['message' => 'Erro ao atualizar serviço.'], 500);
         }
+    }
+
+    /**
+     * Exclusão administrativa segura: nunca remove perícias ou registros financeiros.
+     */
+    public function destroy(int $id)
+    {
+        return DB::transaction(function () use ($id) {
+            $servico = Servico::query()->lockForUpdate()->find($id);
+            if (! $servico) {
+                return response()->json(['message' => 'Serviço não encontrado.'], 404);
+            }
+
+            if ($servico->pericias()->exists()
+                || ContaReceber::where('servico_id', $id)->exists()
+                || ContaPagar::where('servico_id', $id)->exists()) {
+                return response()->json([
+                    'message' => 'Não é possível excluir este serviço: existem perícias ou lançamentos financeiros vinculados. Regularize esses vínculos antes de tentar novamente.',
+                ], 409);
+            }
+
+            $servico->logs()->delete();
+            $servico->recusas()->delete();
+            $servico->veiculos()->delete();
+            $servico->delete();
+
+            return response()->json(['message' => 'Serviço excluído com sucesso.']);
+        });
     }
 
     private function validateAdminService(Request $request, bool $creating): array
