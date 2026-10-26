@@ -101,6 +101,11 @@ export const serviceService = {
     return data.data;
   },
 
+  async remove(id: number | string): Promise<string> {
+    const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}`);
+    return data.message;
+  },
+
   async accept(id: number | string, technicianId: number): Promise<Service> {
     const { data } = await api.patch<{ data: Service }>(`${BASE_URL}/${id}/aceitar`, { tecnico_id: technicianId });
     return data.data;
