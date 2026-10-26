@@ -90,8 +90,8 @@ export const userService = {
 
   async downloadDocument(id: number | string, documentId: number): Promise<Blob> {
     const { data } = await api.get<Blob>(
-      `${BASE_URL}/${id}/documentos/${documentId}/download`,
-      { responseType: "blob" },
+      `${BASE_URL}/${id}/documentos`,
+      { params: { download: documentId }, responseType: "blob" },
     );
     return data;
   },
