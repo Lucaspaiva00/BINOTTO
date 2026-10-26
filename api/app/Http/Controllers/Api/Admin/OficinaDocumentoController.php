@@ -9,6 +9,7 @@ use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class OficinaDocumentoController extends Controller
@@ -128,6 +129,28 @@ class OficinaDocumentoController extends Controller
                 'message' => __('main.document_upload_error'),
             ], 500);
         }
+    }
+
+    public function download(int $usuarioId, int $documentoId)
+    {
+        $usuario = $this->resolveUsuario($usuarioId);
+        if (! $usuario) {
+            return response()->json(['message' => 'Usuário não encontrado.'], 404);
+        }
+
+        if ($usuario->perfil === 'TECNICO' && $usuario->tecnico) {
+            $documento = TecnicoDocumento::where('tecnico_id', $usuario->tecnico->id)->find($documentoId);
+        } elseif ($usuario->perfil === 'OFICINA' && $usuario->oficina) {
+            $documento = OficinaDocumento::where('oficina_id', $usuario->oficina->id)->find($documentoId);
+        } else {
+            return response()->json(['message' => 'Documento não encontrado.'], 404);
+        }
+
+        if (! $documento || ! $documento->arquivo || ! Storage::disk('public')->exists($documento->arquivo)) {
+            return response()->json(['message' => 'Arquivo não encontrado no armazenamento.'], 404);
+        }
+
+        return Storage::disk('public')->download($documento->arquivo, $documento->nome);
     }
 
     public function destroy(int $usuarioId, int $documentoId)
