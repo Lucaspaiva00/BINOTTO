@@ -150,13 +150,22 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   const formatted = (amount: number | undefined) => amount == null ? "—" : new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   return <div className="space-y-5">
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-      <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante</h2>
+      <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante e Técnico</h2>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2"><Label>Oficina</Label><SearchableSelect value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
         <div className="space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
 
       </div>
-
+      <div className="border-t border-border pt-4">
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
+        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={[{ value: "", label: "Sem técnico" }, ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
+        <div className="space-y-2"><Label>Status</Label><Select disabled={true} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{[value.status].map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
+        <div className="flex items-end gap-2">
+          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
+          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+        </div>
+      </div>
+      </div>
     </section>
 
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
@@ -299,16 +308,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
-        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={[{ value: "", label: "Sem técnico" }, ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
-        <div className="space-y-2"><Label>Status</Label><Select disabled={true} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{[value.status].map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
-        <div className="flex items-end gap-2">
-          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
-          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
-        </div>
-      </div>
-    </section>
+
   </div>;
 }
 export function parseDecimalInput(value: string): number {
