@@ -46,7 +46,7 @@ class AuthController extends Controller
             return response()->json(['error' => __('auth.inactive_user')], 403);
         }
 
-        if (!Hash::check($password, $user->senha) || !in_array($user->perfil, ['TECNICO', 'OFICINA'])) {
+        if (!Hash::check($password, $user->senha) || !in_array($user->perfil, ['TECNICO', 'OFICINA', 'ADMIN'], true)) {
             return response()->json(['error' => __('auth.invalid_credentials')], 401);
         }
 
@@ -92,14 +92,14 @@ class AuthController extends Controller
             'expires_in' => auth('api')->factory()->getTTL() * 60,
             'user' => [
                 'id' => $user->id,
-                'name' => $user->perfil === 'TECNICO' ? $user->tecnico->nome_completo ?? $user->tecnico->apelido : $user->oficina->nome_fantasia,
+                'name' => $user->perfil === 'TECNICO'\n                    ? ($user->tecnico?->nome_completo ?? $user->tecnico?->apelido ?? $user->nome)\n                    : ($user->perfil === 'OFICINA' ? ($user->oficina?->nome_fantasia ?? $user->nome) : $user->nome),
                 'email' => $user->email,
                 'whatsapp' => $user->whatsapp,
                 'countryCode' => $user->codigo_pais_telefone,
                 'countryIso' => $user->iso_pais_telefone,
                 'phoneNumber' => $user->numero_telefone,
                 'profile' => $user->perfil,
-                'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico->id : $user->oficina->id,
+                'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico?->id : ($user->perfil === 'OFICINA' ? $user->oficina?->id : null),
                 'canRequestTechnician' => $user->perfil === 'OFICINA'
                     ? $user->oficina->podeSolicitarTecnico()
                     : false,
