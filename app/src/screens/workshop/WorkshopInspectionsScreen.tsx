@@ -218,33 +218,19 @@ export default function WorkshopInspectionsScreen() {
         }
         body={
           <View style={styles.cardCustomBody}>
-            <View style={styles.cardRow}>
-              <Text style={styles.workshopNameText} numberOfLines={1}>
-                {item.oficina?.nome_fantasia || "--"}
+            <View style={[styles.cardRow, { alignItems: "center", gap: 8 }]}>
+              <Text style={[styles.plateText, { flexShrink: 0 }]} numberOfLines={1}>
+                {item.placa || "--"}
               </Text>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor: `${statusColor}20`,
-                    borderColor: `${statusColor}60`,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <Text style={[styles.statusBadgeText, { color: statusColor }]}>
+              <Text style={[styles.carModelText, { flex: 1, minWidth: 0 }]} numberOfLines={1} ellipsizeMode="tail">
+                {item.marca_modelo || "--"}
+              </Text>
+              <View style={[styles.statusBadge, { flexShrink: 0, backgroundColor: `${statusColor}20`, borderColor: `${statusColor}60`, borderWidth: 1 }]}>
+                <Text style={[styles.statusBadgeText, { color: statusColor }]} numberOfLines={1}>
                   {statusLabel}
                 </Text>
               </View>
             </View>
-
-            <View style={styles.cardRow}>
-              <Text style={styles.plateText}>{item.placa || "--"}</Text>
-              <Text style={styles.carModelText} numberOfLines={1}>
-                {item.marca_modelo || ""}
-              </Text>
-            </View>
-
             <View style={styles.cardRow}>
               <Text style={styles.dateText}>
                 {item.created_at ? formatDate(item.created_at, locale) : "--/--/----"}
