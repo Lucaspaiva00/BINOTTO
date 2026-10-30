@@ -18,7 +18,6 @@ import { ScreenContainer } from "@/components/common/ScreenContainer";
 import { PrimaryButton } from "@/components/common/PrimaryButton";
 import { AuthContext, useAuth } from "@/contexts/AuthContext";
 import { PublicStackParamList } from "@/routes/types";
-import { AccountType } from "@/types/auth";
 import { colors } from "@/theme/colors";
 import { GLOBAL } from "@/constants/global";
 import PermissionController from "@/controllers/permission.controller";
@@ -26,7 +25,6 @@ import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 
-import {  Building2, Wrench } from "lucide-react-native";
 import { FacebookIcon } from "@/components/icons/facebook.icons";
 import { GoogleIcon } from "@/components/icons/google.icons";
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -49,7 +47,6 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
   const { locale, language, setLanguage } = useLanguage();
   const { t } = useTranslation();
 
-  const [accountType, setAccountType] = useState<AccountType>("TECHNICIAN");
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -269,60 +266,8 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
             <ErrorAlert message={error} onClose={() => setError(null)} />
           )}
 
-          <Pressable
-            style={[
-              styles.roleButton,
-              accountType === "TECHNICIAN" && styles.roleButtonActive,
-            ]}
-            onPress={() => {
-              setAccountType("TECHNICIAN");
-              navigation.navigate("RegisterTechnician");
-            }}
-          >
-            <Wrench
-              size={20}
-              color={
-                accountType === "TECHNICIAN"
-                  ? colors.background
-                  : colors.primary
-              }
-            />
-            <Text
-              allowFontScaling={false}
-              style={[
-                styles.roleButtonText,
-                accountType === "TECHNICIAN" && styles.roleButtonTextActive,
-              ]}
-            >
-              {t("loginScreen.technician")}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[
-              styles.roleButton,
-              accountType === "WORKSHOP" && styles.roleButtonActive,
-            ]}
-            onPress={() => {
-              setAccountType("WORKSHOP");
-              navigation.navigate("RegisterWorkshop");
-            }}
-          >
-            <Building2
-              size={20}
-              color={
-                accountType === "WORKSHOP" ? colors.background : colors.primary
-              }
-            />
-            <Text
-              allowFontScaling={false}
-              style={[
-                styles.roleButtonText,
-                accountType === "WORKSHOP" && styles.roleButtonTextActive,
-              ]}
-            >
-              {t("loginScreen.workshop")}
-            </Text>
+          <Pressable onPress={() => navigation.navigate("AccountEntry")} style={{ alignSelf: "flex-start", paddingVertical: 12 }}>
+            <Text style={{ color: colors.primary, fontWeight: "600" }}>Voltar para escolha de acesso e cadastro</Text>
           </Pressable>
 
           <View style={styles.dividerRow}>
