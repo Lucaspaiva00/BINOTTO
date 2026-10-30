@@ -46,7 +46,7 @@ class AuthController extends Controller
             return response()->json(['error' => __('auth.inactive_user')], 403);
         }
 
-        if (!Hash::check($password, $user->senha) || !in_array($user->perfil, ['TECNICO', 'OFICINA', 'ADMIN'], true)) {
+        if (!Hash::check($password, $user->senha) || !in_array($user->perfil, ['TECNICO', 'OFICINA', 'ADMIN', 'DESMONTADOR'], true)) {
             return response()->json(['error' => __('auth.invalid_credentials')], 401);
         }
 
