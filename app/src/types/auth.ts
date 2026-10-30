@@ -11,7 +11,7 @@ export type User = {
   countryIso?: string;
   phoneNumber?: string;
   profile: string;
-  profileId: number;
+  profileId: number | null;
   active: boolean;
   canRequestTechnician: boolean;
 };
