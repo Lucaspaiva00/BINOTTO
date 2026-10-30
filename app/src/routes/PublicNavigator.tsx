@@ -1,6 +1,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import { AccountEntryScreen } from "@/screens/auth/AccountEntryScreen";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
 import { CompleteRegistrationScreen } from "@/screens/auth/CompleteRegistrationScreen";
 import { RegisterTechnicianScreen } from "@/screens/auth/RegisterTechnicianScreen";
@@ -20,7 +21,7 @@ const Stack = createNativeStackNavigator<PublicStackParamList>();
 export function PublicNavigator(): JSX.Element {
   return (
     <Stack.Navigator
-      initialRouteName="Login"
+      initialRouteName="AccountEntry"
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
@@ -28,6 +29,11 @@ export function PublicNavigator(): JSX.Element {
         contentStyle: { backgroundColor: colors.background },
       }}
     >
+      <Stack.Screen
+        name="AccountEntry"
+        component={AccountEntryScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name="Login"
         component={LoginScreen}
