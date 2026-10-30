@@ -21,13 +21,23 @@ export default function Financeiro() {
     async function load() {
       setReportLoading(true);
       try {
+        async function allPages<T>(fetchPage: (page: number) => Promise<{data: T[]; meta: {last_page: number}}>): Promise<{items: T[]; complete: boolean}> {
+          const first = await fetchPage(1);
+          const items = [...first.data];
+          const limit = 100;
+          for (let page = 2; page <= Math.min(first.meta.last_page, limit); page++) {
+            const result = await fetchPage(page);
+            items.push(...result.data);
+          }
+          return { items, complete: first.meta.last_page <= limit };
+        }
         const [r, p] = await Promise.all([
-          receivableService.list({page: 1, per_page: 500}),
-          payableService.list({page: 1, per_page: 500}),
+          allPages(page => receivableService.list({page, per_page: 100})),
+          allPages(page => payableService.list({page, per_page: 100})),
         ]);
         if (!cancelled) setReportData({
-          receivables: r.data, payables: p.data,
-          complete: r.meta.last_page <= 1 && p.meta.last_page <= 1,
+          receivables: r.items, payables: p.items,
+          complete: r.complete && p.complete,
         });
       } catch (error) {
         if (!cancelled) { setReportData(null); toast.error(getApiErrorMessage(error)); }
