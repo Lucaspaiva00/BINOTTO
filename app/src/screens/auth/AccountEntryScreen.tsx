@@ -20,10 +20,10 @@ export function AccountEntryScreen(): JSX.Element {
         <Text style={styles.optionText}>Sou empresa / oficina</Text>
       </TouchableOpacity>
       <Text style={styles.section}>Outros perfis</Text>
-      <View style={styles.option}>
-        <Text style={styles.optionText}>Administrativo</Text>
-        <Text style={styles.note}>O acesso administrativo utiliza o painel web. O login mobile ainda não está habilitado para este perfil.</Text>
-      </View>
+      <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("Login")}>
+        <Text style={styles.optionText}>Administrativo — entrar</Text>
+        <Text style={styles.note}>Use suas credenciais existentes. A área administrativa mobile ainda está em desenvolvimento.</Text>
+      </TouchableOpacity>
       <View style={styles.option}>
         <Text style={styles.optionText}>Desmontador</Text>
         <Text style={styles.note}>Perfil em preparação. O sistema ainda não oferece cadastro ou autenticação de desmontador.</Text>
