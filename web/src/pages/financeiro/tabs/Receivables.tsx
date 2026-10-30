@@ -319,7 +319,8 @@ export function Receivables() {
   }
 
   async function remove(id: number, hasService: boolean) {
-    const deleteService = hasService && window.confirm("Este lançamento está vinculado a um serviço. Deseja excluir TAMBÉM o serviço?\n\nOK: excluir ambos (se não houver outros vínculos).\nCancelar: manter o serviço e excluir apenas o lançamento.");
+    if (!window.confirm("Deseja realmente excluir este lançamento financeiro?\n\nCancelar: não excluir nada.")) return;
+    const deleteService = hasService && window.confirm("Este lançamento possui um serviço vinculado.\n\nOK: excluir também o serviço, caso não tenha outros vínculos.\nCancelar: excluir somente o lançamento financeiro, mantendo o serviço.");
     try {
       const { message } = await receivableService.remove(id, deleteService);
       toast.success(message);
