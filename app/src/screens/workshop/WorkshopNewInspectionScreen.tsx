@@ -93,7 +93,7 @@ export default function WorkshopNewInspectionScreen() {
     chassi: "",
     marcaModelo: "",
     periciaCompleta: false,
-    inserirValor: false,
+    inserirValor: true,
     precoSugerido: "0",
     valorPericia: "0",
   });
@@ -199,7 +199,7 @@ export default function WorkshopNewInspectionScreen() {
       chassi: "",
       marcaModelo: "",
       periciaCompleta: false,
-      inserirValor: false,
+      inserirValor: true,
       precoSugerido: "0",
       valorPericia: "0",
     });
@@ -286,7 +286,7 @@ export default function WorkshopNewInspectionScreen() {
       chassi: "",
       marcaModelo: "",
       periciaCompleta: false,
-      inserirValor: false,
+      inserirValor: true,
       precoSugerido: "0",
       valorPericia: "0",
     });
@@ -364,6 +364,7 @@ export default function WorkshopNewInspectionScreen() {
     formData.append("marca_modelo", inspectionData.marcaModelo?.trim() ?? "");
     formData.append("tipo", periciaCompleta ? "completa" : "simples");
     if (!periciaCompleta && inspectionData.inserirValor) {
+      // A API atual recebe o valor manual da perícia simples no campo preco_sugerido.
       formData.append("preco_sugerido", String((Number(inspectionData.precoSugerido) / 100).toFixed(2)));
     }
     if (periciaCompleta && inspectionData.inserirValor) {
@@ -723,7 +724,7 @@ export default function WorkshopNewInspectionScreen() {
               <Text style={styles.switchLabel}>
                 {inspectionData.periciaCompleta
                   ? t("technicianNewServiceScreen.inspectionValueLabel")
-                  : t("workshopNewInspectionScreen.suggestedPrice")}
+                  : "Valor informado pela oficina"}
               </Text>
               <CustomSwitch
                 value={inspectionData.inserirValor}
