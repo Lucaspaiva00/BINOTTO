@@ -12,7 +12,7 @@ import { colors } from "@/theme/colors";
 import { isServiceAvailableForTechnician } from "@/utils/serviceAvailability";
 import { colorStatus } from "@/services/ColorStatusService";
 import { getStatusLabelKey } from "@/utils/status";
-import { Calendar, Car, Wrench } from "lucide-react-native";
+import { Calendar, Car, Wrench, MapPin } from "lucide-react-native";
 import { formatDate } from "@/utils/date";
 import { formatMoneyOrDash } from "@/utils/currency";
 
@@ -47,6 +47,9 @@ export default function ServiceCardTechnician({
   const isComingSoon = service.status === "em_breve";
   const isAvailable = isServiceAvailableForTechnician(service, technicianId);
   const waitingApproval = service.status === "aguardando_aprovacao";
+  const city = service.cidade || service.oficina?.cidade || service.endereco?.cidade || service.localidade?.cidade || service.municipio || "";
+  const state = service.uf || service.oficina?.uf || service.endereco?.uf || "";
+  const location = [city, state].filter(Boolean).join(" / ");
 
   return (
     <TouchableOpacity
@@ -112,6 +115,13 @@ export default function ServiceCardTechnician({
             )}
           </View>
         )}
+
+        <View style={styles.contextRow}>
+          <MapPin size={16} color={colors.primary} strokeWidth={2} />
+          <Text style={styles.contextText} numberOfLines={2}>
+            {location || "Cidade não informada"}
+          </Text>
+        </View>
 
         {isComingSoon && (
           <View style={styles.metaRow}></View>
