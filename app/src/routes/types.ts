@@ -3,6 +3,7 @@ import { AuthStackParamList } from "@/navigation/types";
 import { UserRegisterResponse } from "@/types/social";
 
 export type PublicStackParamList = {
+  AccountEntry: undefined;
   Login: undefined;
   RegisterTechnician: undefined;
   RegisterWorkshop: undefined;
