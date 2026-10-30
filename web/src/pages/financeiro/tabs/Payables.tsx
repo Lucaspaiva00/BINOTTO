@@ -364,7 +364,7 @@ export function Payables() {
               <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Técnico / Fornecedor</TableHead>
               <TableHead>Oficina</TableHead><TableHead>Valor a pagar</TableHead><TableHead className="border-l">Fatura</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Pagamento</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -390,7 +390,7 @@ export function Payables() {
                   <TableCell>{p.workshop || shopName(workshops, p.workshopId)}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
                   <TableCell className="border-l"><div className="flex items-center gap-2"><span>{p.invoiceNumber || "—"}</span><InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} /></div></TableCell>
                   <TableCell>
-                    <StatusBadge status={p.status} />
+                    <div className="space-y-1"><StatusBadge status={p.status} /><span className="block text-xs text-muted-foreground">{p.paymentDate || p.settleDate ? `Pago em ${formatDate(p.paymentDate || p.settleDate || "")}` : "Sem data de pagamento"}</span></div>
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
