@@ -19,7 +19,15 @@ export function AccountEntryScreen(): JSX.Element {
       <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("RegisterWorkshop")}>
         <Text style={styles.optionText}>Sou empresa / oficina</Text>
       </TouchableOpacity>
-      <Text style={styles.note}>Acesso administrativo e desmontador: cadastro disponível somente após habilitação desses perfis no sistema.</Text>
+      <Text style={styles.section}>Outros perfis</Text>
+      <TouchableOpacity style={styles.option} onPress={() => navigation.navigate("Login")}>
+        <Text style={styles.optionText}>Administrativo — entrar com conta existente</Text>
+        <Text style={styles.note}>O acesso administrativo utiliza o painel web. O login mobile ainda não está habilitado para este perfil.</Text>
+      </TouchableOpacity>
+      <View style={styles.option}>
+        <Text style={styles.optionText}>Desmontador</Text>
+        <Text style={styles.note}>Perfil em preparação. O sistema ainda não oferece cadastro ou autenticação de desmontador.</Text>
+      </View>
     </View>
   );
 }
