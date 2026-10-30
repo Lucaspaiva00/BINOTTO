@@ -77,6 +77,7 @@ export type WorkshopStackParamList = {
 };
 
 export type PrivateStackParamList = {
+  UnsupportedProfile: undefined;
   TechnicianTabs: NavigatorScreenParams<TechnicianStackParamList>;
   WorkshopTabs: NavigatorScreenParams<WorkshopStackParamList>;
 } & AuthStackParamList;
