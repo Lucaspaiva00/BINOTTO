@@ -84,13 +84,10 @@ export default function WorkshopDashboardScreen() {
   
 
   const handleConfirmModal = () => {
+    // Never advance before the API has returned and persisted a valid request.
+    if (creatingService || !serviceCreatedId) return;
     setShowModal(false);
-
-    if (serviceCreatedId) {
-      navigation.navigate("ServiceUpdate", {
-        serviceId: serviceCreatedId,
-      });
-    }
+    navigation.navigate("ServiceUpdate", { serviceId: serviceCreatedId });
   };
 
   const handleOpenServiceUpdate = (serviceId: number) => {
@@ -131,17 +128,25 @@ export default function WorkshopDashboardScreen() {
         return;
       }
 
-      setShowModal(true);
+      if (creatingService) return;
+      setError(null);
+      setServiceCreatedId(null);
       setCreatingService(true);
+      setShowModal(true);
 
       const res = await WorkshopManagementService.createWorkshopService({});
-      const serviceId = res.data.id;
-      const possuiPreferidos = res.possuiPreferidos;
+      const serviceId = Number(res?.data?.id);
+      if (!Number.isSafeInteger(serviceId) || serviceId <= 0) {
+        throw new Error("A solicitação não retornou um identificador válido.");
+      }
 
       setServiceCreatedId(serviceId);
-      setHasPreferredTechs(possuiPreferidos);
-    } catch (err) {
-      console.log("Erro ao criar serviço", err);
+      setHasPreferredTechs(Boolean(res.possuiPreferidos));
+      // Refresh the list so the newly saved request is also visible on return.
+      await loadPendentes(1, false);
+    } catch (err: any) {
+      setShowModal(false);
+      setError(err?.response?.data?.message || err?.message || "Não foi possível salvar a solicitação. Tente novamente.");
     } finally {
       setCreatingService(false);
     }
@@ -667,7 +672,7 @@ export default function WorkshopDashboardScreen() {
         visible={showModal}
         transparent
         animationType="fade"
-        onRequestClose={handleConfirmModal}
+        onRequestClose={() => { if (!creatingService) setShowModal(false); }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
