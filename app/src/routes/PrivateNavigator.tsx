@@ -1,4 +1,5 @@
 import React from "react";
+import { View, Text, TouchableOpacity } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -411,10 +412,26 @@ function WorkshopTabsNavigator(): JSX.Element {
   );
 }
 
+function UnsupportedProfileScreen(): JSX.Element {
+  const { authData, signOut } = useAuth();
+  return (
+    <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 16, backgroundColor: colors.background }}>
+      <Text style={{ color: colors.white, fontSize: 24, fontWeight: "700" }}>Perfil ainda não disponível no aplicativo</Text>
+      <Text style={{ color: colors.textMuted, lineHeight: 22 }}>
+        O perfil {authData?.profile || "não identificado"} foi autenticado, mas ainda não possui uma área própria no aplicativo. Utilize o painel web ou entre em contato com o administrador.
+      </Text>
+      <TouchableOpacity onPress={() => { void signOut(); }} style={{ backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: "center" }}>
+        <Text style={{ color: colors.black, fontWeight: "700" }}>Sair da conta</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export function PrivateNavigator(): JSX.Element {
   const { authData } = useAuth();
   const role = authData?.profile;
   const isTechnician = role === "TECNICO";
+  const isWorkshop = role === "OFICINA" || role === "EMPRESA";
 
   return (
     <PrivateStack.Navigator screenOptions={{ headerShown: false }}>
@@ -423,12 +440,17 @@ export function PrivateNavigator(): JSX.Element {
           name="TechnicianTabs"
           component={TechnicianTabsNavigator}
         />
-      ) : (
+      ) : isWorkshop ? (
         <PrivateStack.Screen
           name="WorkshopTabs"
           component={WorkshopTabsNavigator}
         />
-      )}
+      ) : (
+        <PrivateStack.Screen
+          name="UnsupportedProfile"
+          component={UnsupportedProfileScreen}
+        />
+      )
 
       <PrivateStack.Screen
         name="CameraPermission"
