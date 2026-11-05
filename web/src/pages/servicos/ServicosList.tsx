@@ -143,7 +143,7 @@ export default function ServicosList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir serviço definitivamente?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação remove o serviço. Se houver perícias ou lançamentos financeiros vinculados, a API poderá impedir a exclusão para proteger os registros.
+              O serviço cancelado será excluído definitivamente. As perícias permanecerão no histórico, sem vínculo com o serviço. Registros financeiros existentes serão preservados e, nesse caso, a exclusão não será permitida.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -290,7 +290,7 @@ export default function ServicosList() {
                         <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => navigate(`/servicos/${s.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" />Editar
                         </button>
-                        <button type="button" disabled={deletingId === s.id} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:opacity-50" onClick={() => setPendingDeleteId(s.id)}>
+                        <button type="button" disabled={deletingId === s.id || s.status !== "cancelado"} title={s.status !== "cancelado" ? "Cancele o serviço antes de excluir" : "Excluir serviço cancelado"} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" onClick={() => setPendingDeleteId(s.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />Deletar
                         </button>
                       </div>
