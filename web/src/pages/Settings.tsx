@@ -35,22 +35,28 @@ export default function Settings() {
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
       <Tabs defaultValue="usuario">
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <TabsList className="flex w-fit max-w-full flex-wrap h-auto"><TabsTrigger value="usuario">Usuário</TabsTrigger><TabsTrigger value="coeficiente">Coeficiente</TabsTrigger><TabsTrigger value="idioma">Idioma</TabsTrigger></TabsList>
-        <nav aria-label="Atalhos para os módulos" className="flex flex-wrap items-center gap-1 text-sm">
-          {[
-            { to: "/dashboard", label: "Dashboard" },
-            { to: "/usuarios", label: "Usuários" },
-            { to: "/servicos", label: "Serviços" },
-            { to: "/pericias", label: "Perícias" },
-            { to: "/financeiro", label: "Financeiro" },
-            { to: "/administradores", label: "Administradores" },
-          ].map(({ to, label }) => (
-            <NavLink key={to} to={to} className="rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+      <div className="mb-5 max-w-full overflow-x-auto">
+        <div className="inline-flex min-w-max items-center rounded-xl bg-muted p-1">
+          <TabsList className="flex h-auto w-auto items-center gap-1 bg-transparent p-0 shadow-none">
+            <TabsTrigger value="usuario">Usuário</TabsTrigger>
+            <TabsTrigger value="coeficiente">Coeficiente</TabsTrigger>
+            <TabsTrigger value="idioma">Idioma</TabsTrigger>
+          </TabsList>
+          <nav aria-label="Atalhos para os módulos" className="flex items-center gap-1 text-sm">
+            {[
+              { to: "/dashboard", label: "Dashboard" },
+              { to: "/usuarios", label: "Usuários" },
+              { to: "/servicos", label: "Serviços" },
+              { to: "/pericias", label: "Perícias" },
+              { to: "/financeiro", label: "Financeiro" },
+              { to: "/administradores", label: "Administradores" },
+            ].map(({ to, label }) => (
+              <NavLink key={to} to={to} className="rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground">
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        </div>
       </div>
       <TabsContent value="usuario"><section className="max-w-2xl rounded-2xl border bg-card p-6"><h2 className="font-semibold">Usuário</h2><p className="mt-3">{user?.name}</p><p className="text-muted-foreground">{user?.email}</p><p className="mt-2 text-sm">Administrador</p></section></TabsContent>
       <TabsContent value="idioma">
