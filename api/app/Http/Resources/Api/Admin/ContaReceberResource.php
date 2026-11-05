@@ -38,6 +38,7 @@ class ContaReceberResource extends JsonResource
             'invoiceFileName' => $this->fatura_nome,
             'invoiceNumber' => $this->numero_fatura,
             'invoiceStatus' => $this->status_fatura,
+            'installments' => $this->parcelas ?? [],
             'receivedDate' => $this->data_recebimento?->format('Y-m-d'),
             'notes' => $this->observacoes,
             'issueDate' => $this->data_emissao?->format('Y-m-d'),
