@@ -29,6 +29,7 @@ class ContaReceber extends Model
         'fatura',
         'numero_fatura',
         'status_fatura',
+        'parcelas',
         'data_emissao',
         'data_recebimento',
         'observacoes',
@@ -41,6 +42,7 @@ class ContaReceber extends Model
 
     protected $casts = [
         'valor_servico' => 'decimal:2',
+        'parcelas' => 'array',
         'valor_plataforma' => 'decimal:2',
         'data_emissao' => 'date',
         'data_recebimento' => 'date',
