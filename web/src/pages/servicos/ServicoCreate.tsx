@@ -100,11 +100,12 @@ export default function ServicoCreate() {
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
         onPartSelect={id => { setSelectedPartId(id); setSelectedValue({ ...partsState[id], photos: [...partsState[id].photos] }); }}
-        onPartChange={changePart} />
+        onPartChange={changePart} partEditor={<ServicePartDialog inline partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
+        onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />}
+        />
       </fieldset>
       <div className="mt-6 flex justify-end"><Button onClick={submit} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button></div>
-      <ServicePartDialog partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
-        onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />
+
     </AppLayout>
   );
 }
