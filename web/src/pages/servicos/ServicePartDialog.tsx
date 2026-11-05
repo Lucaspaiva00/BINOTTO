@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCarPartLabel } from "@/constants/carParts";
 import { API_BASE_URL } from "@/services/api/config";
 import { REPAIR_TYPE_LABEL, getRepairTypeColor } from "@/constants/repairTypes";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,17 +23,18 @@ function PhotoPreview({ photo, label }: { photo: PartPhoto; label: string }) {
   }, [photo]);
   return <img src={src} alt={label} className="aspect-4/3 w-full rounded border object-cover" />;
 }
-export function ServicePartDialog({ partId, value, onClose, onSave }: {
-  partId: string | null; value: PartInspection | null; onClose: () => void; onSave: (value: PartInspection) => void;
+export function ServicePartDialog({ partId, value, onClose, onSave, inline = false }: {
+  partId: string | null; value: PartInspection | null; onClose: () => void; onSave: (value: PartInspection) => void; inline?: boolean;
 }) {
   const [part, setPart] = useState<PartInspection | null>(value);
+  const editorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (inline && partId) editorRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }); }, [inline, partId]);
   useEffect(() => setPart(value ? { ...value, photos: [...value.photos] } : null), [partId, value]);
   if (!partId || !part) return null;
   const patch = (fields: Partial<PartInspection>) => setPart(prev => prev ? { ...prev, ...fields } : prev);
   const number = (raw: string) => Math.max(0, Math.min(9999, Number(raw.replace(/\D/g, "").slice(0, 4)) || 0));
-  return <Dialog open={Boolean(partId)} onOpenChange={(open) => { if (!open) onClose(); }}>
-    <DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">
-      <DialogHeader><DialogTitle>{getCarPartLabel(partId)}</DialogTitle></DialogHeader>
+  const fields = <>
+      <div className="flex items-center justify-between gap-3"><h3 className="text-lg font-semibold">{getCarPartLabel(partId)}</h3>{inline && <Button type="button" variant="ghost" size="sm" onClick={onClose}>Fechar</Button>}</div>
       <div className="space-y-4">
         <div className="space-y-1"><Label>Tipo de reparação</Label>
           <div className="flex flex-wrap gap-2"><Button type="button" size="sm" variant={part.assessed === false ? "default" : "outline"} onClick={() => patch({ assessed: false, repairType: "SEM_DANO" })}>Não avaliada</Button>{TYPES.map(type => <Button key={type} type="button" size="sm" variant={part.assessed !== false && part.repairType === type ? "default" : "outline"} onClick={() => patch({ repairType: type, assessed: true })}>
@@ -53,7 +54,8 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
           <p className="text-xs text-muted-foreground">Máximo de três fotografias de até 8 MB.</p>
         </div>
       </div>
-      <DialogFooter><Button variant="outline" type="button" onClick={onClose}>Cancelar</Button><Button type="button" onClick={() => onSave(part)}>Salvar peça</Button></DialogFooter>
-    </DialogContent>
-  </Dialog>;
+      <div className="flex justify-end gap-2"><Button variant="outline" type="button" onClick={onClose}>Cancelar</Button><Button type="button" onClick={() => onSave(part)}>Salvar peça</Button></div>
+    </>;
+  if (inline) return <div ref={editorRef} className="space-y-4 rounded-xl border border-primary/50 bg-card p-4 shadow-sm" aria-label={`Editar ${getCarPartLabel(partId)}`}>{fields}</div>;
+  return <Dialog open={Boolean(partId)} onOpenChange={open => { if (!open) onClose(); }}><DialogContent className="max-w-xl max-h-[92vh] overflow-y-auto">{fields}</DialogContent></Dialog>;
 }
