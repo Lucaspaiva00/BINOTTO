@@ -364,20 +364,20 @@ export function Payables() {
               <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Técnico / Fornecedor</TableHead>
               <TableHead>Oficina</TableHead><TableHead>Valor a pagar</TableHead><TableHead className="border-l">Fatura</TableHead>
-              <TableHead>Pagamento</TableHead>
+              <TableHead>Situação da fatura</TableHead><TableHead>Vencimento</TableHead><TableHead>Pagamento</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10">
+                <TableCell colSpan={11} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
@@ -388,9 +388,11 @@ export function Payables() {
                   <TableCell>{[p.brand, p.vehicleModel].filter(Boolean).join(" ") || p.description || "—"}</TableCell><TableCell>{p.vehicleReference || p.plate || p.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{p.origin === "avulsa" ? (p.supplier ?? "—") : (p.technician || p.supplier || techName(technicians, p.technicianId))}</TableCell>
                   <TableCell>{p.workshop || shopName(workshops, p.workshopId)}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
-                  <TableCell className="border-l"><div className="flex items-center gap-2"><span>{p.invoiceNumber || "—"}</span><InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} /></div></TableCell>
+                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span>{p.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{p.invoiceNumber || p.invoiceAttachment || p.invoice ? "Fatura cadastrada" : "Sem fatura"}</span>{p.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(p.issueDate)}</span>}</div></TableCell>
+                  <TableCell className="text-xs">{p.invoiceNumber || p.invoiceAttachment || p.invoice ? "Cadastrada" : "Sem fatura"}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{p.dueDate ? formatDate(p.dueDate) : "—"}</TableCell>
                   <TableCell>
-                    <div className="space-y-1"><StatusBadge status={p.status} /><span className="block text-xs text-muted-foreground">{p.paymentDate || p.settleDate ? `Pago em ${formatDate(p.paymentDate || p.settleDate || "")}` : "Sem data de pagamento"}</span></div>
+                    <div className="space-y-1"><StatusBadge status={p.status} /><span className="block text-xs text-muted-foreground">{p.paymentDate || p.settleDate ? `Pago em ${formatDate(p.paymentDate || p.settleDate || "")}` : p.dueDate ? `Previsto: ${formatDate(p.dueDate)}` : "Aguardando pagamento"}</span></div>
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
