@@ -409,13 +409,23 @@ class ServicoController extends Controller
                 return response()->json(['message' => 'Serviço não encontrado.'], 404);
             }
 
-            if ($servico->pericias()->exists()
-                || ContaReceber::where('servico_id', $id)->exists()
-                || ContaPagar::where('servico_id', $id)->exists()) {
+            // O status define a exclusão: serviço ativo deve ser cancelado antes.
+            if ($servico->status !== ServicoStatusEnum::CANCELADO) {
                 return response()->json([
-                    'message' => 'Não é possível excluir este serviço: existem perícias ou lançamentos financeiros vinculados. Regularize esses vínculos antes de tentar novamente.',
+                    'message' => 'Este serviço não pode ser excluído enquanto estiver ativo. Cancele o serviço antes de excluí-lo.',
                 ], 409);
             }
+
+            // Preserva os registros financeiros já emitidos, mesmo em dados legados.
+            if (ContaReceber::where('servico_id', $id)->exists()
+                || ContaPagar::where('servico_id', $id)->exists()) {
+                return response()->json([
+                    'message' => 'Este serviço cancelado possui lançamentos financeiros vinculados. Regularize esses registros antes de excluir.',
+                ], 409);
+            }
+
+            // A perícia permanece no histórico da oficina, sem vínculo com o serviço excluído.
+            $servico->pericias()->update(['servico_id' => null]);
 
             $servico->logs()->delete();
             $servico->recusas()->delete();
