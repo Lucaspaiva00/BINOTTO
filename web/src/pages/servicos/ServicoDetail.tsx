@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Building2, Cog, Eye, Save, Wrench, CheckCircle2, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { serviceService } from "@/services/serviceService";
@@ -87,6 +88,7 @@ export default function ServicoDetail() {
   const [editingPart, setEditingPart] = useState<PartInspection | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [editingFinalized, setEditingFinalized] = useState(false);
+  const [confirmation, setConfirmation] = useState<"edit" | "cancel" | null>(null);
   const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
@@ -124,8 +126,7 @@ export default function ServicoDetail() {
 
   function requestEditFinalized() {
     if (!lockedByStatus) return;
-    const confirmed = window.confirm(["finalizado", "concluido"].includes(service?.status ?? "") ? "VOCÊ TEM CERTEZA QUE DESEJA EDITAR UM SERVIÇO JÁ FINALIZADO?" : "VOCÊ TEM CERTEZA QUE DESEJA EDITAR ESTE SERVIÇO?");
-    if (confirmed) setEditingFinalized(true);
+    setConfirmation("edit");
   }
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
@@ -196,9 +197,9 @@ export default function ServicoDetail() {
     } catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
   }
 
-  async function transition(status: "em_execucao" | "cancelado") {
+  async function transition(status: "em_execucao" | "cancelado", confirmed = false) {
     if (saving || actionBusy) return;
-    if (status === "cancelado" && !window.confirm("Deseja cancelar este serviço?")) return;
+    if (status === "cancelado" && !confirmed) { setConfirmation("cancel"); return; }
     setActionBusy(true);
     try { const saved = await persist(false, status); if (!saved) return; setEditingFinalized(false); toast.success(status === "cancelado" ? "Serviço cancelado." : "Serviço em execução."); }
     catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
@@ -209,6 +210,20 @@ export default function ServicoDetail() {
 
   return (
     <AppLayout title={`Serviço ${service.id}`} subtitle={[service.workshop, service.workshopCity, service.workshopCountry].filter(Boolean).join(" · ")}>
+      <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !actionBusy) setConfirmation(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmation === "cancel" ? "Cancelar este serviço?" : "Editar serviço encerrado?"}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmation === "cancel" ? "O serviço será marcado como Cancelado e deixará de estar em execução. Você poderá excluí-lo posteriormente, desde que não existam lançamentos financeiros vinculados." : "Este serviço já foi encerrado. Alterações podem modificar informações registradas anteriormente. Deseja liberar a edição?"}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={actionBusy}>Voltar</AlertDialogCancel>
+            <AlertDialogAction disabled={actionBusy} className={confirmation === "cancel" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""} onClick={(event) => { event.preventDefault(); const choice = confirmation; setConfirmation(null); if (choice === "edit") setEditingFinalized(true); if (choice === "cancel") void transition("cancelado", true); }}>
+              {confirmation === "cancel" ? "Confirmar cancelamento" : "Liberar edição"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
         <div className="flex items-center gap-2">
