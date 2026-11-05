@@ -342,25 +342,40 @@ export function Receivables() {
     }
   }
 
-  // Totais calculados
-  const totalToReceive = items
-    .filter((r) => r.status === "pendente" || r.status === "em_aberto" || r.status === "vencido")
-    .reduce((acc, r) => acc + r.serviceAmount, 0);
-  const totalReceived = items
-    .filter((r) => r.status === "confirmado" || r.status === "recebido")
-    .reduce((acc, r) => acc + r.serviceAmount, 0);
+  // Valores da página carregada; não representam o total de todas as páginas.
+  const today = todayISO();
+  const paidAmount = (r: Receivable) => r.installments?.length
+    ? r.installments.reduce((sum, part) => sum + Number(part.valor_pago ?? 0), 0)
+    : (["confirmado", "recebido", "pago"].includes(r.status) ? r.serviceAmount : 0);
+  const pendingAmount = (r: Receivable) => ["cancelado"].includes(r.status)
+    ? 0 : Math.max(0, r.serviceAmount - paidAmount(r));
+  const totalToReceive = items.reduce((sum, r) => sum + pendingAmount(r), 0);
+  const totalReceived = items.reduce((sum, r) => sum + paidAmount(r), 0);
+  const totalOverdue = items.reduce((sum, r) => {
+    if (r.installments?.length) return sum + r.installments.reduce((sub, part) => sub + (part.vencimento < today ? Math.max(0, Number(part.valor) - Number(part.valor_pago ?? 0)) : 0), 0);
+    return sum + (r.dueDate < today ? pendingAmount(r) : 0);
+  }, 0);
+  const totalUpcoming = Math.max(0, totalToReceive - totalOverdue);
+  const pendingInvoices = items.filter(r => pendingAmount(r) > 0 && !(r.invoiceNumber || r.invoiceAttachment || r.invoice)).length;
+  const receivedThisMonth = items.reduce((sum, r) => sum + (r.installments?.length
+    ? r.installments.reduce((sub, part) => sub + (part.data_pagamento?.slice(0, 7) === today.slice(0, 7) ? Number(part.valor_pago ?? 0) : 0), 0)
+    : r.receivedDate?.slice(0, 7) === today.slice(0, 7) ? paidAmount(r) : 0), 0);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground">Total a receber</p>
-          <p className="text-2xl font-semibold mt-1 text-amber-600">{formatCurrency(totalToReceive)}</p>
-        </div>
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground">Total recebido</p>
-          <p className="text-2xl font-semibold mt-1 text-emerald-600">{formatCurrency(totalReceived)}</p>
-        </div>
+      <div className="flex items-center justify-between gap-2"><p className="text-xs text-muted-foreground">Indicadores dos {items.length} lançamentos exibidos nesta página. Os filtros e a paginação limitam os totais.</p></div>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        {[
+          { label: "Saldo a receber", value: formatCurrency(totalToReceive), tone: "text-amber-500" },
+          { label: "Total recebido", value: formatCurrency(totalReceived), tone: "text-emerald-500" },
+          { label: "Vencido", value: formatCurrency(totalOverdue), tone: "text-red-500" },
+          { label: "A vencer", value: formatCurrency(totalUpcoming), tone: "text-foreground" },
+          { label: "Sem fatura", value: String(pendingInvoices), tone: "text-foreground" },
+          { label: "Recebido neste mês", value: formatCurrency(receivedThisMonth), tone: "text-emerald-500" },
+        ].map(card => <div key={card.label} className="bg-card border border-border rounded-2xl p-4">
+          <p className="text-xs text-muted-foreground">{card.label}</p>
+          <p className={`text-xl md:text-2xl font-semibold mt-1 ${card.tone}`}>{card.value}</p>
+        </div>)}
       </div>
 
       <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-end">
@@ -483,7 +498,7 @@ export function Receivables() {
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
