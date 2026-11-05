@@ -458,14 +458,14 @@ export function Receivables() {
               <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Oficina / Cliente</TableHead>
               <TableHead>Técnico</TableHead><TableHead>Valor a receber</TableHead><TableHead className="border-l">Fatura</TableHead>
-              <TableHead>Situação da fatura</TableHead><TableHead>Recebimento</TableHead>
+              <TableHead>Situação da fatura</TableHead><TableHead>Vencimento</TableHead><TableHead>Recebimento</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={10} className="text-center py-10">
+                <TableCell colSpan={11} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
@@ -482,10 +482,11 @@ export function Receivables() {
                   <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
                   <TableCell>{r.technician || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
-                  <TableCell className="border-l"><div className="flex items-center gap-2"><span>{r.invoiceNumber || "—"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div></TableCell>
+                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span className="font-medium">{r.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{r.invoiceNumber || r.invoiceAttachment || r.invoice ? "Parcelamento não informado" : "Sem fatura cadastrada"}</span>{r.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(r.issueDate)}</span>}</div></TableCell>
                   <TableCell>
-                    <InvoiceStatus status={r.invoiceStatus}/></TableCell>
-                  <TableCell><div className="space-y-1"><StatusBadge status={r.status}/><span className="block text-xs text-muted-foreground">{r.receivedDate ? `Recebido em ${formatDate(r.receivedDate)}` : "Sem data de recebimento"}</span></div>
+                    {r.invoiceNumber || r.invoiceAttachment || r.invoice ? <InvoiceStatus status={r.invoiceStatus}/> : <span className="text-xs text-muted-foreground">Sem fatura</span>}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm">{r.dueDate ? formatDate(r.dueDate) : "—"}</TableCell>
+                  <TableCell><div className="space-y-1"><StatusBadge status={r.status}/><span className="block text-xs text-muted-foreground">{r.receivedDate ? `Recebido em ${formatDate(r.receivedDate)}` : r.dueDate ? `Previsto: ${formatDate(r.dueDate)}` : "Aguardando recebimento"}</span></div>
                   </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
