@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, Search, ClipboardList, X, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ export default function ServicosList() {
   const [total, setTotal] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -104,7 +106,6 @@ export default function ServicosList() {
   }, [page, status, country, workshop, debouncedCity, startDate, endDate, debouncedSearch, reloadToken]);
 
   async function deleteService(id: number) {
-    if (!window.confirm("Deseja excluir este serviço definitivamente? A exclusão será bloqueada caso existam perícias ou lançamentos financeiros vinculados.")) return;
     setDeletingId(id);
     try {
       const message = await serviceService.remove(id);
@@ -115,6 +116,7 @@ export default function ServicosList() {
       toast.error(getApiErrorMessage(error));
     } finally {
       setDeletingId(null);
+      setPendingDeleteId(null);
     }
   }
 
@@ -136,6 +138,22 @@ export default function ServicosList() {
 
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open && deletingId === null) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir serviço definitivamente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação remove o serviço. Se houver perícias ou lançamentos financeiros vinculados, a API poderá impedir a exclusão para proteger os registros.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId !== null}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); if (pendingDeleteId !== null) void deleteService(pendingDeleteId); }}>
+              {deletingId !== null ? "Excluindo..." : "Confirmar exclusão"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <div className="flex flex-wrap justify-end gap-2 mb-4">
         <Button variant="outline" onClick={() => navigate("/servicos/novo")}>
           <ClipboardList className="w-4 h-4 mr-2" />
@@ -272,7 +290,7 @@ export default function ServicosList() {
                         <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => navigate(`/servicos/${s.id}`)}>
                           <Pencil className="mr-2 h-4 w-4" />Editar
                         </button>
-                        <button type="button" disabled={deletingId === s.id} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:opacity-50" onClick={() => void deleteService(s.id)}>
+                        <button type="button" disabled={deletingId === s.id} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:opacity-50" onClick={() => setPendingDeleteId(s.id)}>
                           <Trash2 className="mr-2 h-4 w-4" />Deletar
                         </button>
                       </div>
