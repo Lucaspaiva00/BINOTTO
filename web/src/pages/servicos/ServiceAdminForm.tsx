@@ -284,19 +284,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
       </div>
-    </div>
-
-  </div>;
-}
-export function parseDecimalInput(value: string): number {
-  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
-  if (normalized === "") return 0;
-  const n = Number(normalized); return Number.isFinite(n) ? n : Number.NaN;
-}
-export function formatEditableDecimal(value: number | null | undefined): string {
-  return value == null ? "" : String(value).replace(".", ",");
-}      </div>
       <div className="min-w-0 space-y-5">
+
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold">Serviço</h2>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de perícia">
@@ -330,6 +319,16 @@ export function formatEditableDecimal(value: number | null | undefined): string 
         </tbody></table></div>
       </details>
     </section>
+      </div>
+    </div>
 
-
-
+  </div>;
+}
+export function parseDecimalInput(value: string): number {
+  const normalized = value.trim().replace(/\./g, "").replace(",", ".");
+  if (normalized === "") return 0;
+  const n = Number(normalized); return Number.isFinite(n) ? n : Number.NaN;
+}
+export function formatEditableDecimal(value: number | null | undefined): string {
+  return value == null ? "" : String(value).replace(".", ",");
+}
