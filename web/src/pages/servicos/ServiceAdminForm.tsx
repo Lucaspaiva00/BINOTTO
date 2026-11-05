@@ -183,7 +183,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     </section>
 
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+      <div className="min-w-0 space-y-5">
+    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CircleDollarSign className="h-5 w-5"/>Preço</h2>
 
       <div className="overflow-x-auto">
@@ -282,7 +283,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
     </section>
     <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
-      </div>\n    </div>
+      </div>
+    </div>
 
   </div>;
 }
