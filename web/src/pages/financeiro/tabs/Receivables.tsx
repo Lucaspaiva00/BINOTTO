@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { receivableService } from "@/services/receivableService";
 import { userService } from "@/services/userService";
-import type { Receivable, ReceivablePayload, FinanceOrigin, FinanceStatus } from "@/types/finance";
+import type { Receivable, ReceivablePayload, FinanceOrigin, FinanceStatus, FinanceInstallment } from "@/types/finance";
 import type { UserSelectionItem } from "@/types/user";
 import { RECEIVABLE_CATEGORIES, PAYMENT_METHODS } from "@/constants/finance";
 import { formatCurrency } from "@/utils/currency";
@@ -57,6 +57,7 @@ interface ReceivableForm {
   invoice: string;
   invoiceNumber: string;
   invoiceStatus: string;
+  installments: FinanceInstallment[];
   settleDate: string;
   notes: string;
   entryDate: string;
@@ -78,7 +79,7 @@ function emptyForm(): ReceivableForm {
     client: "",
     category: "",
     paymentMethod: "",
-    invoice: "", invoiceNumber: "", invoiceStatus: "",
+    invoice: "", invoiceNumber: "", invoiceStatus: "", installments: [],
     settleDate: "",
     notes: "",
     entryDate: todayISO(),
@@ -111,6 +112,7 @@ function toForm(r: Receivable): ReceivableForm {
     invoice: r.invoice ?? "",
     invoiceNumber: r.invoiceNumber ?? "",
     invoiceStatus: r.invoiceStatus ?? "",
+    installments: r.installments ?? [],
     settleDate: r.receivedDate ?? "",
     notes: r.notes ?? "",
     entryDate: r.launchDate ?? todayISO(),
@@ -130,6 +132,7 @@ export function toPayload(form: ReceivableForm): ReceivablePayload {
     fatura: form.invoice || null,
     numero_fatura: form.invoiceNumber || null,
     status_fatura: form.invoiceStatus || null,
+    parcelas: form.installments,
     data_emissao: form.emissionDate || null,
     data_recebimento: form.settleDate || null,
     status: form.status,
@@ -174,6 +177,7 @@ const FIELD_MAP: Record<string, string> = {
   fatura: "invoice",
   numero_fatura: "invoiceNumber",
   status_fatura: "invoiceStatus",
+  parcelas: "installments",
   data_emissao: "emissionDate",
   data_recebimento: "settleDate",
   observacoes: "notes",
@@ -289,6 +293,14 @@ export function Receivables() {
     setErrors({});
 
     try {
+      if (editing.installments.length) {
+        const total = editing.installments.reduce((sum, p) => sum + Number(p.valor), 0);
+        if (Math.abs(total - editing.serviceValue) > 0.01 || editing.installments.some(p => !p.vencimento || p.valor <= 0 || (p.valor_pago ?? 0) > p.valor || ((p.valor_pago ?? 0) > 0 && !p.data_pagamento))) {
+          setErrors({ installments: "Confira valores, vencimentos e datas de pagamento. A soma deve corresponder ao valor a receber." });
+          setSaving(false);
+          return;
+        }
+      }
       const payload = toPayload(editing);
 
       if (editing.id) {
@@ -482,7 +494,7 @@ export function Receivables() {
                   <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
                   <TableCell>{r.technician || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
-                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span className="font-medium">{r.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{r.invoiceNumber || r.invoiceAttachment || r.invoice ? "Parcelamento não informado" : "Sem fatura cadastrada"}</span>{r.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(r.issueDate)}</span>}</div></TableCell>
+                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span className="font-medium">{r.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{r.invoiceNumber || r.invoiceAttachment || r.invoice ? "Parcelamento: consulte os detalhes" : "Sem fatura cadastrada"}</span>{r.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(r.issueDate)}</span>}</div></TableCell>
                   <TableCell>
                     {r.invoiceNumber || r.invoiceAttachment || r.invoice ? <InvoiceStatus status={r.invoiceStatus}/> : <span className="text-xs text-muted-foreground">Sem fatura</span>}</TableCell>
                   <TableCell className="whitespace-nowrap text-sm">{r.dueDate ? formatDate(r.dueDate) : "—"}</TableCell>
@@ -794,6 +806,19 @@ export function Receivables() {
               )}
             </div>
           )}
+          {editing && <div className="rounded-xl border border-border p-4 space-y-3">
+            <div className="flex justify-between items-center gap-2"><div><Label>Parcelas da fatura</Label><p className="text-xs text-muted-foreground">Vencimentos e pagamentos individuais</p></div><Button size="sm" variant="outline" onClick={() => setEditing({...editing,installments:[...editing.installments,{numero:editing.installments.length+1,valor:Math.max(0,Math.round((editing.serviceValue-editing.installments.reduce((a,p)=>a+Number(p.valor),0))*100)/100),vencimento:editing.dueDate||todayISO(),valor_pago:0,data_pagamento:null}]})}>Adicionar parcela</Button></div>
+            {editing.installments.map((inst,index)=><div key={index} className="grid grid-cols-2 md:grid-cols-5 gap-2 border border-border rounded-lg p-2">
+              <div><Label className="text-xs">Parcela</Label><Input readOnly value={index+1}/></div>
+              <div><Label className="text-xs">Valor (€)</Label><Input type="number" step="0.01" min="0" value={inst.valor} onChange={e=>setEditing({...editing,installments:editing.installments.map((p,i)=>i===index?{...p,valor:Number(e.target.value)}:p)})}/></div>
+              <div><Label className="text-xs">Vencimento</Label><DateInput value={inst.vencimento} onChange={e=>setEditing({...editing,installments:editing.installments.map((p,i)=>i===index?{...p,vencimento:e.target.value}:p)})}/></div>
+              <div><Label className="text-xs">Recebido (€)</Label><Input type="number" step="0.01" min="0" value={inst.valor_pago??0} onChange={e=>setEditing({...editing,installments:editing.installments.map((p,i)=>i===index?{...p,valor_pago:Number(e.target.value)}:p)})}/></div>
+              <div><Label className="text-xs">Data pagamento</Label><DateInput value={inst.data_pagamento??""} onChange={e=>setEditing({...editing,installments:editing.installments.map((p,i)=>i===index?{...p,data_pagamento:e.target.value||null}:p)})}/></div>
+              <Button className="col-span-2 md:col-span-5 justify-self-end" size="sm" variant="ghost" onClick={()=>setEditing({...editing,installments:editing.installments.filter((_,i)=>i!==index).map((p,i)=>({...p,numero:i+1}))})}>Remover parcela</Button>
+            </div>)}
+            {editing.installments.length>0&&<p className="text-xs">Total parcelado: {formatCurrency(editing.installments.reduce((a,p)=>a+Number(p.valor),0))} / {formatCurrency(editing.serviceValue)}</p>}
+            {errors.installments&&<p className="text-sm text-destructive">{errors.installments}</p>}
+          </div>}
           {editing?.id && <InvoiceAttachment kind="receber" id={editing.id} attached={items.find(item => item.id === editing.id)?.invoiceAttachment} onUploaded={() => { setReloadToken(n => n + 1); } } />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
