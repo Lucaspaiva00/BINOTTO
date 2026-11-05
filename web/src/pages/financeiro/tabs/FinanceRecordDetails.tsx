@@ -52,6 +52,12 @@ export function FinanceRecordDetails({ kind, record, workshops, technicians = []
   const receivable = record && "serviceAmount" in record ? record : null;
   const workshop = record?.workshop || shopName(workshops, record?.workshopId);
   const technician = record?.technician || (payable?.supplier ?? techName(technicians, record?.technicianId));
+  const installments = receivable?.installments ?? [];
+  const totalReceived = installments.reduce((sum, item) => sum + Number(item.valor_pago ?? 0), 0);
+  const outstanding = Math.max(0, (receivable?.serviceAmount ?? 0) - totalReceived);
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = installments.filter(item => item.vencimento < today && Number(item.valor_pago ?? 0) < Number(item.valor));
+  const nextDue = installments.filter(item => Number(item.valor_pago ?? 0) < Number(item.valor)).map(item => item.vencimento).sort()[0];
 
   return <Dialog open={Boolean(record)} onOpenChange={open => { if (!open) onClose(); }}>
     <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -65,6 +71,26 @@ export function FinanceRecordDetails({ kind, record, workshops, technicians = []
             <p className="mt-1 text-2xl font-semibold">{formatCurrency(payable?.amountDue ?? receivable?.serviceAmount ?? 0)}</p></div>
           <div className="flex gap-2"><OriginBadge origin={record.origin} /><StatusBadge status={record.status} /></div>
         </div>
+        {receivable && installments.length > 0 && <section className="rounded-xl border border-border p-4 space-y-4">
+          <h3 className="font-semibold">Parcelamento e recebimentos</h3>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div><p className="text-xs text-muted-foreground">Recebido nas parcelas</p><p className="text-lg font-semibold text-emerald-500">{formatCurrency(totalReceived)}</p></div>
+            <div><p className="text-xs text-muted-foreground">Saldo em aberto</p><p className="text-lg font-semibold">{formatCurrency(outstanding)}</p></div>
+            <div><p className="text-xs text-muted-foreground">{overdue.length ? "Parcelas vencidas" : "Próximo vencimento"}</p><p className="text-lg font-semibold">{overdue.length ? overdue.length + " vencida(s)" : nextDue ? formatDate(nextDue) : "Quitado"}</p></div>
+          </div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[540px] text-sm">
+            <thead><tr className="border-b border-border text-left text-muted-foreground"><th className="py-2">Parcela</th><th>Valor</th><th>Vencimento</th><th>Recebido</th><th>Data do pagamento</th><th>Situação</th></tr></thead>
+            <tbody>{installments.map((item, index) => {
+              const paid = Number(item.valor_pago ?? 0);
+              const amount = Number(item.valor);
+              const state = paid >= amount ? "Paga" : paid > 0 ? "Parcial" : item.vencimento < today ? "Vencida" : "Pendente";
+              return <tr key={index} className="border-b border-border/60">
+                <td className="py-3">{item.numero}/{installments.length}</td><td>{formatCurrency(amount)}</td><td>{formatDate(item.vencimento)}</td><td>{formatCurrency(paid)}</td><td>{item.data_pagamento ? formatDate(item.data_pagamento) : "—"}</td><td>{state}</td>
+              </tr>;
+            })}</tbody>
+          </table></div>
+          <p className="text-xs text-muted-foreground">Recebimentos registrados nas parcelas. Confirmação bancária depende de conciliação.</p>
+        </section>}
         <Section title="Identificação">
           <Field label="Descrição">{record.description}</Field>
           {record.origin === "aplicativo" && <>
