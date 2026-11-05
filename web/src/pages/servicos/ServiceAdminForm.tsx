@@ -182,42 +182,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
     </section>
 
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">\n      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-      <h2 className="font-semibold">Serviço</h2>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de perícia">
-        <Button type="button" variant={value.inspectionType === "simples" ? "default" : "outline"} onClick={() => onChange("inspectionType", "simples")}>Perícia básica</Button>
-        <Button type="button" variant={value.inspectionType === "completa" ? "default" : "outline"} onClick={() => onChange("inspectionType", "completa")}>Perícia detalhada</Button>
-      </div>
-      <p className="text-xs text-muted-foreground">Por enquanto, essa escolha identifica o serviço sem modificar automaticamente os cálculos.</p>
-      <div className="flex flex-wrap gap-2"><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
-      <div className="flex items-center gap-2" role="group" aria-label="Visualização do veículo">
-        <Button type="button" size="sm" variant={vehicleView === "2d" ? "default" : "outline"} onClick={() => setVehicleView("2d")}>Veículo 2D</Button>
-        <Button type="button" size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
-      </div>
-      {vehicleView === "2d"
-        ? <CarDiagram2D partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
-        : <CarDiagram partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
-      <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
-      <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="rounded-xl border p-3">
-        <summary className="cursor-pointer font-medium">Detalhes do serviço (clique para {detailsOpen ? "recolher" : "expandir"})</summary>
-        <div className="mt-3 overflow-x-auto"><table className="w-full min-w-185 text-sm"><thead><tr className="text-left text-muted-foreground"><th className="p-2">Tipo</th><th className="p-2">Peça</th><th className="p-2">Até 2 cm</th><th className="p-2">Até 5 cm</th><th className="p-2">Acima de 5 cm</th><th className="p-2">Observação</th><th className="p-2">Fotos</th></tr></thead><tbody>
-          {SERVICE_PARTS_ORDER.map(id => {
-            const part = partsState[id];
-            function update(changes: Partial<PartInspection>) { onPartChange?.(id, { ...part, ...changes }); }
-            function count(value: string): number { return Math.min(9999, Number(value.replace(/\D/g, "").slice(0, 4)) || 0); }
-            return <tr key={id} className="border-t"><td className="p-1"><select aria-label={`Tipo ${getCarPartLabel(id)}`} className="h-9 max-w-35 rounded border bg-background p-1" value={part.assessed === false ? "unassessed" : part.repairType} disabled={!onPartChange} onChange={e => update({ repairType: e.target.value === "unassessed" ? "SEM_DANO" : e.target.value as RepairType, assessed: e.target.value !== "unassessed" })}><option value="unassessed">Não avaliada</option>{TYPE_KEYS.map(type => <option key={type} value={type}>{REPAIR_TYPE_LABEL[type]}</option>)}</select></td>
-              <td className="whitespace-nowrap p-1">{getCarPartLabel(id)}</td>
-              {(["dentsUpTo2", "dentsUpTo5", "dentsOver5"] as const).map(key => <td className="p-1" key={key}><Input aria-label={`${getCarPartLabel(id)} ${key}`} type="number" min={0} max={9999} className="min-w-19" value={part[key] ?? 0} disabled={!onPartChange} onChange={e => update({ [key]: count(e.target.value) })}/></td>)}
-              <td className="p-1"><Input maxLength={255} className="min-w-30" aria-label={`Observação ${getCarPartLabel(id)}`} value={part.notes} disabled={!onPartChange} onChange={e => update({ notes: e.target.value })}/></td>
-              <td className="p-1"><Button type="button" variant="outline" size="sm" disabled={!onPartSelect} onClick={() => onPartSelect?.(id)}>{part.photos.length}/3</Button></td>
-            </tr>;
-          })}
-        </tbody></table></div>
-      </details>
-    </section>
-
-
-      </div>\n      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CircleDollarSign className="h-5 w-5"/>Preço</h2>
 
       <div className="overflow-x-auto">
@@ -315,7 +281,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         </div>
       </div>
     </section>
-    <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>\n      </div>\n    </div>
+    <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
+      </div>\n    </div>
 
   </div>;
 }
@@ -326,4 +293,41 @@ export function parseDecimalInput(value: string): number {
 }
 export function formatEditableDecimal(value: number | null | undefined): string {
   return value == null ? "" : String(value).replace(".", ",");
-}
+}      </div>
+      <div className="min-w-0 space-y-5">
+    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+      <h2 className="font-semibold">Serviço</h2>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de perícia">
+        <Button type="button" variant={value.inspectionType === "simples" ? "default" : "outline"} onClick={() => onChange("inspectionType", "simples")}>Perícia básica</Button>
+        <Button type="button" variant={value.inspectionType === "completa" ? "default" : "outline"} onClick={() => onChange("inspectionType", "completa")}>Perícia detalhada</Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Por enquanto, essa escolha identifica o serviço sem modificar automaticamente os cálculos.</p>
+      <div className="flex flex-wrap gap-2"><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
+      <div className="flex items-center gap-2" role="group" aria-label="Visualização do veículo">
+        <Button type="button" size="sm" variant={vehicleView === "2d" ? "default" : "outline"} onClick={() => setVehicleView("2d")}>Veículo 2D</Button>
+        <Button type="button" size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
+      </div>
+      {vehicleView === "2d"
+        ? <CarDiagram2D partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
+        : <CarDiagram partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
+      <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
+      <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="rounded-xl border p-3">
+        <summary className="cursor-pointer font-medium">Detalhes do serviço (clique para {detailsOpen ? "recolher" : "expandir"})</summary>
+        <div className="mt-3 overflow-x-auto"><table className="w-full min-w-185 text-sm"><thead><tr className="text-left text-muted-foreground"><th className="p-2">Tipo</th><th className="p-2">Peça</th><th className="p-2">Até 2 cm</th><th className="p-2">Até 5 cm</th><th className="p-2">Acima de 5 cm</th><th className="p-2">Observação</th><th className="p-2">Fotos</th></tr></thead><tbody>
+          {SERVICE_PARTS_ORDER.map(id => {
+            const part = partsState[id];
+            function update(changes: Partial<PartInspection>) { onPartChange?.(id, { ...part, ...changes }); }
+            function count(value: string): number { return Math.min(9999, Number(value.replace(/\D/g, "").slice(0, 4)) || 0); }
+            return <tr key={id} className="border-t"><td className="p-1"><select aria-label={`Tipo ${getCarPartLabel(id)}`} className="h-9 max-w-35 rounded border bg-background p-1" value={part.assessed === false ? "unassessed" : part.repairType} disabled={!onPartChange} onChange={e => update({ repairType: e.target.value === "unassessed" ? "SEM_DANO" : e.target.value as RepairType, assessed: e.target.value !== "unassessed" })}><option value="unassessed">Não avaliada</option>{TYPE_KEYS.map(type => <option key={type} value={type}>{REPAIR_TYPE_LABEL[type]}</option>)}</select></td>
+              <td className="whitespace-nowrap p-1">{getCarPartLabel(id)}</td>
+              {(["dentsUpTo2", "dentsUpTo5", "dentsOver5"] as const).map(key => <td className="p-1" key={key}><Input aria-label={`${getCarPartLabel(id)} ${key}`} type="number" min={0} max={9999} className="min-w-19" value={part[key] ?? 0} disabled={!onPartChange} onChange={e => update({ [key]: count(e.target.value) })}/></td>)}
+              <td className="p-1"><Input maxLength={255} className="min-w-30" aria-label={`Observação ${getCarPartLabel(id)}`} value={part.notes} disabled={!onPartChange} onChange={e => update({ notes: e.target.value })}/></td>
+              <td className="p-1"><Button type="button" variant="outline" size="sm" disabled={!onPartSelect} onClick={() => onPartSelect?.(id)}>{part.photos.length}/3</Button></td>
+            </tr>;
+          })}
+        </tbody></table></div>
+      </details>
+    </section>
+
+
+
