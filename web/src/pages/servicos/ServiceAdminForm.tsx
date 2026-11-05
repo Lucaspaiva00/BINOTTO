@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Camera, CarFront, CircleDollarSign, ClipboardList, Loader2, Paintbrush, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 import { CarDiagram } from "@/components/pericia/CarDiagram";
+import { CarDiagram2D } from "@/components/pericia/CarDiagram2D";
 import { Button } from "@/components/ui/button";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
@@ -146,6 +147,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   function updatePrice(key: DetailedPriceKey | SuggestionPriceKey, update: Partial<DetailedPrices[DetailedPriceKey | SuggestionPriceKey]>) {
     onChange("detailedPrices", { ...value.detailedPrices, [key]: { ...value.detailedPrices[key], ...update } });
   }
+  const [vehicleView, setVehicleView] = useState<"2d" | "3d">("2d");
   const totals = resolveDetailedPrices(value.detailedPrices);
   const formatted = (amount: number | undefined) => amount == null ? "—" : new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   return <div className="space-y-5">
@@ -180,7 +182,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
     </section>
 
-    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">\n      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold">Serviço</h2>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de perícia">
         <Button type="button" variant={value.inspectionType === "simples" ? "default" : "outline"} onClick={() => onChange("inspectionType", "simples")}>Perícia básica</Button>
@@ -188,7 +190,13 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
       </div>
       <p className="text-xs text-muted-foreground">Por enquanto, essa escolha identifica o serviço sem modificar automaticamente os cálculos.</p>
       <div className="flex flex-wrap gap-2"><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PDR") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" aria-pressed={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA")} variant={SERVICE_PARTS_ORDER.every(id => partsState[id]?.assessed !== false && partsState[id]?.repairType === "PINTURA") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
-      <CarDiagram partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />
+      <div className="flex items-center gap-2" role="group" aria-label="Visualização do veículo">
+        <Button type="button" size="sm" variant={vehicleView === "2d" ? "default" : "outline"} onClick={() => setVehicleView("2d")}>Veículo 2D</Button>
+        <Button type="button" size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
+      </div>
+      {vehicleView === "2d"
+        ? <CarDiagram2D partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
+        : <CarDiagram partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
       <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
       <details open={detailsOpen} onToggle={e => setDetailsOpen(e.currentTarget.open)} className="rounded-xl border p-3">
         <summary className="cursor-pointer font-medium">Detalhes do serviço (clique para {detailsOpen ? "recolher" : "expandir"})</summary>
@@ -209,7 +217,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     </section>
 
 
-    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+      </div>\n      <div className="min-w-0 space-y-5">\n    <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><CircleDollarSign className="h-5 w-5"/>Preço</h2>
 
       <div className="overflow-x-auto">
@@ -307,7 +315,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         </div>
       </div>
     </section>
-    <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>
+    <section className="rounded-2xl border border-border bg-card p-5"><Label>Observação geral</Label><Input className="mt-2" maxLength={255} value={value.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Uma linha" /></section>\n      </div>\n    </div>
 
   </div>;
 }
