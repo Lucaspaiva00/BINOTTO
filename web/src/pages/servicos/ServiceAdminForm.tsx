@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Camera, CarFront, CircleDollarSign, ClipboardList, Loader2, Paintbrush, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
@@ -60,6 +61,7 @@ interface Props {
   workshops: UserSelectionItem[];
   technicians: UserSelectionItem[];
   partsState: Record<string, PartInspection>;
+  partEditor?: ReactNode;
   onPartSelect?: (id: string) => void;
   onPartChange?: (id: string, next: PartInspection) => void;
   onAccept?: () => void;
@@ -103,7 +105,7 @@ function VehiclePhotoCard({ label, photo, onChange }: {
   </div>;
 }
 
-export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, onPartSelect, onPartChange,
+export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, partEditor, onPartSelect, onPartChange,
   onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusLocked: _statusLocked = false, errors = {},
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
@@ -299,6 +301,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
           })}
         </tbody></table></div>
       </details>
+      {partEditor}
       </div>
       <div className="min-w-0 space-y-5">
 
