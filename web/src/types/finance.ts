@@ -9,6 +9,8 @@ export type FinanceStatus =
 
 export type FinanceOrigin = "aplicativo" | "avulsa";
 
+export interface FinanceInstallment { numero: number; valor: number; vencimento: string; data_pagamento?: string | null; valor_pago?: number; }
+
 export interface Receivable {
   id: number;
   origin: FinanceOrigin;
@@ -36,6 +38,7 @@ export interface Receivable {
   invoiceFileName?: string | null;
   invoiceNumber?: string | null;
   invoiceStatus?: string | null;
+  installments?: FinanceInstallment[];
   receivedDate: string | null;
   notes: string | null;
   launchDate: string | null;
@@ -61,6 +64,7 @@ export interface ReceivablePayload {
   fatura?: string | null;
   numero_fatura?: string | null;
   status_fatura?: string | null;
+  parcelas?: FinanceInstallment[];
   data_emissao?: string | null;
   data_recebimento?: string | null;
   observacoes?: string | null;
