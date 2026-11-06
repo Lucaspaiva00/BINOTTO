@@ -82,12 +82,12 @@ export default function Dashboard() {
           { label: "Faturamento anual", value: billing?.billedAmount, icon: Wallet },
           { label: "Faturamento do mês", value: stats.month, icon: CalendarRange },
           { label: "Faturamento da semana", value: stats.week, icon: CalendarDays },
-        ].map(({ label, value, icon: Icon }) => (
+        ].map(({ label, value, icon: Icon }, index) => (
           <div key={label} className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">{label}</p><Icon className="w-5 h-5 text-muted-foreground" />
             </div>
-            <p className="mt-3 text-2xl font-semibold">{loading || error ? "—" : formatCurrency(value ?? 0)}</p>
+            <p className={`mt-3 font-semibold tracking-tight tabular-nums ${index === 0 ? "text-4xl md:text-5xl" : index === 1 ? "text-3xl md:text-4xl" : "text-xl md:text-2xl"}`}>{loading || error ? "—" : formatCurrency(value ?? 0)}</p>
           </div>
         ))}
       </div>
