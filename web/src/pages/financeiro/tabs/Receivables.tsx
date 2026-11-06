@@ -2,7 +2,7 @@ import { InvoiceAttachment, InvoiceStatus } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Eye, Trash2, Search } from "lucide-react";
+import { Plus, Eye, Trash2, Search, FileText, FileX2, MessageCircle, Mail, CircleCheck, CircleAlert, CircleX, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -34,6 +34,45 @@ import { endOfMonth, formatDate, startOfMonth, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { PAGE_SIZE, StatusBadge, shopName } from "./shared";
+
+/** Status indicators only reflect fields actually persisted by the API. */
+function InvoiceProgress({ record }: { record: Receivable }) {
+  const hasInvoice = Boolean(record.invoiceNumber || record.invoiceAttachment || record.invoice);
+  const invoiceStatus = (record.invoiceStatus || "").toLowerCase();
+  const sent = ["enviada", "paga"].includes(invoiceStatus);
+  const paidInstallments = (record.installments || []).filter((p) => Boolean(p.data_pagamento));
+  const fullyReceived = ["recebido", "pago"].includes(record.status);
+  const partiallyReceived = !fullyReceived && paidInstallments.length > 0;
+  const overdue = !fullyReceived && Boolean(record.dueDate) && record.dueDate < todayISO();
+  const invoiceLabel = hasInvoice ? (record.invoiceNumber || "Anexada") : "Sem fatura";
+  const title = (label: string) => label;
+  return (
+    <div className="flex items-center gap-3 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-1.5" title={title(hasInvoice ? `Fatura ${invoiceLabel} — ${record.installments?.length || 0} parcela(s)` : "Sem fatura cadastrada")}>
+        {hasInvoice ? <FileText className="h-4 w-4 text-emerald-500" /> : <FileX2 className="h-4 w-4 text-muted-foreground" />}
+        <span className="max-w-24 truncate">{invoiceLabel}</span>
+        {hasInvoice && <InvoiceAttachment kind="receber" id={record.id} attached={record.invoiceAttachment} />}
+      </div>
+      <span className="text-border">|</span>
+      <div className="flex items-center gap-1" title={sent ? "Fatura marcada como enviada; canal não registrado" : "Envio não confirmado"}>
+        <span className="text-muted-foreground">Enviada</span>
+        {sent ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
+        <MessageCircle className="h-4 w-4 text-muted-foreground opacity-50" aria-label="WhatsApp: canal não registrado" />
+        <Mail className="h-4 w-4 text-muted-foreground opacity-50" aria-label="E-mail: canal não registrado" />
+      </div>
+      <span className="text-border">|</span>
+      <div className="flex items-center gap-1" title={fullyReceived ? `Recebida em ${formatDate(record.receivedDate || paidInstallments[paidInstallments.length - 1]?.data_pagamento || "")}` : partiallyReceived ? `${paidInstallments.length} parcela(s) recebida(s)` : "Não recebida"}>
+        <span className="text-muted-foreground">Recebida</span>
+        {fullyReceived ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : partiallyReceived ? <CircleAlert className="h-4 w-4 text-amber-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
+      </div>
+      <span className="text-border">|</span>
+      <div className="flex items-center gap-1" title={fullyReceived ? "Pagamento concluído" : partiallyReceived ? "Pagamento parcial" : overdue ? "Pagamento vencido" : "Pagamento pendente"}>
+        <span className="text-muted-foreground">Paga</span>
+        {fullyReceived ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : partiallyReceived ? <CircleAlert className="h-4 w-4 text-amber-500" /> : overdue ? <CircleX className="h-4 w-4 text-red-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
+      </div>
+    </div>
+  );
+}
 
 interface ReceivableForm {
   id?: number;
@@ -483,21 +522,20 @@ export function Receivables() {
               <TableHead>Data</TableHead>
               <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
               <TableHead>Oficina / Cliente</TableHead>
-              <TableHead>Técnico</TableHead><TableHead>Valor a receber</TableHead><TableHead className="border-l">Fatura</TableHead>
-              <TableHead>Situação da fatura</TableHead><TableHead>Vencimento</TableHead><TableHead>Recebimento</TableHead>
+              <TableHead>Técnico</TableHead><TableHead>Valor a receber</TableHead><TableHead className="border-l">Fatura · Enviada · Recebida · Paga</TableHead><TableHead>Vencimento</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10">
+                <TableCell colSpan={9} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
@@ -508,12 +546,8 @@ export function Receivables() {
                   <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
                   <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
                   <TableCell>{r.technician || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
-                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span className="font-medium">{r.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="receber" id={r.id} attached={r.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{r.invoiceNumber || r.invoiceAttachment || r.invoice ? (r.installments?.length ? `${r.installments.length} parcela(s)` : "Parcelamento não informado") : "Sem fatura cadastrada"}</span>{r.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(r.issueDate)}</span>}</div></TableCell>
-                  <TableCell>
-                    {r.invoiceNumber || r.invoiceAttachment || r.invoice ? <InvoiceStatus status={r.invoiceStatus}/> : <span className="text-xs text-muted-foreground">Sem fatura</span>}</TableCell>
+                  <TableCell className="border-l"><InvoiceProgress record={r} /></TableCell>
                   <TableCell className="whitespace-nowrap text-sm">{r.dueDate ? formatDate(r.dueDate) : "—"}</TableCell>
-                  <TableCell><div className="space-y-1"><StatusBadge status={r.status}/><span className="block text-xs text-muted-foreground">{r.receivedDate ? `Recebido em ${formatDate(r.receivedDate)}` : r.dueDate ? `Previsto: ${formatDate(r.dueDate)}` : "Aguardando recebimento"}</span></div>
-                  </TableCell>
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(r); }}>
