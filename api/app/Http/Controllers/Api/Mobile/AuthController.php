@@ -92,7 +92,9 @@ class AuthController extends Controller
             'expires_in' => auth('api')->factory()->getTTL() * 60,
             'user' => [
                 'id' => $user->id,
-                'name' => $user->perfil === 'TECNICO'\n                    ? ($user->tecnico?->nome_completo ?? $user->tecnico?->apelido ?? $user->nome)\n                    : ($user->perfil === 'OFICINA' ? ($user->oficina?->nome_fantasia ?? $user->nome) : $user->nome),
+                'name' => $user->perfil === 'TECNICO'
+                    ? ($user->tecnico?->nome_completo ?? $user->tecnico?->apelido ?? $user->nome)
+                    : ($user->perfil === 'OFICINA' ? ($user->oficina?->nome_fantasia ?? $user->nome) : $user->nome),
                 'email' => $user->email,
                 'whatsapp' => $user->whatsapp,
                 'countryCode' => $user->codigo_pais_telefone,
