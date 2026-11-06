@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { FileText, Trash2, Upload } from "lucide-react";
+import { Eye, FileText, Trash2, Upload } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { userService } from "@/services/userService";
@@ -23,6 +24,8 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
   const [documents, setDocuments] = useState<OficinaDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -61,32 +64,47 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
 
   async function handleDownload(doc: OficinaDocument) {
     if (downloadingId !== null) return;
+    // Reserve the tab during the click: popup blockers reject tabs opened after await.
+    const previewTab = window.open("", "_blank");
     setDownloadingId(doc.id);
     try {
       const blob = await userService.downloadDocument(userId, doc.id);
+      if (blob.type.includes("application/json")) {
+        throw new Error("O servidor retornou uma resposta inválida para o arquivo.");
+      }
       const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = doc.nome || "documento";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      const canPreview = /^(application\/pdf|image\/)/i.test(blob.type);
+      if (canPreview && previewTab) {
+        previewTab.location.href = objectUrl;
+      } else {
+        previewTab?.close();
+        const link = document.createElement("a");
+        link.href = objectUrl;
+        link.download = doc.nome || "documento";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 120000);
     } catch (error) {
-      toast.error(getApiErrorMessage(error));
+      previewTab?.close();
+      toast.error(error instanceof Error && error.message.includes("resposta inválida") ? error.message : getApiErrorMessage(error));
     } finally {
       setDownloadingId(null);
     }
   }
 
   async function handleDelete(documentId: number) {
-    if (!window.confirm("Deseja realmente excluir este documento? Esta ação não pode ser desfeita.")) return;
+    setDeleting(true);
     try {
       await userService.deleteDocument(userId, documentId);
       toast.success("Documento removido");
       setDocuments((prev) => prev.filter((doc) => doc.id !== documentId));
+      setPendingDeleteId(null);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -100,6 +118,18 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
 
   return (
     <div className="space-y-8">
+      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open && !deleting) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir documento?</AlertDialogTitle>
+            <AlertDialogDescription>O documento será removido definitivamente. Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={deleting} onClick={(e) => { e.preventDefault(); if (pendingDeleteId !== null) void handleDelete(pendingDeleteId); }}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {SECTIONS.map((section) => {
         const docs = documents.filter((doc) => doc.tipo === section.tipo);
         const atLimit = docs.length >= section.limit;
@@ -151,7 +181,7 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                             onClick={() => void handleDownload(doc)}
                             disabled={downloadingId !== null}
                             className="font-medium text-sm truncate block hover:underline text-left"
-                            title="Baixar documento com autenticação"
+                            title="Abrir documento"
                           >
                             {doc.nome}
                           </button>
@@ -167,7 +197,7 @@ export default function TecnicoDocumentsTab({ userId }: Props) {
                       type="button"
                       size="icon"
                       variant="ghost"
-                      onClick={() => handleDelete(doc.id)}
+                      onClick={() => setPendingDeleteId(doc.id)}
                       aria-label="Remover documento"
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
