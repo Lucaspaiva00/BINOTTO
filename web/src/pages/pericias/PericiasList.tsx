@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Play, Plus, Search, ScanSearch, Eye, Pencil } from "lucide-react";
+import { Play, Plus, Search, ScanSearch, Eye, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,8 @@ export default function PericiasList() {
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [startingId, setStartingId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<Pericia | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
@@ -69,6 +73,22 @@ export default function PericiasList() {
     loadPericias();
     return () => { cancelled = true; };
   }, [page, status, startDate, endDate, debouncedSearch]);
+
+  async function deleteInspection() {
+    if (!deleting || deletingBusy) return;
+    setDeletingBusy(true);
+    try {
+      await periciaService.remove(deleting.id);
+      toast.success("Perícia excluída.");
+      setPericias((current) => current.filter((p) => p.id !== deleting.id));
+      setTotal((count) => Math.max(0, count - 1));
+      setDeleting(null);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setDeletingBusy(false);
+    }
+  }
 
   async function startRepairs(pericia: Pericia) {
     setStartingId(pericia.id);
@@ -108,37 +128,33 @@ export default function PericiasList() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-[760px]">
+        <Table className="min-w-[900px]">
           <TableHeader>
             <TableRow>
-              <TableHead>Perícia</TableHead><TableHead>Veículo</TableHead><TableHead>Oficina / Técnico</TableHead><TableHead>Status</TableHead><TableHead>Valor</TableHead><TableHead>Data</TableHead><TableHead className="text-right">Ações</TableHead>
+              <TableHead>Data</TableHead><TableHead>Oficina</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={7} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
             ) : pericias.length === 0 ? (
-              <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
             ) : pericias.map((p) => (
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
-                <TableCell className="font-semibold text-[hsl(var(--app-accent))]">{p.publicNumber || `#${p.id}`}</TableCell>
-                <TableCell><div className="font-medium">{p.licensePlate ?? "Sem placa"}</div><div className="text-xs text-muted-foreground">{p.model ?? "Modelo não informado"}</div></TableCell>
-                <TableCell><div>{p.workshop ?? "—"}</div><div className="text-xs text-muted-foreground">{p.technician ?? "Sem técnico"}</div></TableCell>
+                <TableCell className="whitespace-nowrap text-sm">{formatDateTime(p.createdAt)}</TableCell>
+                <TableCell>{p.workshop || "—"}</TableCell>
+                <TableCell className="font-medium">{p.licensePlate || "—"}</TableCell>
+                <TableCell>{p.model || "—"}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatCurrency(displayValue(p))}</TableCell>
                 <TableCell>{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
-                <TableCell>{formatCurrency(displayValue(p))}</TableCell>
-                <TableCell className="text-muted-foreground">{formatDateTime(p.createdAt)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1 flex-wrap">
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/pericias/${p.id}`); }} aria-label="Visualizar perícia"><Eye className="w-4 h-4" /></Button>
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); navigate(`/pericias/${p.id}/editar`); }} aria-label="Editar perícia"><Pencil className="w-4 h-4" /></Button>
-                    {p.status !== "em_execucao" && p.status !== "concluida" ? (
-                      <Button size="sm" variant="outline" disabled={startingId === p.id} onClick={(event) => { event.stopPropagation(); startRepairs(p); }}>
-                        <Play className="w-4 h-4 mr-1" />{startingId === p.id ? "Iniciando..." : "Iniciar"}
-                      </Button>
-                    ) : p.serviceId ? (
-                      <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); navigate(`/servicos/${p.serviceId}`); }}>Serviço</Button>
-                    ) : null}
-                  </div>
+                <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="Ações da perícia"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onSelect={() => navigate(`/pericias/${p.id}/editar`)}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setDeleting(p)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Deletar</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
@@ -155,6 +171,12 @@ export default function PericiasList() {
           </div>
         )}
       </div>
+      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open && !deletingBusy) setDeleting(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Excluir perícia?</AlertDialogTitle><AlertDialogDescription>Esta ação é permanente. Perícias vinculadas a serviços ou em execução não podem ser excluídas.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel disabled={deletingBusy}>Cancelar</AlertDialogCancel><AlertDialogAction disabled={deletingBusy} onClick={(event) => { event.preventDefault(); void deleteInspection(); }}> {deletingBusy ? "Excluindo..." : "Excluir perícia"}</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
