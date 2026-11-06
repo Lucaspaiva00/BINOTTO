@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, Search, ScanSearch, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +40,6 @@ export default function PericiasList() {
   const [total, setTotal] = useState(0);
   const [deleting, setDeleting] = useState<Pericia | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
-  const [openActionsId, setOpenActionsId] = useState<number | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
@@ -115,10 +115,10 @@ export default function PericiasList() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-[900px]">
+        <Table className="min-w-[1000px]">
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead><TableHead>Oficina</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead>Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
+              <TableHead className="whitespace-nowrap">Data</TableHead><TableHead>Oficina</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead className="whitespace-nowrap">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -130,26 +130,26 @@ export default function PericiasList() {
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
                 <TableCell className="whitespace-nowrap text-sm">{formatDateTime(p.createdAt)}</TableCell>
                 <TableCell>{p.workshop || "—"}</TableCell>
-                <TableCell className="font-medium">{p.licensePlate || "—"}</TableCell>
+                <TableCell className="font-medium whitespace-nowrap">{p.licensePlate || "—"}</TableCell>
                 <TableCell>{p.model || "—"}</TableCell>
                 <TableCell className="whitespace-nowrap">{formatCurrency(displayValue(p))}</TableCell>
-                <TableCell>{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
+                <TableCell className="whitespace-nowrap">{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
                 <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                  <div className="relative inline-block text-left" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null); }}>
-                    <Button size="icon" variant="ghost" aria-label="Ações da perícia" aria-expanded={openActionsId === p.id} onClick={() => setOpenActionsId((id) => id === p.id ? null : p.id)}>
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                    {openActionsId === p.id && (
-                      <div className="absolute right-0 top-full z-50 min-w-36 rounded-md border border-border bg-popover p-1 shadow-lg">
-                        <button type="button" className="flex w-full items-center rounded-sm px-2 py-2 text-sm text-popover-foreground hover:bg-accent" onClick={() => { setOpenActionsId(null); navigate(`/pericias/${p.id}/editar`); }}>
-                          <Pencil className="mr-2 h-4 w-4" />Editar
-                        </button>
-                        <button type="button" className="flex w-full items-center rounded-sm px-2 py-2 text-sm text-destructive hover:bg-accent" onClick={() => { setOpenActionsId(null); setDeleting(p); }}>
-                          <Trash2 className="mr-2 h-4 w-4" />Deletar
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" aria-label={`Ações da perícia ${p.id}`}>
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-40">
+                      <DropdownMenuItem onSelect={() => navigate(`/pericias/${p.id}/editar`)}>
+                        <Pencil className="mr-2 h-4 w-4" />Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDeleting(p)}>
+                        <Trash2 className="mr-2 h-4 w-4" />Deletar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
