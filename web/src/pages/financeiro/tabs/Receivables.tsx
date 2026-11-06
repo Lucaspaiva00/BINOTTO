@@ -1,4 +1,4 @@
-import { InvoiceAttachment, InvoiceStatus } from "./InvoiceAttachment";
+import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -33,7 +33,7 @@ import { formatCurrency } from "@/utils/currency";
 import { endOfMonth, formatDate, startOfMonth, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
-import { PAGE_SIZE, StatusBadge, shopName } from "./shared";
+import { PAGE_SIZE, shopName } from "./shared";
 
 /** Status indicators only reflect fields actually persisted by the API. */
 function InvoiceProgress({ record }: { record: Receivable }) {
