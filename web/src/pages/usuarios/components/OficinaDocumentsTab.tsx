@@ -63,8 +63,15 @@ export default function OficinaDocumentsTab({ userId }: Props) {
       if (blob.type.includes("application/json")) {
         throw new Error("O servidor retornou uma resposta inválida para o arquivo.");
       }
-      const objectUrl = URL.createObjectURL(blob);
-      const canPreview = /^(application\/pdf|image\/)/i.test(blob.type);
+      // Some servers label PDFs as octet-stream. Trust the stored filename/type
+      // for previewable formats and explicitly set the Blob MIME type.
+      const extension = (doc.nome || "").split(".").pop()?.toLowerCase();
+      const previewMime = extension === "pdf" ? "application/pdf"
+        : extension === "png" ? "image/png"
+        : extension === "jpg" || extension === "jpeg" ? "image/jpeg"
+        : /^(application\/pdf|image\/(png|jpeg))/i.test(blob.type) ? blob.type : null;
+      const canPreview = Boolean(previewMime);
+      const objectUrl = URL.createObjectURL(previewMime ? new Blob([blob], { type: previewMime }) : blob);
       if (canPreview && previewTab) {
         previewTab.location.href = objectUrl;
       } else {
