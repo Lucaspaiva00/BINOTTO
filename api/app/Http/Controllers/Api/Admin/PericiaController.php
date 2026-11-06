@@ -332,7 +332,7 @@ class PericiaController extends Controller
         if ($pericia->servico_id || $pericia->servico()->exists()) {
             return response()->json(['message' => 'Esta perícia está vinculada a um serviço. Desvincule ou regularize o serviço antes de excluir.'], 409);
         }
-        if (in_array((string) ($pericia->status instanceof \\BackedEnum ? $pericia->status->value : $pericia->status), ['em_execucao', 'concluida'], true)) {
+        if (in_array((string) ($pericia->status instanceof \BackedEnum ? $pericia->status->value : $pericia->status), ['em_execucao', 'concluida'], true)) {
             return response()->json(['message' => 'Não é possível excluir uma perícia em execução ou concluída.'], 409);
         }
         $pericia->delete();
