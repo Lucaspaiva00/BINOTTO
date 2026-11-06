@@ -34,30 +34,39 @@ export default function Settings() {
   }
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
-      <Tabs defaultValue="usuario">
-      <div className="mb-5 max-w-full overflow-x-auto">
-        <div className="inline-flex min-w-max items-center rounded-xl bg-muted p-1">
-          <TabsList className="flex h-auto w-auto items-center gap-1 bg-transparent p-0 shadow-none">
-            <TabsTrigger value="usuario">Usuário</TabsTrigger>
-            <TabsTrigger value="coeficiente">Coeficiente</TabsTrigger>
+      <nav aria-label="Navegação dos módulos de configuração" className="mb-6 w-full overflow-x-auto rounded-xl border border-border bg-card p-2">
+        <div className="flex min-w-max items-center gap-2">
+          {[
+            { to: "/dashboard", label: "Dashboard" },
+            { to: "/usuarios", label: "Usuário" },
+            { to: "/servicos", label: "Serviço" },
+            { to: "/pericias", label: "Perícias" },
+            { to: "/financeiro", label: "Financeiro" },
+            { to: "/administradores", label: "Administradores" },
+          ].map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${isActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+          <a href="#configuracao-coeficientes" className="whitespace-nowrap rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
+            Coeficientes
+          </a>
+        </div>
+      </nav>
+      <Tabs defaultValue="coeficiente">
+        <div id="configuracao-coeficientes" className="mb-5 max-w-full overflow-x-auto scroll-mt-6">
+          <TabsList className="h-auto gap-1 p-1">
+            <TabsTrigger value="coeficiente">Coeficientes</TabsTrigger>
+            <TabsTrigger value="usuario">Meu perfil</TabsTrigger>
             <TabsTrigger value="idioma">Idioma</TabsTrigger>
           </TabsList>
-          <nav aria-label="Atalhos para os módulos" className="flex items-center gap-1 text-sm">
-            {[
-              { to: "/dashboard", label: "Dashboard" },
-              { to: "/usuarios", label: "Usuários" },
-              { to: "/servicos", label: "Serviços" },
-              { to: "/pericias", label: "Perícias" },
-              { to: "/financeiro", label: "Financeiro" },
-              { to: "/administradores", label: "Administradores" },
-            ].map(({ to, label }) => (
-              <NavLink key={to} to={to} className="rounded-lg px-3 py-2 text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground">
-                {label}
-              </NavLink>
-            ))}
-          </nav>
         </div>
-      </div>
       <TabsContent value="usuario"><section className="max-w-2xl rounded-2xl border bg-card p-6"><h2 className="font-semibold">Usuário</h2><p className="mt-3">{user?.name}</p><p className="text-muted-foreground">{user?.email}</p><p className="mt-2 text-sm">Administrador</p></section></TabsContent>
       <TabsContent value="idioma">
       <section className="max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6">
