@@ -323,6 +323,22 @@ class PericiaController extends Controller
         ]);
     }
 
+    public function destroy(int $id)
+    {
+        $pericia = Pericia::find($id);
+        if (! $pericia) {
+            return response()->json(['message' => 'Perícia não encontrada.'], 404);
+        }
+        if ($pericia->servico_id || $pericia->servico()->exists()) {
+            return response()->json(['message' => 'Esta perícia está vinculada a um serviço. Desvincule ou regularize o serviço antes de excluir.'], 409);
+        }
+        if (in_array((string) ($pericia->status instanceof \\BackedEnum ? $pericia->status->value : $pericia->status), ['em_execucao', 'concluida'], true)) {
+            return response()->json(['message' => 'Não é possível excluir uma perícia em execução ou concluída.'], 409);
+        }
+        $pericia->delete();
+        return response()->json(['message' => 'Perícia excluída.']);
+    }
+
     public function show(int $id)
     {
         $pericia = Pericia::with([
