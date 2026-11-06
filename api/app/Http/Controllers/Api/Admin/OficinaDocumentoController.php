@@ -169,7 +169,25 @@ class OficinaDocumentoController extends Controller
             return response()->json(['message' => 'Arquivo não encontrado no armazenamento.'], 404);
         }
 
-        return Storage::disk('public')->download($documento->arquivo, $documento->nome);
+        $disk = Storage::disk('public');
+        $mime = $documento->mime_type ?: $disk->mimeType($documento->arquivo);
+        $extension = strtolower(pathinfo($documento->nome ?: $documento->arquivo, PATHINFO_EXTENSION));
+        $previewable = in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true);
+        if ($previewable) {
+            $previewMime = match ($extension) {
+                'pdf' => 'application/pdf',
+                'png' => 'image/png',
+                default => 'image/jpeg',
+            };
+            // Serve previews inline instead of forcing the browser to download.
+            return response()->file($disk->path($documento->arquivo), [
+                'Content-Type' => $previewMime,
+                'Content-Disposition' => 'inline; filename="' . str_replace(['"', "\\r", "\\n"], '', basename($documento->nome ?: 'documento')) . '"',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        }
+
+        return $disk->download($documento->arquivo, $documento->nome);
     }
 
     public function destroy(int $usuarioId, int $documentoId)
