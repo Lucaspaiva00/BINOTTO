@@ -450,7 +450,7 @@ export function PrivateNavigator(): JSX.Element {
           name="UnsupportedProfile"
           component={UnsupportedProfileScreen}
         />
-      )
+      )}
 
       <PrivateStack.Screen
         name="CameraPermission"

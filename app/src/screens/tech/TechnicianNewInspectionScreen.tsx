@@ -809,9 +809,7 @@ export default function TechnicianNewInspectionScreen() {
           <View style={styles.surfaceSection}>
             <View style={{ ...styles.switchRow, marginBottom: 16 }}>
               <Text style={styles.switchLabel}>
-                {inspectionData.periciaCompleta
-                  ? t("technicianNewServiceScreen.inspectionValueLabel")
-                  : t("technicianNewServiceScreen.suggestedPriceLabel")}
+                {t("technicianNewServiceScreen.inspectionValueLabel")}
               </Text>
               
               <CustomSwitch
@@ -849,9 +847,7 @@ export default function TechnicianNewInspectionScreen() {
               />
             ) : (
               <Text style={[styles.description, { fontStyle: "italic" }]}>
-                {inspectionData.periciaCompleta
-                  ? t("technicianNewServiceScreen.hiddenValue")
-                  : t("technicianNewServiceScreen.noSuggestedPrice")}
+                {t("technicianNewServiceScreen.hiddenValue")}
               </Text>
             )}
           </View>

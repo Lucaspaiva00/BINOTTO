@@ -91,7 +91,7 @@ export default function TechnicianServiceDetailsScreen() {
   const [loadingRefuse, setLoadingRefuse] = useState<boolean>(false);
 
   // constants
-  const isAvailable = isServiceAvailableForTechnician(service, authData?.profileId,);
+  const isAvailable = isServiceAvailableForTechnician(service, authData?.profileId ?? undefined);
 
   // functions
   const handleOpenImage = (uri: string) => {

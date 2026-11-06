@@ -737,7 +737,7 @@ export default function TechnicianDashboardScreen() {
                 <ServiceCardTechnician
                   service={service}
                   locale={locale}
-                  technicianId={authData?.profileId}
+                  technicianId={authData?.profileId ?? undefined}
                   loadingFinish={loadingFinish}
                   onPress={(serviceId) => {
                     if (service.status === "em_execucao") {
