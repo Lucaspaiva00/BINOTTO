@@ -202,11 +202,10 @@ export function Payables() {
     }
   }
 
-  async function remove(id: number, hasService: boolean) {
-    if (!window.confirm("Deseja realmente excluir este lançamento financeiro?\n\nCancelar: não excluir nada.")) return;
-    const deleteService = hasService && window.confirm("Este lançamento possui um serviço vinculado.\n\nOK: excluir também o serviço, caso não tenha outros vínculos.\nCancelar: excluir somente o lançamento financeiro, mantendo o serviço.");
+  async function remove(id: number) {
     try {
-      const { message } = await payableService.remove(id, deleteService);
+      // A exclusão do lançamento não deve apagar o serviço vinculado.
+      const { message } = await payableService.remove(id, false);
       toast.success(message);
       setReloadToken((n) => n + 1);
     } catch (error) {
@@ -408,11 +407,11 @@ export function Payables() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
-                            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                            <AlertDialogDescription>O lançamento financeiro será excluído definitivamente. O serviço vinculado, se houver, será preservado. Esta ação não pode ser desfeita.</AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id, Boolean(p.serviceId)); }}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id); }}>Excluir</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
