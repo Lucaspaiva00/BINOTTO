@@ -435,8 +435,9 @@ export default function WorkshopNewInspectionScreen() {
           await WorkshopManagementService.createBasicInspection(payload);
         }
       }
+      // Return to the inspections list; its focus handler reloads the saved record.
+      // Do not call goBack after navigating: that would immediately undo navigation.
       navigation.navigate("Inspections");
-      setTimeout(() => navigation.goBack(), 500);
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
