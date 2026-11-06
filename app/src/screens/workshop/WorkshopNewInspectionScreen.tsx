@@ -756,9 +756,7 @@ export default function WorkshopNewInspectionScreen() {
               />
             ) : (
               <Text style={[styles.description, { fontStyle: "italic" }]}>
-                {inspectionData.periciaCompleta
-                  ? t("technicianNewServiceScreen.hiddenValue")
-                  : t("technicianNewServiceScreen.noSuggestedPrice")}
+                {t("technicianNewServiceScreen.hiddenValue")}
               </Text>
             )}
           </View>

@@ -236,8 +236,8 @@ export default function WorkshopInspectionsScreen() {
                 {item.created_at ? formatDate(item.created_at, locale) : "--/--/----"}
               </Text>
               <Text style={styles.priceText}>
-                {item.valor_pericia
-                  ? formatMoneyOrDash(item.valor_pericia, item.moeda, locale)
+                {(item.valor_pericia ?? item.preco_sugerido)
+                  ? formatMoneyOrDash(item.valor_pericia ?? item.preco_sugerido, item.moeda, locale)
                   : ""}
               </Text>
             </View>

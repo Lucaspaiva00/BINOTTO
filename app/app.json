@@ -3,7 +3,7 @@
     "name": "Binotto",
     "owner": "binotto-team",
     "slug": "binotto",
-    "version": "2.4",
+    "version": "2.5",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./src/assets/icon.png",
@@ -24,7 +24,8 @@
         ],
         "NSUserNotificationsUsageDescription": "Permita notificações para receber atualizações importantes sobre o status das suas solicitações de serviços."
       },
-      "appleTeamId": "H8Y8NDU7D5"
+      "appleTeamId": "H8Y8NDU7D5",
+      "buildNumber": "26"
     },
     "android": {
       "package": "com.binotto.mobile",
@@ -36,7 +37,7 @@
         "android.permission.RECORD_AUDIO"
       ],
       "googleServicesFile": "./google-services.json",
-      "versionCode": 25
+      "versionCode": 26
     },
     "extra": {
       "eas": {

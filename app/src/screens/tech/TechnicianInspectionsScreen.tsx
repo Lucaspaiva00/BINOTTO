@@ -376,6 +376,16 @@ export default function TechnicianInspectionsScreen() {
                         <Text style={styles.workshopNameText} numberOfLines={1}>
                           {item.oficina?.nome_fantasia || "--"}
                         </Text>
+
+                      </View>
+
+                      <View style={styles.cardRow}>
+                        <Text style={styles.plateText}>
+                          {item.placa || "--"}
+                        </Text>
+                        <Text style={[styles.carModelText, { minWidth: 0, marginRight: 8 }]} numberOfLines={1}>
+                          {item.marca_modelo || ""}
+                        </Text>
                         <View
                           style={[
                             styles.statusBadge,
@@ -398,24 +408,15 @@ export default function TechnicianInspectionsScreen() {
                       </View>
 
                       <View style={styles.cardRow}>
-                        <Text style={styles.plateText}>
-                          {item.placa || "--"}
-                        </Text>
-                        <Text style={styles.carModelText} numberOfLines={1}>
-                          {item.marca_modelo || ""}
-                        </Text>
-                      </View>
-
-                      <View style={styles.cardRow}>
                         <Text style={styles.dateText}>
                           {item.created_at
                             ? formatDate(item.created_at, locale)
                             : "--/--/----"}
                         </Text>
                         <Text style={styles.priceText}>
-                          {item.valor_pericia
+                          {(item.valor_pericia ?? item.preco_sugerido)
                             ? formatMoneyOrDash(
-                                item.valor_pericia,
+                                item.valor_pericia ?? item.preco_sugerido,
                                 item.moeda,
                                 locale,
                               )
