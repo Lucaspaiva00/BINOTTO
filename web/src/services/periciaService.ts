@@ -38,6 +38,10 @@ export const periciaService = {
     return data;
   },
 
+  async remove(id: number | string): Promise<void> {
+    await api.delete(`${BASE_URL}/${id}`);
+  },
+
   async show(id: number | string): Promise<Pericia> {
     const { data } = await api.get<{ data: Pericia }>(`${BASE_URL}/${id}`);
     return data.data;
