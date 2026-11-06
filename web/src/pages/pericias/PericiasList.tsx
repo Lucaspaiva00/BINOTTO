@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Play, Plus, Search, ScanSearch, Eye, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, Search, ScanSearch, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -38,7 +38,6 @@ export default function PericiasList() {
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [startingId, setStartingId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<Pericia | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
 
@@ -90,18 +89,6 @@ export default function PericiasList() {
     }
   }
 
-  async function startRepairs(pericia: Pericia) {
-    setStartingId(pericia.id);
-    try {
-      const updated = await periciaService.startRepairs(pericia.id);
-      toast.success("Reparações iniciadas.");
-      navigate(updated.serviceId ? `/servicos/${updated.serviceId}` : "/servicos");
-    } catch (error) {
-      toast.error(getApiErrorMessage(error));
-    } finally {
-      setStartingId(null);
-    }
-  }
 
   return (
     <AppLayout title="Perícias" subtitle={`${total} perícia(s) encontrada(s)`}>
