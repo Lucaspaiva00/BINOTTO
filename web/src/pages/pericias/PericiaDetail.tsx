@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { CarDiagram } from "@/components/pericia/CarDiagram";
+import { CarDiagram2D } from "@/components/pericia/CarDiagram2D";
 import { PartDetailDialog } from "@/components/pericia/PartDetailDialog";
 import { PhotoGallery } from "@/components/pericia/PhotoGallery";
 import { RepairSummary } from "@/components/pericia/RepairSummary";
@@ -35,6 +36,7 @@ export default function PericiaDetail() {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [partDialogOpen, setPartDialogOpen] = useState(false);
+  const [vehicleView, setVehicleView] = useState<"2d" | "3d">("2d");
   const [startingRepairs, setStartingRepairs] = useState(false);
 
   useEffect(() => {
@@ -178,26 +180,39 @@ export default function PericiaDetail() {
         {pericia.priceVisibility && <div className="rounded-2xl border border-border bg-card p-4 text-sm"><h3 className="font-semibold mb-2">Exibição dos valores ao técnico</h3><div className="flex flex-wrap gap-3">{Object.entries(pericia.priceVisibility).map(([key,shown]) => <span key={key} className={`rounded-md border px-2 py-1 ${shown ? "text-emerald-600" : "text-muted-foreground"}`}>{({carro:"Veículo",desmontagem:"Desmontagem",total:"Total",sugerido:"Sugerido"} as Record<string,string>)[key] ?? key}: {shown ? "visível" : "oculto"}</span>)}</div></div>}
         {hasCompletePhotos && <PhotoGallery title="Fotos adicionais" slots={COMPLETE_PHOTO_SLOTS} photos={pericia.completePhotos} />}
 
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <h3 className="text-sm font-semibold mb-1">Desenho interativo das peças do veículo</h3>
-          <p className="text-xs text-muted-foreground mb-4">Clique em uma peça marcada para ver os detalhes do reparo.</p>
-          <CarDiagram
-            partsState={partsState}
-            selectedPartId={selectedPartId}
-            onSelectPart={(partId) => { setSelectedPartId(partId); setPartDialogOpen(true); }}
-            vehicleModel={pericia.model}
-          />
-          <div className="flex flex-wrap gap-3 mt-4">
-            {(Object.keys(REPAIR_TYPE_LABEL) as RepairType[]).map((type) => (
-              <div key={type} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: REPAIR_TYPE_COLOR[type] }} aria-hidden />
-                {REPAIR_TYPE_LABEL[type]}
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+          <section className="bg-card border border-border rounded-2xl p-4 min-w-0">
+            <h3 className="text-sm font-semibold mb-1">Peças do veículo</h3>
+            <p className="text-xs text-muted-foreground mb-3">Disponível desde a criação da perícia, antes de iniciar as reparações. Clique em uma peça para consultar sua avaliação.</p>
+            <div className="flex gap-2 mb-3">
+              <Button size="sm" variant={vehicleView === "2d" ? "default" : "outline"} onClick={() => setVehicleView("2d")}>Veículo 2D</Button>
+              <Button size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
+            </div>
+            {vehicleView === "2d" ? (
+              <CarDiagram2D partsState={partsState} selectedPartId={selectedPartId} onSelectPart={(partId) => { setSelectedPartId(partId); setPartDialogOpen(true); }} />
+            ) : (
+              <CarDiagram partsState={partsState} selectedPartId={selectedPartId} onSelectPart={(partId) => { setSelectedPartId(partId); setPartDialogOpen(true); }} vehicleModel={pericia.model} />
+            )}
+            <div className="flex flex-wrap gap-3 mt-4">
+              {(Object.keys(REPAIR_TYPE_LABEL) as RepairType[]).map((type) => (
+                <div key={type} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: REPAIR_TYPE_COLOR[type] }} aria-hidden />
+                  {REPAIR_TYPE_LABEL[type]}
+                </div>
+              ))}
+            </div>
+          </section>
+          <section className="bg-card border border-border rounded-2xl p-4 min-w-0">
+            <h3 className="text-sm font-semibold mb-1">Informações das peças</h3>
+            <p className="text-xs text-muted-foreground mb-3">Avaliações registradas nesta perícia, independentemente do início das reparações.</p>
+            <RepairSummary partsState={partsState} />
+            {pericia.serviceId ? (
+              <Button className="mt-4" variant="outline" onClick={() => navigate(`/servicos/${pericia.serviceId}`)}>Abrir formulário de reparações</Button>
+            ) : (
+              <p className="mt-4 text-xs text-muted-foreground">A consulta das peças está disponível agora. O lançamento de reparações no serviço é liberado após iniciar as reparações.</p>
+            )}
+          </section>
         </div>
-
-        <RepairSummary partsState={partsState} />
       </div>
 
       <PartDetailDialog
