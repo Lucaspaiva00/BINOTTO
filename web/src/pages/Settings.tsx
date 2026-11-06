@@ -1,99 +1,46 @@
-import { useAuth } from "@/contexts/AuthContext";
-import { NavLink } from "react-router-dom";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Languages, Calculator } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { periciaService } from "@/services/periciaService";
-import { Button } from "@/components/ui/button";
-import { CurrencyInput } from "@/components/ui/currency-input";
+import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLanguage, type AppLanguage } from "@/contexts/LanguageContext";
+
+const sections = [
+  { id: "dashboard", label: "Dashboard" },
+  { id: "usuario", label: "Usuário" },
+  { id: "servico", label: "Serviço" },
+  { id: "pericias", label: "Perícias" },
+  { id: "financeiro", label: "Financeiro" },
+  { id: "administradores", label: "Administradores" },
+  { id: "coeficientes", label: "Coeficientes" },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
 
 export default function Settings() {
-  const { user } = useAuth();
-  const { language, setLanguage } = useLanguage();
-  const [coefficient, setCoefficient] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    periciaService.getSettings().then((data) => setCoefficient(Number(data.coeficiente_eur)))
-      .catch(() => toast.error("Não foi possível carregar o coeficiente."))
-      .finally(() => setLoading(false));
-  }, []);
-  async function saveCoefficient() {
-    setSaving(true);
-    try {
-      const response = await periciaService.saveSettings(coefficient);
-      setCoefficient(Number(response.coeficiente_eur));
-      toast.success("Coeficiente atualizado para novas perícias convencionais.");
-    } catch { toast.error("Não foi possível salvar o coeficiente."); }
-    finally { setSaving(false); }
-  }
+  const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
-      <nav aria-label="Navegação dos módulos de configuração" className="mb-6 w-full overflow-x-auto rounded-xl border border-border bg-card p-2">
-        <div className="flex min-w-max items-center gap-2">
-          {[
-            { to: "/dashboard", label: "Dashboard" },
-            { to: "/usuarios", label: "Usuário" },
-            { to: "/servicos", label: "Serviço" },
-            { to: "/pericias", label: "Perícias" },
-            { to: "/financeiro", label: "Financeiro" },
-            { to: "/administradores", label: "Administradores" },
-          ].map(({ to, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${isActive ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`
-              }
+      <div className="w-full overflow-x-auto rounded-xl border border-border bg-card p-2">
+        <nav aria-label="Seções de configurações" className="flex min-w-max items-center gap-2">
+          {sections.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setActiveSection(id)}
+              aria-current={activeSection === id ? "page" : undefined}
+              className={`whitespace-nowrap rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeSection === id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground hover:bg-muted"
+              }`}
             >
               {label}
-            </NavLink>
+            </button>
           ))}
-          <a href="#configuracao-coeficientes" className="whitespace-nowrap rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">
-            Coeficientes
-          </a>
-        </div>
-      </nav>
-      <Tabs defaultValue="coeficiente">
-        <div id="configuracao-coeficientes" className="mb-5 max-w-full overflow-x-auto scroll-mt-6">
-          <TabsList className="h-auto gap-1 p-1">
-            <TabsTrigger value="coeficiente">Coeficientes</TabsTrigger>
-            <TabsTrigger value="usuario">Meu perfil</TabsTrigger>
-            <TabsTrigger value="idioma">Idioma</TabsTrigger>
-          </TabsList>
-        </div>
-      <TabsContent value="usuario"><section className="max-w-2xl rounded-2xl border bg-card p-6"><h2 className="font-semibold">Usuário</h2><p className="mt-3">{user?.name}</p><p className="text-muted-foreground">{user?.email}</p><p className="mt-2 text-sm">Administrador</p></section></TabsContent>
-      <TabsContent value="idioma">
-      <section className="max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent"><Languages className="h-5 w-5" /></div>
-          <div><h2 className="font-semibold">Idioma do sistema</h2><p className="text-sm text-muted-foreground">A preferência fica salva neste navegador.</p></div>
-        </div>
-        <div className="space-y-2">
-          <Label>Idioma</Label>
-          <Select value={language} onValueChange={(v) => setLanguage(v as AppLanguage)}>
-            <SelectTrigger className="max-w-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pt">Português</SelectItem>
-              <SelectItem value="it">Italiano</SelectItem>
-              <SelectItem value="fr">Francês</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </section>
-      </TabsContent><TabsContent value="coeficiente">
-      <section className="mt-5 max-w-2xl rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-3"><Calculator className="h-5 w-5" /><div><h2 className="font-semibold">Coeficiente da perícia convencional</h2><p className="text-sm text-muted-foreground">Regra inicial: quantidade de amassados × coeficiente em euros. Não altera perícias já cadastradas.</p></div></div>
-        <div className="max-w-xs space-y-2"><Label>Coeficiente (€ por amassado)</Label><CurrencyInput value={coefficient} onChange={setCoefficient} disabled={loading || saving} /></div>
-        {coefficient === 0 && <p className="text-sm text-amber-600">Defina um coeficiente maior que zero para habilitar novas perícias convencionais.</p>}
-        <Button onClick={saveCoefficient} disabled={loading || saving || coefficient <= 0}>{saving ? "Salvando..." : "Salvar coeficiente"}</Button>
-      </section>
-      </TabsContent></Tabs>
+        </nav>
+      </div>
+      <section
+        aria-label={sections.find(({ id }) => id === activeSection)?.label}
+        className="mt-5 min-h-[380px] rounded-xl border border-border bg-card"
+      />
     </AppLayout>
   );
 }
