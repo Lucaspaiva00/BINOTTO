@@ -40,12 +40,15 @@ class AdminServiceImprovementsTest extends TestCase
             $t->json('fotos_veiculo')->nullable(); $t->timestamps();
         });
         Schema::create('pericias', function (Blueprint $t) {
-            $t->id(); $t->unsignedBigInteger('servico_id'); $t->string('status');
+            $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('status');
             $t->timestamp('concluida_em')->nullable(); $t->timestamps();
         });
         Schema::create('servico_logs', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id'); $t->unsignedBigInteger('oficina_id')->nullable();
             $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('tipo'); $t->text('descricao')->nullable(); $t->timestamps();
+        });
+        Schema::create('servicos_recusados', function (Blueprint $t) {
+            $t->id(); $t->unsignedBigInteger('servico_id'); $t->unsignedBigInteger('tecnico_id'); $t->timestamps();
         });
         Schema::create('contas_receber', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('referencia_veiculo_tipo')->nullable();
@@ -270,6 +273,49 @@ class AdminServiceImprovementsTest extends TestCase
         $c->update(['status'=>'cancelado']);
         $this->getJson('/api/admin/dashboard/faturamento')->assertJsonPath('billedAmount',0);
         $this->post("/api/admin/contas-receber/{$c->id}/fatura", ['arquivo'=>\Illuminate\Http\UploadedFile::fake()->create('bad.exe',1)])->assertSessionHasErrors('arquivo');
+    }
+
+    public function test_deletion_allows_only_open_accepted_and_cancelled_services(): void
+    {
+        foreach (ServicoStatusEnum::cases() as $status) {
+            $service = $this->service(['status' => $status]);
+            $response = $this->deleteJson("/api/admin/servicos/{$service->id}");
+            if (in_array($status, [ServicoStatusEnum::AGUARDANDO, ServicoStatusEnum::ACEITO, ServicoStatusEnum::CANCELADO], true)) {
+                $response->assertOk();
+                $this->assertDatabaseMissing('servicos', ['id' => $service->id]);
+            } else {
+                $response->assertStatus(409);
+                $this->assertDatabaseHas('servicos', ['id' => $service->id, 'status' => $status->value]);
+            }
+        }
+    }
+
+    public function test_deletion_preserves_inspections_and_removes_service_children(): void
+    {
+        $service = $this->service(['status' => ServicoStatusEnum::ACEITO]);
+        $service->veiculos()->create(['placa' => 'TESTE', 'preco_total' => 10]);
+        DB::table('pericias')->insert(['servico_id' => $service->id, 'status' => 'aberta']);
+        DB::table('servico_logs')->insert(['servico_id' => $service->id, 'tipo' => 'status']);
+        DB::table('servicos_recusados')->insert(['servico_id' => $service->id, 'tecnico_id' => 2]);
+        $this->deleteJson("/api/admin/servicos/{$service->id}")->assertOk();
+        $this->assertDatabaseHas('pericias', ['servico_id' => null, 'status' => 'aberta']);
+        $this->assertDatabaseCount('servico_veiculos', 0);
+        $this->assertDatabaseCount('servico_logs', 0);
+        $this->assertDatabaseCount('servicos_recusados', 0);
+    }
+
+    public function test_deletion_keeps_services_with_financial_records(): void
+    {
+        foreach ([ServicoStatusEnum::AGUARDANDO, ServicoStatusEnum::ACEITO, ServicoStatusEnum::CANCELADO] as $status) {
+            foreach (['contas_receber', 'contas_pagar'] as $table) {
+                $service = $this->service(['status' => $status]);
+                DB::table($table)->insert(['servico_id' => $service->id]);
+                $this->deleteJson("/api/admin/servicos/{$service->id}")->assertStatus(409);
+                $this->assertDatabaseHas('servicos', ['id' => $service->id]);
+                $this->assertDatabaseHas($table, ['servico_id' => $service->id]);
+            }
+        }
+        $this->deleteJson('/api/admin/servicos/999999')->assertNotFound();
     }
 
 }
