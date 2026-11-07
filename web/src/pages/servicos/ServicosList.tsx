@@ -56,13 +56,13 @@ function ServiceActions({ service, open, deleting, onOpenChange, onEdit, onDelet
     };
   }, [open, onOpenChange]);
 
-  function toggle() {
+  function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) setPosition({
       top: rect.bottom + 96 > window.innerHeight ? rect.top - 88 : rect.bottom,
       left: Math.max(8, Math.min(rect.right - 160, window.innerWidth - 168)),
     });
-    onOpenChange(!open);
+    onOpenChange(true);
   }
 
   return (
@@ -71,7 +71,7 @@ function ServiceActions({ service, open, deleting, onOpenChange, onEdit, onDelet
     }} onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); onOpenChange(false); triggerRef.current?.focus(); }
     }}>
-      <button ref={triggerRef} type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${service.id}`} aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={toggle}>
+      <button ref={triggerRef} type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${service.id}`} aria-expanded={open} aria-controls={open ? menuId : undefined} onMouseEnter={openMenu} onClick={openMenu}>
         <MoreHorizontal className="h-4 w-4" />
       </button>
       {open && createPortal(
