@@ -409,10 +409,14 @@ class ServicoController extends Controller
                 return response()->json(['message' => 'Serviço não encontrado.'], 404);
             }
 
-            // O status define a exclusão: serviço ativo deve ser cancelado antes.
-            if ($servico->status !== ServicoStatusEnum::CANCELADO) {
+            // Apenas serviços abertos, aceitos ou cancelados podem ser excluídos.
+            if (! in_array($servico->status, [
+                ServicoStatusEnum::AGUARDANDO,
+                ServicoStatusEnum::ACEITO,
+                ServicoStatusEnum::CANCELADO,
+            ], true)) {
                 return response()->json([
-                    'message' => 'Este serviço não pode ser excluído enquanto estiver ativo. Cancele o serviço antes de excluí-lo.',
+                    'message' => 'Apenas serviços abertos, aceitos ou cancelados podem ser excluídos.',
                 ], 409);
             }
 
@@ -420,7 +424,7 @@ class ServicoController extends Controller
             if (ContaReceber::where('servico_id', $id)->exists()
                 || ContaPagar::where('servico_id', $id)->exists()) {
                 return response()->json([
-                    'message' => 'Este serviço cancelado possui lançamentos financeiros vinculados. Regularize esses registros antes de excluir.',
+                    'message' => 'Este serviço possui lançamentos financeiros vinculados. Regularize esses registros antes de excluir.',
                 ], 409);
             }
 
