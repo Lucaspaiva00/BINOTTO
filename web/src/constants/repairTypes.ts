@@ -12,7 +12,7 @@ export const REPAIR_TYPE_LABEL: Record<RepairType, string> = {
 export const REPAIR_TYPE_COLOR: Record<RepairType, string> = {
   SEM_DANO: "#9CA3AF",
   PDR: "#1F8BFF",
-  PINTURA: "#FACC15",
+  PINTURA: "#F97316",
   TROCA: "#E34C4C",
   ALUMINIO_PDR: "#2F8BFF",
   ALUMINIO_PINTURA: "#2F8BFF",
