@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, Search, ClipboardList, X, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
@@ -22,6 +23,72 @@ import type { Service, ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 
 const PER_PAGE = 20;
+const DELETABLE_STATUSES: ServiceStatus[] = ["aguardando", "aceito", "cancelado"];
+const LIST_STATUSES: ServiceStatus[] = ["aguardando", "aceito", "em_execucao", "finalizado", "cancelado"];
+
+function ServiceActions({ service, open, deleting, onOpenChange, onEdit, onDelete }: {
+  service: Service;
+  open: boolean;
+  deleting: boolean;
+  onOpenChange: (open: boolean) => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const canDelete = service.status != null && DELETABLE_STATUSES.includes(service.status);
+  const menuId = `service-actions-${service.id}`;
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOutside(event: PointerEvent) {
+      if (event.target instanceof Node && !triggerRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) onOpenChange(false);
+    }
+    function close() { onOpenChange(false); }
+    document.addEventListener("pointerdown", closeOutside);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open, onOpenChange]);
+
+  function toggle() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setPosition({
+      top: rect.bottom + 96 > window.innerHeight ? rect.top - 88 : rect.bottom,
+      left: Math.max(8, Math.min(rect.right - 160, window.innerWidth - 168)),
+    });
+    onOpenChange(!open);
+  }
+
+  return (
+    <div className="inline-block text-left" onMouseLeave={() => onOpenChange(false)} onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget) && !menuRef.current?.contains(event.relatedTarget)) onOpenChange(false);
+    }} onKeyDown={(event) => {
+      if (event.key === "Escape") { event.preventDefault(); onOpenChange(false); triggerRef.current?.focus(); }
+    }}>
+      <button ref={triggerRef} type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${service.id}`} aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={toggle}>
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} id={menuId} role="group" aria-label={`Ações do serviço ${service.id}`} className="fixed z-50 w-40 py-1" style={position}>
+          <div className="rounded-md border bg-popover p-1 text-popover-foreground shadow-lg">
+            <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => { onOpenChange(false); onEdit(); }}>
+              <Pencil className="mr-2 h-4 w-4" />Editar
+            </button>
+            <button type="button" disabled={deleting || !canDelete} title={canDelete ? "Excluir serviço" : "Exclusão disponível apenas para serviços abertos, aceitos ou cancelados"} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" onClick={() => { onOpenChange(false); onDelete(); }}>
+              <Trash2 className="mr-2 h-4 w-4" />Deletar
+            </button>
+          </div>
+        </div>, document.body,
+      )}
+    </div>
+  );
+}
 
 type StatusFilter = "all" | ServiceStatus;
 
@@ -45,6 +112,7 @@ export default function ServicosList() {
   const [reloadToken, setReloadToken] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [openActionsId, setOpenActionsId] = useState<number | null>(null);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -143,7 +211,7 @@ export default function ServicosList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir serviço definitivamente?</AlertDialogTitle>
             <AlertDialogDescription>
-              O serviço cancelado será excluído definitivamente. As perícias permanecerão no histórico, sem vínculo com o serviço. Registros financeiros existentes serão preservados e, nesse caso, a exclusão não será permitida.
+              O serviço será excluído definitivamente. As perícias permanecerão no histórico, sem vínculo com o serviço. Registros financeiros existentes serão preservados e, nesse caso, a exclusão não será permitida.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -187,7 +255,7 @@ export default function ServicosList() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos os status</SelectItem>
-            {(Object.keys(SERVICE_STATUS_LABEL) as ServiceStatus[]).map((k) => (
+            {LIST_STATUSES.map((k) => (
               <SelectItem key={k} value={k}>
                 {SERVICE_STATUS_LABEL[k]}
               </SelectItem>
@@ -282,19 +350,14 @@ export default function ServicosList() {
                     )}
                   </TableCell>
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                    <details className="relative inline-block text-left group">
-                      <summary className="inline-flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${s.id}`}>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </summary>
-                      <div className="absolute right-0 z-20 mt-1 min-w-40 rounded-md border bg-popover p-1 shadow-lg">
-                        <button type="button" className="flex w-full items-center rounded px-3 py-2 text-sm hover:bg-accent" onClick={() => navigate(`/servicos/${s.id}`)}>
-                          <Pencil className="mr-2 h-4 w-4" />Editar
-                        </button>
-                        <button type="button" disabled={deletingId === s.id || s.status !== "cancelado"} title={s.status !== "cancelado" ? "Cancele o serviço antes de excluir" : "Excluir serviço cancelado"} className="flex w-full items-center rounded px-3 py-2 text-sm text-destructive hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" onClick={() => setPendingDeleteId(s.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" />Deletar
-                        </button>
-                      </div>
-                    </details>
+                    <ServiceActions
+                      service={s}
+                      open={openActionsId === s.id}
+                      deleting={deletingId === s.id}
+                      onOpenChange={(open) => setOpenActionsId((current) => open ? s.id : current === s.id ? null : current)}
+                      onEdit={() => navigate(`/servicos/${s.id}`)}
+                      onDelete={() => setPendingDeleteId(s.id)}
+                    />
                   </TableCell>
                 </TableRow>
               ))
