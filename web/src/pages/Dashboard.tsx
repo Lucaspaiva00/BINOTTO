@@ -59,8 +59,8 @@ export default function Dashboard() {
       if (!["emitida", "enviada", "paga"].includes(item.invoiceStatus ?? "") || item.status === "cancelado") continue;
       const raw = item.issueDate;
       if (!raw) continue;
-      const issued = new Date(raw.slice(0, 10) + "T12:00:00");
-      if (Number.isNaN(issued.getTime()) || issued > now) continue;
+      const issued = new Date(raw.slice(0, 10) + "T00:00:00");
+      if (Number.isNaN(issued.getTime()) || issued > today) continue;
       const amount = Number(item.serviceAmount) || 0;
       const y = issued.getFullYear();
       yearTotals.set(y, (yearTotals.get(y) || 0) + amount);
