@@ -213,7 +213,20 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
             return <div key={item} className="grid grid-cols-[9rem_minmax(9rem,1fr)_5.5rem_minmax(19rem,1.8fr)_minmax(10rem,1fr)_5.5rem] items-center gap-3 rounded-lg border px-3 py-3">
               <span className="font-semibold">{heading}</span>
 
-              <CurrencyInput aria-label={`Fatura — ${heading}`} value={parseAmount(office.valor)} onChange={amount => updatePrice(officeKey, { tipo: "valor", valor: String(amount) })} />
+              <div className="space-y-2">
+                <div className="flex gap-1" role="group" aria-label={`Formato da oficina — ${heading}`}>
+                  <Button type="button" size="sm" aria-pressed={office.tipo === "porcentagem"} variant={office.tipo === "porcentagem" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "porcentagem" })}>%</Button>
+                  <Button type="button" size="sm" aria-pressed={office.tipo === "valor"} variant={office.tipo === "valor" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "valor" })}>Valor</Button>
+                </div>
+                {office.tipo === "valor" ? (
+                  <CurrencyInput aria-label={`Fatura — ${heading}`} value={parseAmount(office.valor)} onChange={amount => updatePrice(officeKey, { valor: String(amount) })} />
+                ) : (
+                  <>
+                    <Input aria-label={`Percentual da oficina — ${heading}`} inputMode="decimal" value={office.valor.replace(".", ",")} onChange={event => updatePrice(officeKey, { valor: event.target.value.replace(/[^0-9,]/g, "") })} />
+                    <p className="text-xs text-muted-foreground">Valor calculado: {formatted(calculated?.oficina)}</p>
+                  </>
+                )}
+              </div>
 
               <div className="flex justify-center">
                 <Switch
@@ -252,6 +265,14 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                   value={formatted(calculated?.tecnico)}
                   title="Valor do técnico em dinheiro"
                 />}
+                <label className="flex items-center gap-2 text-xs">
+                <Switch
+                  aria-label={`Preço do técnico visível para a oficina — ${heading}`}
+                  checked={tech.visivel_app}
+                  onCheckedChange={checked => updatePrice(techKey, { visivel_app: checked })}
+                />
+                Mostrar à oficina
+                </label>
               </div>
 
               <CurrencyInput aria-label={`Sugestão técnico — ${heading}`} value={parseAmount(suggestion.valor)} onChange={amount => updatePrice(suggestionKey, { tipo: "valor", valor: String(amount) })} />

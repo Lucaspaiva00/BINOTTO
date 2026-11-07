@@ -46,14 +46,9 @@ export function pricesFromService(service: Service): DetailedPrices {
   for (const { key } of [...PRICE_KEYS, ...SUGGESTION_KEYS]) {
     const supplied = service.detailedPrices?.[key];
     if (supplied) {
-      const isOffice = key === "oficina_carro" || key === "oficina_desmontagem";
-      const item = key.endsWith("desmontagem") ? "desmontagem" : "carro";
-      const normalizedValue = isOffice && supplied.tipo === "porcentagem"
-        ? service.calculatedPrices?.[item]?.oficina ?? 0
-        : supplied.valor ?? 0;
       defaults[key] = {
-        tipo: isOffice ? "valor" : supplied.tipo,
-        valor: String(normalizedValue),
+        tipo: supplied.tipo,
+        valor: String(supplied.valor ?? 0),
         visivel_app: supplied.visivel_app ?? false,
         habilitado_preenchimento_app: supplied.habilitado_preenchimento_app ?? false,
       };
@@ -118,12 +113,11 @@ export function buildServiceDetailsFormData(form: {
   data.append("precos_detalhados", JSON.stringify(Object.fromEntries(
     [...PRICE_KEYS, ...SUGGESTION_KEYS].map(({ key }) => {
       const current = form.detailedPrices[key];
-      const isOffice = key === "oficina_carro" || key === "oficina_desmontagem";
       const isCommission = key === "tecnico_carro" || key === "tecnico_desmontagem";
       const isSuggestion = key === "tecnico_sugestao_carro" || key === "tecnico_sugestao_desmontagem";
       return [key, {
         ...current,
-        tipo: isOffice || isSuggestion ? "valor" : current.tipo,
+        tipo: isSuggestion ? "valor" : current.tipo,
         valor: parseAmount(current.valor),
         // A tela nova não expõe permissões extras: comissão é apenas calculada no painel.
         habilitado_preenchimento_app: isCommission ? false : current.habilitado_preenchimento_app,

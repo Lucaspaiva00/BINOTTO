@@ -17,7 +17,7 @@ import type { UserSelectionItem } from "@/types/user";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, SERVICE_PARTS_ORDER } from "./serviceDetails";
+import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, resolveDetailedPrices, SERVICE_PARTS_ORDER } from "./serviceDetails";
 
 export default function ServicoNew() {
   const navigate = useNavigate();
@@ -56,9 +56,10 @@ export default function ServicoNew() {
     const next:Record<string,string>={};
     const detailError = validateDetails(form, partsState);
     if(detailError) {toast.error(detailError);return;}
-    const carPrice = form.detailedPrices.oficina_carro;
+    const totals = resolveDetailedPrices(form.detailedPrices);
+    if (!totals) return;
     const techPrice = form.detailedPrices.tecnico_carro;
-    const price=carPrice.tipo === "valor" ? parseAmount(carPrice.valor) : 0;
+    const price = totals.carro.oficina;
     const pay=parseAmount(techPrice.valor);
     if(!form.serviceDate) next.serviceDate="Informe a data do serviço.";
     if(!form.workshopId) next.workshopId="Selecione a oficina.";
