@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Enums\PericiaStatusEnum;
+use App\Enums\ServicoStatusEnum;
 use App\Models\Pericia;
 use App\Models\Servico;
 use App\Support\ServicoPericiaStatusMap;
@@ -17,7 +18,7 @@ class PericiaStatusObserver
             return;
         }
         $servico = Servico::find($pericia->servico_id);
-        if (! $servico) {
+        if (! $servico || $servico->status === ServicoStatusEnum::CANCELADO) {
             return;
         }
 
