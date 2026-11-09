@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import * as FilterDialog from "@radix-ui/react-dialog";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Search, ClipboardList, X, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, Filter, ClipboardList, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { serviceService } from "@/services/serviceService";
@@ -90,20 +90,89 @@ function ServiceActions({ service, open, deleting, onOpenChange, onEdit, onDelet
   );
 }
 
-type StatusFilter = "all" | ServiceStatus;
+type FilterKey = "data_inicial" | "data_final" | "oficina_id" | "cidade" | "pais" | "preco_minimo" | "preco_maximo" | "status";
+
+function ColumnFilter({ label, active, onApply, children }: {
+  label: string;
+  active: boolean;
+  onApply: (data?: FormData) => string | undefined;
+  children: ReactNode;
+}) {
+  const trigger = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 320, maxHeight: 320 });
+
+  useEffect(() => {
+    if (!open) return;
+    function close() { setOpen(false); }
+    window.addEventListener("resize", close);
+    return () => window.removeEventListener("resize", close);
+  }, [open]);
+
+  function changeOpen(next: boolean) {
+    if (next && trigger.current) {
+      const rect = trigger.current.getBoundingClientRect();
+      const width = Math.min(320, window.innerWidth - 16);
+      const top = Math.min(rect.bottom + 6, Math.max(8, window.innerHeight - 360));
+      setPosition({ top, left: Math.min(Math.max(8, rect.left), window.innerWidth - width - 8), width, maxHeight: window.innerHeight - top - 8 });
+      setError("");
+    }
+    setOpen(next);
+  }
+
+  function apply(data?: FormData) {
+    const message = onApply(data);
+    if (message) setError(message);
+    else setOpen(false);
+  }
+
+  return (
+    <FilterDialog.Root open={open} onOpenChange={changeOpen} modal={false}>
+      <FilterDialog.Trigger ref={trigger} type="button" aria-label={`Filtrar ${label}${active ? " (ativo)" : ""}`}
+        className={`inline-flex items-center gap-1.5 rounded px-1.5 py-1 hover:bg-accent ${active ? "bg-primary/15 text-primary" : ""}`}>
+        {label}<Filter className={`h-3.5 w-3.5 shrink-0 ${active ? "fill-current" : ""}`} aria-hidden="true" />
+      </FilterDialog.Trigger>
+      <FilterDialog.Portal>
+        <FilterDialog.Content aria-describedby={undefined} style={position} className="fixed z-50 overflow-y-auto rounded-lg border bg-popover p-4 text-left text-popover-foreground shadow-lg">
+          <FilterDialog.Title className="mb-3 text-sm font-semibold">Filtrar {label}</FilterDialog.Title>
+          <form className="space-y-3" onSubmit={event => { event.preventDefault(); apply(new FormData(event.currentTarget)); }}>
+            {children}
+            {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+            <div className="flex justify-between gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => apply()}>Limpar filtro</Button>
+              <Button type="submit" size="sm">Aplicar</Button>
+            </div>
+          </form>
+        </FilterDialog.Content>
+      </FilterDialog.Portal>
+    </FilterDialog.Root>
+  );
+}
+
+function WorkshopFilterOptions({ workshops, selected }: { workshops: UserSelectionItem[]; selected: string }) {
+  const [search, setSearch] = useState("");
+  const [value, setValue] = useState(selected);
+  const matching = workshops.filter(workshop => workshop.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
+
+  return <>
+    <Input aria-label="Buscar oficina" placeholder="Digite o nome da oficina" value={search} onChange={event => setSearch(event.target.value)} />
+    <input type="hidden" name="oficina_id" value={value} />
+    <div role="group" aria-label="Oficinas cadastradas" className="max-h-36 overflow-y-auto rounded-md border p-1">
+      <button type="button" aria-pressed={!value} onClick={() => setValue("")} className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent aria-pressed:bg-accent">Todas as oficinas</button>
+      {matching.map(workshop => (
+        <button key={workshop.id} type="button" aria-pressed={value === String(workshop.id)} onClick={() => setValue(String(workshop.id))}
+          className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-accent aria-pressed:bg-accent">{workshop.name}</button>
+      ))}
+      {matching.length === 0 && <p className="px-2 py-1.5 text-sm text-muted-foreground">Nenhuma oficina encontrada.</p>}
+    </div>
+  </>;
+}
 
 export default function ServicosList() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [country, setCountry] = useState<string>("all");
-  const [workshop, setWorkshop] = useState<string>("all");
+  const [filters, setFilters] = useState<Partial<Record<FilterKey, string>>>({});
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
-  const [city, setCity] = useState("");
-  const [debouncedCity, setDebouncedCity] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -115,16 +184,6 @@ export default function ServicosList() {
   const [openActionsId, setOpenActionsId] = useState<number | null>(null);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedSearch(search);
-      setDebouncedCity(city);
-      setPage(1);
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [search, city]);
-
-  useEffect(() => {
     userService.listForSelection("OFICINA")
       .then(setWorkshops)
       .catch(() => { /* Filtro opcional: a listagem continua disponível. */ });
@@ -134,25 +193,17 @@ export default function ServicosList() {
     let cancelled = false;
 
     async function loadServices() {
-      if (startDate && endDate && endDate < startDate) {
-        setServices([]);
-        setTotal(0);
-        setLoading(false);
-        return;
-      }
       setLoading(true);
 
       try {
         const response = await serviceService.list({
           page,
           per_page: PER_PAGE,
-          status: status === "all" ? undefined : status,
-          pais: country === "all" ? undefined : country,
-          oficina_id: workshop === "all" ? undefined : Number(workshop),
-          cidade: debouncedCity.trim() || undefined,
-          data_inicial: startDate || undefined,
-          data_final: endDate || undefined,
-          busca: debouncedSearch.trim() || undefined,
+          ...filters,
+          status: filters.status as ServiceStatus | undefined,
+          oficina_id: filters.oficina_id ? Number(filters.oficina_id) : undefined,
+          preco_minimo: filters.preco_minimo ? Number(filters.preco_minimo) : undefined,
+          preco_maximo: filters.preco_maximo ? Number(filters.preco_maximo) : undefined,
         });
         if (cancelled) return;
 
@@ -171,7 +222,7 @@ export default function ServicosList() {
     return () => {
       cancelled = true;
     };
-  }, [page, status, country, workshop, debouncedCity, startDate, endDate, debouncedSearch, reloadToken]);
+  }, [page, filters, reloadToken]);
 
   async function deleteService(id: number) {
     setDeletingId(id);
@@ -188,17 +239,25 @@ export default function ServicosList() {
     }
   }
 
-  const invalidDateRange = Boolean(startDate && endDate && endDate < startDate);
-  function clearFilters() {
-    setSearch("");
-    setStatus("all");
-    setCountry("all");
-    setWorkshop("all");
-    setCity("");
-    setStartDate("");
-    setEndDate("");
-    setPage(1);
+  function filterColumn(label: string, keys: FilterKey[], children: ReactNode) {
+    return <ColumnFilter label={label} active={keys.some(key => Boolean(filters[key]))} onApply={data => {
+      const next = { ...filters };
+      for (const key of keys) {
+        const value = String(data?.get(key) ?? "").trim();
+        if (value) next[key] = value;
+        else delete next[key];
+      }
+      if (next.data_inicial && next.data_final && next.data_final < next.data_inicial) {
+        return "A data final não pode ser anterior à inicial.";
+      }
+      if (next.preco_minimo && next.preco_maximo && Number(next.preco_minimo) > Number(next.preco_maximo)) {
+        return "O preço máximo deve ser maior ou igual ao mínimo.";
+      }
+      setPage(1);
+      setFilters(next);
+    }}>{children}</ColumnFilter>;
   }
+
   function money(value: number, currency: string | null): string {
     const code = currency && /^[A-Z]{3}$/.test(currency) ? currency : "EUR";
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: code }).format(value);
@@ -232,82 +291,29 @@ export default function ServicosList() {
           Criar serviço
         </Button>
       </div>
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">
-        <div className="relative flex-1 min-w-55">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por oficina, criador, cidade ou código"
-            className="pl-9"
-          />
-        </div>
-
-        <Select
-          value={status}
-          onValueChange={(v) => {
-            setStatus(v as StatusFilter);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-47.5">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {LIST_STATUSES.map((k) => (
-              <SelectItem key={k} value={k}>
-                {SERVICE_STATUS_LABEL[k]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={country}
-          onValueChange={(v) => {
-            setCountry(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-35">
-            <SelectValue placeholder="País" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os países</SelectItem>
-            {COMMON_COUNTRIES.map((c) => (
-              <SelectItem key={c} value={c}>
-                {c}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex flex-wrap items-end gap-3 basis-full">
-          <div className="min-w-45 flex-1 space-y-1"><Label>Oficina</Label>
-            <Select value={workshop} onValueChange={(v) => { setWorkshop(v); setPage(1); }}>
-              <SelectTrigger><SelectValue placeholder="Todas as oficinas" /></SelectTrigger>
-              <SelectContent><SelectItem value="all">Todas as oficinas</SelectItem>{workshops.map((w) => <SelectItem key={w.id} value={String(w.id)}>{w.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="min-w-40 flex-1 space-y-1"><Label>Cidade</Label><Input placeholder="Filtrar cidade" value={city} onChange={(e) => setCity(e.target.value)} /></div>
-          <div className="min-w-40 space-y-1"><Label>Data inicial</Label><DateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} /></div>
-          <div className="min-w-40 space-y-1"><Label>Data final</Label><DateInput min={startDate || undefined} value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} /></div>
-          <Button type="button" variant="outline" onClick={clearFilters}><X className="w-4 h-4 mr-1" />Limpar</Button>
-        </div>
-      </div>
-      {invalidDateRange && <p className="text-sm text-destructive mb-4">A data final não pode ser anterior à inicial.</p>}
-
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
         <Table className="min-w-245">
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Oficina</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>País</TableHead>
-              <TableHead className="text-right">Preço da oficina (total)</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-14 text-right">Ações</TableHead>
+              <TableHead>{filterColumn("Data", ["data_inicial", "data_final"], <>
+                <div className="space-y-1"><Label htmlFor="filter-start">Data inicial</Label><DateInput id="filter-start" name="data_inicial" defaultValue={filters.data_inicial} /></div>
+                <div className="space-y-1"><Label htmlFor="filter-end">Data final</Label><DateInput id="filter-end" name="data_final" defaultValue={filters.data_final} /></div>
+              </>)}</TableHead>
+              <TableHead>{filterColumn("Oficina", ["oficina_id"], <WorkshopFilterOptions workshops={workshops} selected={filters.oficina_id ?? ""} />)}</TableHead>
+              <TableHead>{filterColumn("Cidade", ["cidade"], <Input name="cidade" aria-label="Cidade" placeholder="Digite a cidade" defaultValue={filters.cidade} />)}</TableHead>
+              <TableHead>{filterColumn("País", ["pais"], <>
+                <Input name="pais" aria-label="País" list="filter-countries" placeholder="Selecione ou digite o país" defaultValue={filters.pais} />
+                <datalist id="filter-countries">{COMMON_COUNTRIES.map(code => <option key={code} value={code} />)}</datalist>
+              </>)}</TableHead>
+              <TableHead className="text-right">{filterColumn("Preço da oficina (total)", ["preco_minimo", "preco_maximo"], <>
+                <div className="space-y-1"><Label htmlFor="filter-min">Preço mínimo</Label><Input id="filter-min" type="number" min="0" step="0.01" name="preco_minimo" defaultValue={filters.preco_minimo} /></div>
+                <div className="space-y-1"><Label htmlFor="filter-max">Preço máximo</Label><Input id="filter-max" type="number" min="0" step="0.01" name="preco_maximo" defaultValue={filters.preco_maximo} /></div>
+              </>)}</TableHead>
+              <TableHead>{filterColumn("Status", ["status"], <select aria-label="Status" name="status" defaultValue={filters.status ?? ""} className="h-10 w-full rounded-md border bg-background px-2 text-sm">
+                <option value="">Todos os status</option>
+                {LIST_STATUSES.map(status => <option key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</option>)}
+              </select>)}</TableHead>
+              <TableHead className="w-14 text-right">Menu</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -355,7 +361,7 @@ export default function ServicosList() {
                       open={openActionsId === s.id}
                       deleting={deletingId === s.id}
                       onOpenChange={(open) => setOpenActionsId((current) => open ? s.id : current === s.id ? null : current)}
-                      onEdit={() => navigate(`/servicos/${s.id}`)}
+                      onEdit={() => navigate(`/servicos/${s.id}`, { state: { edit: true } })}
                       onDelete={() => setPendingDeleteId(s.id)}
                     />
                   </TableCell>
