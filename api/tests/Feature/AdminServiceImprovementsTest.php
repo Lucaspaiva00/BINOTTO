@@ -212,12 +212,39 @@ class AdminServiceImprovementsTest extends TestCase
         $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'valor_a_pagar' => 300]);
     }
 
-    public function test_finalized_service_status_cannot_be_reopened_from_the_edit_form(): void
+    public function test_reopening_a_finalized_service_clears_its_technician_and_acceptance(): void
     {
-        $s = $this->service(['status' => ServicoStatusEnum::FINALIZADO]);
-        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'aguardando']))
-            ->assertUnprocessable()->assertJsonValidationErrors('status');
-        $this->assertSame(ServicoStatusEnum::FINALIZADO, $s->fresh()->status);
+        $s = $this->service(['status' => ServicoStatusEnum::FINALIZADO, 'tecnico_id' => 2, 'aceito_em' => now()]);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'aguardando', 'tecnico_id' => 2]))
+            ->assertOk()->assertJsonPath('data.status', 'aguardando')->assertJsonPath('data.technicianId', null);
+        $this->assertDatabaseHas('servicos', ['id' => $s->id, 'tecnico_nome_manual' => null, 'aceito_em' => null]);
+    }
+
+    public function test_changing_finalized_service_technician_reopens_with_the_new_technician(): void
+    {
+        $s = $this->service(['status' => ServicoStatusEnum::FINALIZADO, 'tecnico_nome_manual' => 'Técnico anterior']);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $this->payload(['status' => 'finalizado', 'tecnico_id' => 2]))
+            ->assertOk()->assertJsonPath('data.status', 'aguardando')->assertJsonPath('data.technicianId', 2)
+            ->assertJsonPath('data.manualTechnicianName', null);
+        $this->assertDatabaseCount('contas_pagar', 0);
+    }
+
+    public function test_cancelling_a_finalized_service_cancels_finance_and_reopens_inspections(): void
+    {
+        $s = $this->service();
+        DB::table('pericias')->insert(['id' => 1, 'servico_id' => $s->id, 'status' => 'aberta']);
+        $payload = $this->payload(['status' => 'finalizado', 'tecnico_id' => 2]);
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+        DB::table('contas_pagar')->where('servico_id', $s->id)->update(['status' => 'pago', 'valor_pago' => 330]);
+        DB::table('contas_receber')->where('servico_id', $s->id)->update(['status' => 'recebido', 'numero_fatura' => 'OF-123']);
+        $payload['status'] = 'cancelado';
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)
+            ->assertOk()->assertJsonPath('data.status', 'cancelado')->assertJsonPath('data.technicianId', 2);
+        $this->assertDatabaseHas('contas_pagar', ['servico_id' => $s->id, 'status' => 'cancelado', 'valor_pago' => 330]);
+        $this->assertDatabaseHas('contas_receber', ['servico_id' => $s->id, 'status' => 'cancelado', 'numero_fatura' => 'OF-123']);
+        $this->assertDatabaseHas('pericias', ['id' => 1, 'status' => 'aberta', 'concluida_em' => null]);
+        \App\Models\Pericia::findOrFail(1)->update(['status' => \App\Enums\PericiaStatusEnum::CONCLUIDA]);
+        $this->assertSame(ServicoStatusEnum::CANCELADO, $s->fresh()->status);
     }
 
     public function test_invalid_photo_rolls_back_service_and_vehicle_before_finalization(): void
@@ -243,6 +270,19 @@ class AdminServiceImprovementsTest extends TestCase
         $this->getJson('/api/admin/servicos?data_inicial=2026-09-15&data_final=2026-09-15')
             ->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.total', 2);
         $this->assertNotEquals($new->id, $legacy->id);
+    }
+
+    public function test_column_filters_combine_calculated_total_and_other_columns(): void
+    {
+        $calculated = $this->service();
+        $this->postJson("/api/admin/servicos/{$calculated->id}/detalhes", $this->payload())->assertOk();
+        $legacy = $this->service(['valor_total' => 900, 'data_servico' => '2026-09-15']);
+        $this->service(['valor_total' => 1200, 'data_servico' => '2026-09-15', 'status' => ServicoStatusEnum::ACEITO]);
+        $this->getJson('/api/admin/servicos?preco_minimo=1199&preco_maximo=1200&status=aguardando&oficina_id=1&data_inicial=2026-09-15&data_final=2026-09-15')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.id', $calculated->id);
+        $this->getJson('/api/admin/servicos?preco_maximo=900')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.id', $legacy->id);
+        $this->getJson('/api/admin/servicos?preco_minimo=1200&preco_maximo=900')->assertUnprocessable();
     }
 
     public function test_cancelled_service_cannot_be_finalized_by_the_new_button(): void
