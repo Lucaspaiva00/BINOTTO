@@ -50,10 +50,10 @@ class ServicoController extends Controller
             })
             // A data do serviço corresponde à coluna exibida na listagem; legados usam início/criação.
             ->when($request->filled('data_inicial'), function ($query) use ($request) {
-                $query->whereDate(DB::raw('COALESCE(data_servico, data_inicio, created_at)'), '>=', $request->input('data_inicial'));
+                $query->whereRaw('DATE(COALESCE(data_servico, data_inicio, created_at)) >= ?', [$request->input('data_inicial')]);
             })
             ->when($request->filled('data_final'), function ($query) use ($request) {
-                $query->whereDate(DB::raw('COALESCE(data_servico, data_inicio, created_at)'), '<=', $request->input('data_final'));
+                $query->whereRaw('DATE(COALESCE(data_servico, data_inicio, created_at)) <= ?', [$request->input('data_final')]);
             })
             ->when($request->input('busca'), function ($query, $busca) {
                 $termo = trim($busca);
