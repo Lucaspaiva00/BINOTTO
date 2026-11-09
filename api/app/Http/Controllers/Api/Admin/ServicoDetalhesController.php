@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Enums\FinanceiroStatusEnum;
+use App\Enums\PericiaStatusEnum;
 use App\Enums\ServicoLogTipoEnum;
 use App\Enums\ServicoStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\Admin\ServicoResource;
+use App\Models\ContaPagar;
+use App\Models\ContaReceber;
 use App\Models\Servico;
 use App\Models\ServicoLog;
 use App\Support\ServicoPrecos;
@@ -122,9 +126,28 @@ class ServicoDetalhesController extends Controller
                 if (($metadata['status'] ?? null) === 'finalizado' && $servico->status === ServicoStatusEnum::CANCELADO) {
                     throw ValidationException::withMessages(['status' => ['Um serviço cancelado não pode ser finalizado.']]);
                 }
-                if (in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true)
-                    && isset($metadata['status']) && $metadata['status'] !== $servico->status->value) {
-                    throw ValidationException::withMessages(['status' => ['O status de um serviço finalizado não pode ser alterado nesta edição.']]);
+                $encerrado = in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true);
+                $cancelandoFinalizado = $encerrado && ($metadata['status'] ?? null) === ServicoStatusEnum::CANCELADO->value;
+                if ($encerrado) {
+                    $status = $metadata['status'] ?? $servico->status->value;
+                    if (! in_array($status, [$servico->status->value, 'finalizado', 'aguardando', 'cancelado'], true)) {
+                        throw ValidationException::withMessages(['status' => ['Selecione Finalizado, Aberto ou Cancelado.']]);
+                    }
+
+                    $tecnicoId = array_key_exists('tecnico_id', $metadata) ? $metadata['tecnico_id'] : $servico->tecnico_id;
+                    $nomeManual = array_key_exists('tecnico_nome_manual', $metadata) ? $metadata['tecnico_nome_manual'] : $servico->tecnico_nome_manual;
+                    $trocouTecnico = (string) $tecnicoId !== (string) $servico->tecnico_id
+                        || (string) $nomeManual !== (string) $servico->tecnico_nome_manual;
+                    if (! $cancelandoFinalizado && ($status === 'aguardando' || $trocouTecnico)) {
+                        $metadata['status'] = ServicoStatusEnum::AGUARDANDO;
+                        $metadata['aceito_em'] = null;
+                        $metadata['disponivel_para_todos'] = false;
+                        $metadata['liberado_para_todos_em'] = null;
+                        if (! $trocouTecnico || $tecnicoId === null && ! $nomeManual) {
+                            $metadata['tecnico_id'] = null;
+                            $metadata['tecnico_nome_manual'] = null;
+                        }
+                    }
                 }
                 $veiculo = $servico->primeiroVeiculo ?: $servico->veiculos()->create(['preco_total' => 0, 'reparos_execucao' => []]);
                 $anteriores = $veiculo->fotos_veiculo ?? [];
@@ -207,6 +230,12 @@ class ServicoDetalhesController extends Controller
                     'percentual_tecnico' => $precos['tecnico_carro']['tipo'] === 'porcentagem'
                         ? $precos['tecnico_carro']['valor'] : null,
                 ]));
+                if ($cancelandoFinalizado) {
+                    $financeiro = ['status' => FinanceiroStatusEnum::CANCELADO->value];
+                    ContaReceber::where('servico_id', $servico->id)->update($financeiro);
+                    ContaPagar::where('servico_id', $servico->id)->update($financeiro);
+                    $servico->pericias()->update(['status' => PericiaStatusEnum::ABERTA->value, 'concluida_em' => null]);
+                }
                 ServicoLog::create([
                     'servico_id' => $servico->id,
                     'oficina_id' => $servico->oficina_id,
