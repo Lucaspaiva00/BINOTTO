@@ -13,6 +13,8 @@ export interface ListServicesParams {
   cidade?: string;
   data_inicial?: string;
   data_final?: string;
+  preco_minimo?: number;
+  preco_maximo?: number;
   busca?: string;
 }
 

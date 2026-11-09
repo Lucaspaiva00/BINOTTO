@@ -69,7 +69,7 @@ interface Props {
   canAccept?: boolean;
   canRefuse?: boolean;
   actionBusy?: boolean;
-  statusLocked?: boolean;
+  statusOptions?: ServiceStatus[];
   errors?: Record<string, string>;
 }
 const TYPE_KEYS: RepairType[] = ["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"];
@@ -106,7 +106,7 @@ function VehiclePhotoCard({ label, photo, onChange }: {
 }
 
 export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, partEditor, onPartSelect, onPartChange,
-  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusLocked: _statusLocked = false, errors = {},
+  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {},
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -155,20 +155,21 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   return <div className="space-y-5">
     <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante e Técnico</h2>
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2"><Label>Oficina</Label><SearchableSelect value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
-        <div className="space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
-
-      </div>
-      <div className="border-t border-border pt-4">
-      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
-        <div className="space-y-2"><Label>Técnico</Label><SearchableSelect value={value.technicianId} onChange={v => onChange("technicianId", v)} placeholder="Selecione um técnico" options={[{ value: "", label: "Sem técnico" }, ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
-        <div className="space-y-2"><Label>Status</Label><Select disabled={true} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}><SelectTrigger><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger><SelectContent>{[value.status].map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent></Select></div>
-        <div className="flex items-end gap-2">
-          <Button type="button" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
-          <Button type="button" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,10rem)_minmax(0,1fr)_minmax(7rem,0.75fr)_auto]">
+        <div className="min-w-0 space-y-2"><Label>Oficina</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
+        <div className="min-w-0 space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
+        <div className="min-w-0 space-y-2"><Label>Técnico</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.technicianId || (value.manualTechnicianName ? "manual" : "")} onChange={v => onChange("technicianId", v)} placeholder="Sem técnico" options={[{ value: "", label: "Sem técnico" }, ...(value.manualTechnicianName ? [{ value: "manual", label: value.manualTechnicianName, disabled: true }] : []), ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
+        <div className="min-w-0 space-y-2">
+          <Label htmlFor="service-status">Status</Label>
+          <Select disabled={!statusOptions} value={value.status} onValueChange={v => onChange("status", v as ServiceStatus)}>
+            <SelectTrigger id="service-status"><SelectValue>{SERVICE_STATUS_LABEL[value.status]}</SelectValue></SelectTrigger>
+            <SelectContent>{(statusOptions ?? [value.status]).map(status => <SelectItem key={status} value={status}>{SERVICE_STATUS_LABEL[status]}</SelectItem>)}</SelectContent>
+          </Select>
         </div>
-      </div>
+        <div className="flex items-center gap-2 lg:pt-7">
+          <Button type="button" size="sm" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
+          <Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+        </div>
       </div>
     </section>
 

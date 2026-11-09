@@ -78,7 +78,7 @@ export default function ServicoCreate() {
       await serviceService.saveDetails(created.id, buildServiceDetailsFormData(form, partsState));
       markSaved();
       toast.success(`Serviço #${created.id} criado.`);
-      navigate(`/servicos/${created.id}`);
+      navigate("/servicos");
     } catch (error) {
       if (createdId) {
         toast.warning(`Serviço #${createdId} foi criado, mas os detalhes não foram salvos. Abra o cadastro para completar.`);

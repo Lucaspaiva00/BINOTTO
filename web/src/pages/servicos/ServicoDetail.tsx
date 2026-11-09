@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { ArrowLeft, Building2, Cog, Eye, Save, Wrench, CheckCircle2, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -18,7 +18,7 @@ import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatu
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import type { PericiaStatus } from "@/types/pericia";
 import type { PartInspection } from "@/types/carParts";
-import type { Service, ServiceLog } from "@/types/service";
+import type { Service, ServiceLog, ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
   ServiceAdminForm,
@@ -75,6 +75,7 @@ function formFromService(service: Service): ServiceAdminFormState {
 export default function ServicoDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const openForEdit = useLocation().state?.edit === true;
   const [service, setService] = useState<Service | null>(null);
   const [form, setForm] = useState<ServiceAdminFormState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,7 +109,7 @@ export default function ServicoDetail() {
         setPartsState(normalizeServiceRepairs(data.vehicleRepairs));
         setTechnicians(techs);
         setWorkshops(shops);
-        setEditingFinalized(false);
+        setEditingFinalized(openForEdit);
         markSaved();
       } catch {
         if (!cancelled) setNotFound(true);
@@ -118,11 +119,17 @@ export default function ServicoDetail() {
     }
     load();
     return () => { cancelled = true; };
-  }, [id, markSaved]);
+  }, [id, markSaved, openForEdit]);
 
 
   const lockedByStatus = service ? ["finalizado", "concluido", "recusado", "cancelado"].includes(service.status ?? "") : false;
   const editingEnabled = !lockedByStatus || editingFinalized;
+  const isFinalized = service?.status === "finalizado" || service?.status === "concluido";
+  const finalizedStatus: ServiceStatus = service?.status === "concluido" ? "concluido" : "finalizado";
+
+  const statusOptions: ServiceStatus[] | undefined = isFinalized && editingFinalized
+    ? [finalizedStatus, "aguardando", "cancelado"]
+    : undefined;
 
   function requestEditFinalized() {
     if (!lockedByStatus) return;
@@ -131,7 +138,25 @@ export default function ServicoDetail() {
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
     if (!editingEnabled) return;
-    setForm((current) => current ? { ...current, [field]: value, ...(field === "technicianId" && ["aguardando", "aguardando_aprovacao", "recusado", "cancelado"].includes(current.status) ? { status: value ? "aguardando_aprovacao" as const : "aguardando" as const } : {}) } : current);
+    setForm((current) => {
+      if (!current) return current;
+      const next = { ...current, [field]: value };
+      if (isFinalized && field === "status" && value === "aguardando") {
+        return { ...next, technicianId: "", manualTechnicianName: "", registeredTechnician: false };
+      }
+      if (isFinalized && field === "status" && value === finalizedStatus && service) {
+        return { ...next, technicianId: service.technicianId ? String(service.technicianId) : "", manualTechnicianName: service.manualTechnicianName ?? "", registeredTechnician: Boolean(service.technicianId) };
+      }
+      if (field === "technicianId" && (value !== current.technicianId || current.manualTechnicianName)) {
+        next.manualTechnicianName = "";
+        next.registeredTechnician = Boolean(value);
+        if (isFinalized) next.status = "aguardando";
+        else if (["aguardando", "aguardando_aprovacao", "recusado", "cancelado"].includes(current.status)) {
+          next.status = value ? "aguardando_aprovacao" : "aguardando";
+        }
+      }
+      return next;
+    });
     markDirty();
   }
 
@@ -156,6 +181,7 @@ export default function ServicoDetail() {
 
   async function save(finalize = false) {
     if (saving || actionBusy) return;
+    if (isFinalized && form?.status === "cancelado") { setConfirmation("cancel"); return; }
     setSaving(true);
     try {
       const completed = await persist(finalize);
@@ -214,7 +240,7 @@ export default function ServicoDetail() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{confirmation === "cancel" ? "Cancelar este serviço?" : "Editar serviço encerrado?"}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmation === "cancel" ? "O serviço será marcado como Cancelado e deixará de estar em execução. Você poderá excluí-lo posteriormente, desde que não existam lançamentos financeiros vinculados." : "Este serviço já foi encerrado. Alterações podem modificar informações registradas anteriormente. Deseja liberar a edição?"}</AlertDialogDescription>
+            <AlertDialogDescription>{confirmation === "cancel" ? (isFinalized ? "Os lançamentos financeiros vinculados serão cancelados e as perícias voltarão para Aberto." : "O serviço será marcado como Cancelado e deixará de estar em execução. Você poderá excluí-lo posteriormente, desde que não existam lançamentos financeiros vinculados.") : "Este serviço já foi encerrado. Alterações podem modificar informações registradas anteriormente. Deseja liberar a edição?"}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionBusy}>Voltar</AlertDialogCancel>
@@ -238,7 +264,7 @@ export default function ServicoDetail() {
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
         onPartSelect={editingEnabled ? (partId => {setSelectedPartId(partId);setEditingPart({...partsState[partId],photos:[...partsState[partId].photos]});}) : undefined}
         onPartChange={editingEnabled ? changePart : undefined} onAccept={editingEnabled ? (() => void adminAction("accept")) : undefined} onRefuse={editingEnabled ? (() => void adminAction("refuse")) : undefined}
-        canAccept={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} canRefuse={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} actionBusy={actionBusy} statusLocked={lockedByStatus}partEditor={<ServicePartDialog inline partId={selectedPartId} value={editingPart} onClose={() => {setSelectedPartId(null);setEditingPart(null);}}
+        canAccept={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} canRefuse={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} actionBusy={actionBusy} statusOptions={statusOptions} partEditor={<ServicePartDialog inline partId={selectedPartId} value={editingPart} onClose={() => {setSelectedPartId(null);setEditingPart(null);}}
         onSave={part => {if(selectedPartId)changePart(selectedPartId,part);setSelectedPartId(null);setEditingPart(null);}}/>}
         />
       </fieldset>
