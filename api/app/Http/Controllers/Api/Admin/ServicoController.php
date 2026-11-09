@@ -13,6 +13,7 @@ use App\Models\ContaReceber;
 use App\Models\ContaPagar;
 use App\Models\Servico;
 use App\Models\ServicoLog;
+use App\Support\ServicoPrecos;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,25 +30,23 @@ class ServicoController extends Controller
 
     public function index(Request $request)
     {
-        $servicos = Servico::with([
-            'oficina',
-            'tecnico',
-            'primeiroVeiculo',
-            'criadoPor.oficina',
-            'criadoPor.tecnico',
-        ])
+        $preco = $request->validate([
+            'preco_minimo' => ['sometimes', 'numeric', 'min:0'],
+            'preco_maximo' => ['sometimes', 'numeric', 'min:0', ...($request->filled('preco_minimo') ? ['gte:preco_minimo'] : [])],
+        ]);
+        $query = Servico::query()
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })
             ->when($request->input('pais'), function ($query, $pais) {
-                $query->whereHas('oficina', fn ($o) => $o->where('pais', $pais));
+                $query->whereHas('oficina', fn ($o) => $o->whereRaw('LOWER(pais) = LOWER(?)', [$pais]));
             })
             ->when($request->filled('oficina_id'), function ($query) use ($request) {
                 $query->where('oficina_id', $request->integer('oficina_id'));
             })
             ->when($request->filled('cidade'), function ($query) use ($request) {
                 $cidade = trim((string) $request->input('cidade'));
-                $query->whereHas('oficina', fn ($oficina) => $oficina->where('cidade', 'like', "%{$cidade}%"));
+                $query->whereHas('oficina', fn ($oficina) => $oficina->whereRaw('LOWER(cidade) LIKE LOWER(?)', ["%{$cidade}%"]));
             })
             // A data do serviço corresponde à coluna exibida na listagem; legados usam início/criação.
             ->when($request->filled('data_inicial'), function ($query) use ($request) {
@@ -79,7 +78,25 @@ class ServicoController extends Controller
                         $q->orWhere('id', $termo);
                     }
                 });
-            })
+            });
+
+        if ($preco) {
+            $minimo = $preco['preco_minimo'] ?? 0;
+            $maximo = $preco['preco_maximo'] ?? INF;
+            // Reutiliza o cálculo exibido na listagem, inclusive percentuais e serviços legados.
+            $ids = (clone $query)->select('id', 'valor_total', 'precos_detalhados')->lazyById()
+                ->filter(function (Servico $servico) use ($minimo, $maximo) {
+                    $calculados = ServicoPrecos::calcularSeguro($servico->precos_detalhados ?? []);
+                    $reparacao = $calculados['carro']['oficina'];
+                    $total = $reparacao === null ? (float) $servico->valor_total
+                        : $reparacao + ($calculados['desmontagem']['oficina'] ?? 0);
+                    $total = round($total, 2);
+                    return $total >= $minimo && $total <= $maximo;
+                })->pluck('id')->all();
+            $query->whereIntegerInRaw('id', $ids);
+        }
+
+        $servicos = $query->with(['oficina', 'tecnico', 'primeiroVeiculo', 'criadoPor.oficina', 'criadoPor.tecnico'])
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
 
