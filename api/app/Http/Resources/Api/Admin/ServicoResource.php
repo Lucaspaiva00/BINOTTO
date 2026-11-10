@@ -38,6 +38,7 @@ class ServicoResource extends JsonResource
             'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'canAdminRefuse' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {
+                $repair['especificacoes'] = $this->primeiroVeiculo->especificacoes_pecas[$repair['peca'] ?? ''] ?? null;
                 $repair['fotos'] = collect($repair['fotos'] ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all();
                 return $repair;
             })->all(),

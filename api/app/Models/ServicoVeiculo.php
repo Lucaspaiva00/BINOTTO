@@ -21,6 +21,7 @@ class ServicoVeiculo extends Model
         'modelo',
         'fotos_veiculo',
         'reparos_execucao',
+        'especificacoes_pecas',
         'preco_total',
         'finalizado_em',
     ];
@@ -28,9 +29,13 @@ class ServicoVeiculo extends Model
     protected $casts = [
         'preco_total' => 'decimal:2',
         'reparos_execucao' => 'array',
+        'especificacoes_pecas' => 'array',
         'fotos_veiculo' => 'array',
         'finalizado_em' => 'datetime',
     ];
+
+    // Valores por peça são internos do painel e não fazem parte do JSON do app.
+    protected $hidden = ['especificacoes_pecas'];
 
     // Campos adicionais para o APP; os caminhos antigos continuam intactos.
     protected $appends = ['fotos_veiculo_urls', 'reparos_execucao_urls'];

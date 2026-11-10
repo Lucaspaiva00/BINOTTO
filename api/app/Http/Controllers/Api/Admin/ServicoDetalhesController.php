@@ -67,6 +67,15 @@ class ServicoDetalhesController extends Controller
             'reparos.*.amassadosAte2' => ['required', 'integer', 'min:0', 'max:9999'],
             'reparos.*.amassadosAte5' => ['required', 'integer', 'min:0', 'max:9999'],
             'reparos.*.amassadosAcima5' => ['required', 'integer', 'min:0', 'max:9999'],
+            'reparos.*.especificacoes' => ['sometimes', 'array:amassadosMenor25,amassados25a50,amassadosMaior50,cola,aluminio,percentual,ut,total'],
+            'reparos.*.especificacoes.amassadosMenor25' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'reparos.*.especificacoes.amassados25a50' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'reparos.*.especificacoes.amassadosMaior50' => ['nullable', 'integer', 'min:0', 'max:9999'],
+            'reparos.*.especificacoes.cola' => ['boolean'],
+            'reparos.*.especificacoes.aluminio' => ['boolean'],
+            'reparos.*.especificacoes.percentual' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'reparos.*.especificacoes.ut' => ['nullable', 'integer', 'min:0', 'max:99'],
+            'reparos.*.especificacoes.total' => ['nullable', 'numeric', 'min:0', 'max:99999999'],
             'reparos.*.observacoes' => ['nullable', 'string', 'max:255'],
             'precos' => ['required', 'array', 'min:4', 'max:6'],
             'precos.*.tipo' => ['required', Rule::in(['valor', 'porcentagem'])],
@@ -169,8 +178,12 @@ class ServicoDetalhesController extends Controller
                 }
                 $existing = collect($veiculo->reparos_execucao ?? [])->keyBy('peca');
                 $saved = [];
+                $especificacoes = $veiculo->especificacoes_pecas ?? [];
                 foreach ($reparos as $repair) {
                     $key = $repair['peca'];
+                    if (isset($repair['especificacoes'])) {
+                        $especificacoes[$key] = array_replace($especificacoes[$key] ?? [], $repair['especificacoes']);
+                    }
                     $old = $existing->get($key, []);
                     $known = $old['fotos'] ?? [];
                     $keep = [];
@@ -215,6 +228,7 @@ class ServicoDetalhesController extends Controller
                     'marca_modelo' => trim($brand.' '.$model) ?: null,
                     'fotos_veiculo' => $fotos,
                     'reparos_execucao' => $saved,
+                    'especificacoes_pecas' => $especificacoes ?: null,
                 ]);
                 if ($valoresCalculados['carro']['oficina'] !== null) {
                     $veiculo->update(['preco_total' => $valoresCalculados['carro']['oficina']]);

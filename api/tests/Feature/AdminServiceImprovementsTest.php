@@ -39,6 +39,7 @@ class AdminServiceImprovementsTest extends TestCase
             $t->decimal('preco_total', 12, 2)->default(0); $t->json('reparos_execucao')->nullable();
             $t->json('fotos_veiculo')->nullable(); $t->timestamps();
         });
+        (require database_path('migrations/2026_11_09_235000_add_especificacoes_pecas_to_servico_veiculos.php'))->up();
         Schema::create('pericias', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('status');
             $t->timestamp('concluida_em')->nullable(); $t->timestamps();
@@ -103,6 +104,32 @@ class AdminServiceImprovementsTest extends TestCase
             ->assertJsonPath('data.calculatedTotals.oficina', 1200)->assertJsonPath('data.calculatedTotals.tecnico', 330);
         $this->assertSame('2026-09-01', $s->fresh()->data_inicio->format('Y-m-d'));
         $this->assertDatabaseHas('servico_veiculos', ['servico_id' => $s->id, 'placa' => 'ABC1234']);
+    }
+
+    public function test_piece_specifications_survive_legacy_updates_without_changing_service_prices(): void
+    {
+        $service = $this->service();
+        $payload = $this->payload();
+        $repairs = json_decode($payload['reparos_execucao'], true);
+        $repairs[0]['amassadosAte2'] = 4;
+        $repairs[0]['especificacoes'] = [
+            'amassadosMenor25' => 6, 'amassados25a50' => 2, 'amassadosMaior50' => 0,
+            'cola' => true, 'aluminio' => false, 'percentual' => 12.5, 'ut' => 7, 'total' => 95.5,
+        ];
+        $url = "/api/admin/servicos/{$service->id}/detalhes";
+        $this->postJson($url, array_replace($payload, ['reparos_execucao' => json_encode($repairs)]))
+            ->assertOk()->assertJsonPath('data.vehicleRepairs.0.especificacoes', $repairs[0]['especificacoes'])
+            ->assertJsonPath('data.calculatedTotals.oficina', 1200);
+
+        $repairs[0]['especificacoes']['ut'] = 100;
+        $this->postJson($url, array_replace($payload, ['reparos_execucao' => json_encode($repairs)]))
+            ->assertUnprocessable()->assertJsonValidationErrors('reparos.0.especificacoes.ut');
+
+        unset($repairs[0]['especificacoes']);
+        $this->postJson($url, array_replace($payload, ['reparos_execucao' => json_encode($repairs)]))
+            ->assertOk()->assertJsonPath('data.vehicleRepairs.0.especificacoes.ut', 7)
+            ->assertJsonPath('data.vehicleRepairs.0.amassadosAte2', 4);
+        $this->assertArrayNotHasKey('especificacoes_pecas', $service->fresh()->primeiroVeiculo->toArray());
     }
 
     public function test_registered_technician_clears_manual_name_and_accepts_assignment(): void
