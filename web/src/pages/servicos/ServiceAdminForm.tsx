@@ -205,7 +205,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         <Button type="button" size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
       </div>
       {vehicleView === "2d"
-        ? <CarDiagram2D square partOrder={SERVICE_PARTS_ORDER} partLabel={servicePartLabel} partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
+        ? <CarDiagram2D square layout="separated" partOrder={SERVICE_PARTS_ORDER} partLabel={servicePartLabel} partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
         : <CarDiagram square partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
       <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
 
