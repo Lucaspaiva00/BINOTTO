@@ -8,7 +8,19 @@ export type RepairType =
 
 export type PartPhoto = File | string;
 
+export interface ServicePartSpecification {
+  amassadosMenor25?: number | null;
+  amassados25a50?: number | null;
+  amassadosMaior50?: number | null;
+  cola?: boolean;
+  aluminio?: boolean;
+  percentual?: number | null;
+  ut?: number | null;
+  total?: number | null;
+}
+
 export interface PartInspection {
+  specification?: ServicePartSpecification;
   assessed?: boolean;
   repairType: RepairType;
   dentCount: number;

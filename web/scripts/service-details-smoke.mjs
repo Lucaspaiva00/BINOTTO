@@ -8,7 +8,7 @@ try {
   assert(SERVICE_PARTS_ORDER.every(id => initial[id].assessed === false));
   const saved = normalizeServiceRepairs([
     { peca: 'capo', tipoReparo: 'SEM_DANO', avaliada: true },
-    { peca: 'teto', tipoReparo: 'PDR', amassadosAte2: 3 },
+    { peca: 'teto', tipoReparo: 'PDR', amassadosAte2: 3, especificacoes: { amassadosMenor25: 6, cola: true, ut: 7, total: 0 } },
     { peca: 'porta_dianteira_esq', tipoReparo: 'SEM_DANO', avaliada: false },
   ]);
   assert.equal(saved.capo.assessed, true);
@@ -39,6 +39,7 @@ try {
   assert.equal(repairs.find(part => part.peca === 'capo').avaliada, true);
   assert.equal(repairs.find(part => part.peca === 'porta_dianteira_esq').avaliada, false);
   assert.equal(repairs.find(part => part.peca === 'teto').amassadosAte2, 3);
+  assert.deepEqual(repairs.find(part => part.peca === 'teto').especificacoes, { amassadosMenor25: 6, cola: true, ut: 7, total: 0 });
   const serializedPrices = JSON.parse(data.get('precos_detalhados'));
   assert.equal(serializedPrices.oficina_carro.visivel_app, true);
   assert.equal(serializedPrices.tecnico_sugestao_carro.habilitado_preenchimento_app, true);

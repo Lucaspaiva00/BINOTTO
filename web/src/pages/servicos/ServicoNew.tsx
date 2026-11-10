@@ -123,7 +123,7 @@ export default function ServicoNew() {
       </section>
       <fieldset disabled={saving || loading} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} onPartSelect={openPart}
-        onPartChange={(id,part)=>{setPartsState(prev=>({...prev,[id]:part}));markDirty();}} errors={errors}partEditor={<ServicePartDialog inline partId={selectedPartId} value={editingPart} onClose={()=>{setSelectedPartId(null);setEditingPart(null);}}
+        onPartChange={(id,part)=>{setPartsState(prev=>({...prev,[id]:part}));markDirty();}} errors={errors}partEditor={selectedPartId && <ServicePartDialog key={selectedPartId} partId={selectedPartId} value={editingPart} onClose={()=>{setSelectedPartId(null);setEditingPart(null);}}
       onSave={value=>{setEditingPart(value);if(selectedPartId)setPartsState(prev=>({...prev,[selectedPartId]:value}));setSelectedPartId(null);setEditingPart(null);markDirty();}}/>}
       />
       </fieldset>

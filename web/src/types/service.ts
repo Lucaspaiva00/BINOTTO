@@ -1,3 +1,5 @@
+import type { ServicePartSpecification } from "./carParts";
+
 export type ServiceStatus =
   | "aguardando"
   | "aguardando_aprovacao"
@@ -31,6 +33,7 @@ export interface ServiceInspectionSummary {
 }
 
 export interface ServiceVehicleRepair {
+  especificacoes?: ServicePartSpecification | null;
   avaliada?: boolean;
   peca?: string;
   tipoReparo?: string;

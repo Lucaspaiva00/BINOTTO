@@ -100,7 +100,7 @@ export default function ServicoCreate() {
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
         onPartSelect={id => { setSelectedPartId(id); setSelectedValue({ ...partsState[id], photos: [...partsState[id].photos] }); }}
-        onPartChange={changePart} partEditor={<ServicePartDialog inline partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
+        onPartChange={changePart} partEditor={selectedPartId && <ServicePartDialog key={selectedPartId} partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
         onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />}
         />
       </fieldset>

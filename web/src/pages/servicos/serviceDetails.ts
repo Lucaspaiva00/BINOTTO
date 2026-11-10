@@ -1,4 +1,4 @@
-import { CAR_PARTS } from "@/constants/carParts";
+import { CAR_PARTS, getCarPartLabel } from "@/constants/carParts";
 import type { PartInspection } from "@/types/carParts";
 import type { Service, ServiceVehicleRepair } from "@/types/service";
 
@@ -58,9 +58,21 @@ export function pricesFromService(service: Service): DetailedPrices {
 }
 export const SERVICE_PARTS_ORDER = [
   "capo", "paralama_dianteiro_esq", "porta_dianteira_esq", "porta_traseira_esq",
-  "lateral_esq", "coluna_esq", "tampa_inferior", "tampa_superior", "lateral_dir",
+  "lateral_esq", "coluna_esq", "tampa_superior", "tampa_inferior", "lateral_dir",
   "porta_traseira_dir", "porta_dianteira_dir", "paralama_dianteiro_dir", "coluna_dir", "teto",
 ] as const;
+
+export const SERVICE_DENT_FIELDS = [
+  ["amassadosMenor25", "<25 mm"],
+  ["amassados25a50", "25–50 mm"],
+  ["amassadosMaior50", ">50 mm"],
+] as const;
+
+export function servicePartLabel(id: string) {
+  if (id === "lateral_esq") return "Para-lama traseiro esquerdo";
+  if (id === "lateral_dir") return "Para-lama traseiro direito";
+  return getCarPartLabel(id);
+}
 
 export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): Record<string, PartInspection> {
   const result = Object.fromEntries(CAR_PARTS.map(part => [part.id, {
@@ -73,6 +85,7 @@ export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): R
     result[repair.peca] = {
       ...state,
       assessed: repair.avaliada ?? true,
+      specification: repair.especificacoes ?? undefined,
       repairType: (repair.tipoReparo ?? state.repairType) as PartInspection["repairType"],
       dentCount: repair.quantidadeAmassados ?? 0,
       impactsOver25: repair.quantidadeImpactosMaior25 ?? 0,
@@ -132,6 +145,7 @@ export function buildServiceDetailsFormData(form: {
       peca: id,
       avaliada: part.assessed !== false,
       tipoReparo: part.repairType,
+      especificacoes: part.specification,
       amassadosAte2: part.dentsUpTo2 ?? 0,
       amassadosAte5: part.dentsUpTo5 ?? 0,
       amassadosAcima5: part.dentsOver5 ?? 0,
