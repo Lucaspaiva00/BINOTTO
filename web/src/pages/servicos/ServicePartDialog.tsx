@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Camera, FileImage, X } from "lucide-react";
 import { API_BASE_URL } from "@/services/api/config";
-import { REPAIR_TYPE_LABEL, getRepairTypeColor } from "@/constants/repairTypes";
+import { REPAIR_TYPE_LABEL, serviceRepairSwatch } from "@/constants/repairTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,6 @@ import { SERVICE_DENT_FIELDS, servicePartLabel } from "./serviceDetails";
 const TYPES = ["PDR", "PINTURA", "SEM_DANO", "TROCA"] as const;
 const PHOTO_TYPES = "image/jpeg,image/png,image/webp";
 const PRICE_FIELDS = [
-  ["percentual", "Percentual (%)", 100, "0.01"],
-  ["ut", "UT", 99, "1"],
   ["total", "Total da peça", 99999999, "0.01"],
 ] as const;
 
@@ -144,9 +142,9 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
         return;
       }
     }
-    for (const [key, label, max, step] of PRICE_FIELDS) {
+    for (const [key, label, max] of PRICE_FIELDS) {
       const amount = spec[key];
-      if (amount != null && (!Number.isFinite(amount) || amount < 0 || amount > max || (step === "1" && !Number.isInteger(amount)))) {
+      if (amount != null && (!Number.isFinite(amount) || amount < 0 || amount > max)) {
         setError(`Revise o valor de ${label}.`);
         return;
       }
@@ -155,7 +153,7 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
   }
 
   return (
-    <div role="region" aria-labelledby="service-part-title" className="space-y-3"
+    <div role="region" aria-labelledby="service-part-title" className="space-y-5"
       onKeyDown={event => {
         if (event.key === "Escape") onClose();
         if (event.key === "Enter" && event.target instanceof HTMLInputElement) event.preventDefault();
@@ -164,19 +162,21 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
         <h3 id="service-part-title" className="font-semibold">{servicePartLabel(partId)}</h3>
         <Button ref={close} type="button" variant="ghost" size="sm" onClick={onClose}><X className="size-4" />Fechar</Button>
       </div>
-      <div className="flex gap-4">
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={spec.cola ?? false} onChange={event => patchSpec({ cola: event.target.checked })} />Cola</label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={aluminum} onChange={event => {
-          const checked = event.target.checked;
-          patch({ repairType: chooseType(repairType, checked), specification: { ...spec, aluminio: checked } });
-        }} />Alumínio</label>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant={spec.cola ? "default" : "outline"} aria-pressed={Boolean(spec.cola)} onClick={() => patchSpec({ cola: !spec.cola })}>
+          <span aria-hidden className="size-5 rounded-full border" style={{ background: serviceRepairSwatch("COLA") }} />Cola
+        </Button>
+        <Button type="button" variant={aluminum ? "default" : "outline"} aria-pressed={aluminum}
+          onClick={() => patch({ repairType: chooseType(repairType, !aluminum), specification: { ...spec, aluminio: !aluminum } })}>
+          <span aria-hidden className="size-5 rounded-full border" style={{ background: serviceRepairSwatch("PINTURA") }} />Alumínio
+        </Button>
       </div>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de reparação">
         {TYPES.map(type => (
           <Button key={type} type="button" size="sm" variant={part.assessed !== false && repairType === type ? "default" : "outline"}
             aria-pressed={part.assessed !== false && repairType === type}
             onClick={() => patch({ repairType: chooseType(type, aluminum), assessed: true })}>
-            <span aria-hidden style={{ backgroundColor: getRepairTypeColor(type) }} className="size-2.5 rounded-sm" />{REPAIR_TYPE_LABEL[type]}
+            <span aria-hidden style={{ background: serviceRepairSwatch(type) }} className="size-2.5 rounded-sm" />{REPAIR_TYPE_LABEL[type]}
           </Button>
         ))}
       </div>
@@ -192,13 +192,13 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
       {Boolean(part.dentsUpTo2 || part.dentsUpTo5 || part.dentsOver5) && (
         <p className="text-xs text-muted-foreground">Registro anterior: até 2 cm ({part.dentsUpTo2 ?? 0}), até 5 cm ({part.dentsUpTo5 ?? 0}), acima de 5 cm ({part.dentsOver5 ?? 0}).</p>
       )}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="max-w-52">
         {PRICE_FIELDS.map(([key, label, max, step]) => (
           <div className="space-y-1" key={key}>
             <Label htmlFor={`part-${key}`}>{label}</Label>
             {key === "total" && repairType === "TROCA"
               ? <Input id="part-total" value="NOVO" readOnly />
-              : <Input id={`part-${key}`} type="number" inputMode={step === "1" ? "numeric" : "decimal"} min={0} max={max} step={step}
+              : <Input id={`part-${key}`} type="number" inputMode="decimal" min={0} max={max} step={step}
                 value={spec[key] ?? ""} placeholder="—"
                 onChange={event => patchSpec({ [key]: event.target.value === "" ? null : Number(event.target.value) })} />}
           </div>
@@ -206,9 +206,8 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
       </div>
       <div className="space-y-1"><Label htmlFor="part-note">Observações</Label><Input id="part-note" maxLength={255} value={part.notes} onChange={event => patch({ notes: event.target.value })} /></div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">Fotos</span>
-        <Button type="button" variant="outline" size="icon" aria-label="Abrir câmera" title="Abrir câmera" disabled={part.photos.length >= 3 || openingCamera || Boolean(stream)} onClick={() => void openCamera()}><Camera /></Button>
-        <Button type="button" variant="outline" size="icon" aria-label="Buscar foto nos arquivos" title="Buscar foto nos arquivos" disabled={part.photos.length >= 3} onClick={() => files.current?.click()}><FileImage /></Button>
+        <Button type="button" variant="outline" aria-label="Foto — abrir câmera" title="Abrir câmera" disabled={part.photos.length >= 3 || openingCamera || Boolean(stream)} onClick={() => void openCamera()}><Camera />Foto</Button>
+        <Button type="button" variant="outline" aria-label="Carregar — buscar foto nos arquivos" title="Buscar foto nos arquivos" disabled={part.photos.length >= 3} onClick={() => files.current?.click()}><FileImage />Carregar</Button>
         <input ref={camera} hidden type="file" accept={PHOTO_TYPES} capture="environment" onChange={addPhoto} />
         <input ref={files} hidden type="file" accept={PHOTO_TYPES} onChange={addPhoto} />
       </div>

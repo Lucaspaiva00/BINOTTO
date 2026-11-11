@@ -10,13 +10,14 @@ import { userService } from "@/services/userService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import type { PartInspection } from "@/types/carParts";
 import { ServicePartDialog } from "./ServicePartDialog";
-import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, resolveDetailedPrices } from "./serviceDetails";
+import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails, parseAmount, resolveDetailedPrices, summarizeServiceParts } from "./serviceDetails";
 import type { UserSelectionItem } from "@/types/user";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 
 export default function ServicoCreate() {
   const navigate = useNavigate();
-  const [form, setForm] = useState<ServiceAdminFormState>(initialServiceForm);
+  const [draft, setForm] = useState<ServiceAdminFormState>(initialServiceForm);
+  const [manualRepairPrice, setManualRepairPrice] = useState(false);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
   const [technicians, setTechnicians] = useState<UserSelectionItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -25,6 +26,13 @@ export default function ServicoCreate() {
   const [partsState, setPartsState] = useState<Record<string, PartInspection>>(createInitialServiceParts);
   const [selectedPartId, setSelectedPartId] = useState<string | null>(null);
   const [selectedValue, setSelectedValue] = useState<PartInspection | null>(null);
+  const form = manualRepairPrice ? draft : {
+    ...draft,
+    detailedPrices: {
+      ...draft.detailedPrices,
+      oficina_carro: { ...draft.detailedPrices.oficina_carro, valor: String(summarizeServiceParts(partsState).total) },
+    },
+  };
   function changePart(id: string, part: PartInspection) { setPartsState(current => ({ ...current, [id]: part })); markDirty(); }
 
   useEffect(() => {
@@ -36,6 +44,9 @@ export default function ServicoCreate() {
   }, []);
 
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
+    if (field === "detailedPrices" && (value as ServiceAdminFormState["detailedPrices"]).oficina_carro.valor !== form.detailedPrices.oficina_carro.valor) {
+      setManualRepairPrice(true);
+    }
     setForm((current) => ({ ...current, [field]: value, ...(field === "technicianId" ? { status: value ? "aguardando_aprovacao" as const : "aguardando" as const } : {}) }));
     markDirty();
   }
@@ -99,6 +110,9 @@ export default function ServicoCreate() {
       </div>
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
+        fixedInvoice canAccept={Boolean(form.technicianId) && form.status !== "aceito"}
+        canRefuse={Boolean(form.technicianId) && form.status !== "recusado"}
+        onAccept={() => change("status", "aceito")} onRefuse={() => change("status", "recusado")}
         onPartSelect={id => { setSelectedPartId(id); setSelectedValue({ ...partsState[id], photos: [...partsState[id].photos] }); }}
         onPartChange={changePart} partEditor={selectedPartId && <ServicePartDialog key={selectedPartId} partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
         onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />}

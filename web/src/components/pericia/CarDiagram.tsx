@@ -3,12 +3,12 @@ import { Canvas, type ThreeEvent } from "@react-three/fiber";
 import { Center, Html, OrbitControls, useGLTF } from "@react-three/drei";
 import { Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { getCarPartLabel } from "@/constants/carParts";
-import { getRepairTypeColor } from "@/constants/repairTypes";
+import { getRepairTypeColor, SERVICE_REPAIR_COLORS, SERVICE_GLUE_STRIPE, SERVICE_ALUMINUM_STRIPE } from "@/constants/repairTypes";
 import type { PartInspection } from "@/types/carParts";
 import { resolveVehicleProfile } from "@/constants/vehicleCatalog";
 import { resolveVehicleAsset, type VehicleAsset } from "@/constants/vehicleAssets";
 
-interface CarDiagramProps { partsState: Record<string, PartInspection>; selectedPartId: string | null; onSelectPart: (partId: string) => void; canEdit?: boolean; vehicleModel?: string | null; square?: boolean; }
+interface CarDiagramProps { partsState: Record<string, PartInspection>; selectedPartId: string | null; onSelectPart: (partId: string) => void; canEdit?: boolean; vehicleModel?: string | null; square?: boolean; servicePalette?: boolean; }
 type Panel = { id: string; position: [number, number, number]; size: [number, number, number] };
 
 // Painéis independentes permitem registrar a avaria por peça, sem depender de imagem gerada por IA.
@@ -22,22 +22,28 @@ const PANELS: Panel[] = [
   { id: "lateral_esq", position: [-.98, .58, 1.56], size: [.22, .38, .66] }, { id: "lateral_dir", position: [.98, .58, 1.56], size: [.22, .38, .66] },
 ];
 
-function VehiclePanel({ panel, state, selected, canOpen, onSelect, overlayOnly }: { panel: Panel; state?: PartInspection; selected: boolean; canOpen: boolean; onSelect: () => void; overlayOnly?: boolean }) {
+function VehiclePanel({ panel, state, selected, canOpen, onSelect, overlayOnly, servicePalette }: { panel: Panel; state?: PartInspection; selected: boolean; canOpen: boolean; onSelect: () => void; overlayOnly?: boolean; servicePalette?: boolean }) {
   const [hovered, setHovered] = useState(false);
-  const color = state?.assessed === false ? "#FFFFFF" : getRepairTypeColor(state?.repairType ?? "SEM_DANO");
+  const type = state?.repairType ?? "SEM_DANO";
+  const unassessed = state?.assessed === false;
+  const color = unassessed ? "#FFFFFF" : servicePalette ? SERVICE_REPAIR_COLORS[type] : getRepairTypeColor(type);
+  const aluminum = type.startsWith("ALUMINIO_") && (!servicePalette || !unassessed);
+  const glue = servicePalette && state?.specification?.cola;
+  const stripeCount = servicePalette ? 9 : 5;
   const click = (event: ThreeEvent<MouseEvent>) => { event.stopPropagation(); if (canOpen) onSelect(); };
   // Unassessed GLB panels must accept clicks to register the first repair.
-  const unassessed = state?.assessed === false;
   return <mesh position={panel.position} onClick={click} onPointerEnter={(event) => { event.stopPropagation(); setHovered(true); document.body.style.cursor = canOpen ? "pointer" : "default"; }} onPointerLeave={() => { setHovered(false); document.body.style.cursor = "default"; }}>
     <boxGeometry args={panel.size} /><meshStandardMaterial transparent={overlayOnly} opacity={overlayOnly && !unassessed ? .72 : 1} color={color} metalness={.45} roughness={.35} emissive={selected || hovered ? "#ffffff" : "#000000"} emissiveIntensity={selected ? .32 : hovered ? .12 : 0} />
-    {(state?.repairType === "ALUMINIO_PDR" || state?.repairType === "ALUMINIO_PINTURA") && Array.from({ length: 5 }, (_, i) => {
-      const offset = (i - 2) * (panel.size[2] / 6);
+    {(aluminum || glue) && Array.from({ length: stripeCount }, (_, i) => {
+      const offset = (i - (stripeCount - 1) / 2) * (panel.size[2] / (stripeCount + 1));
+      const glueStripe = glue && (!aluminum || i % 2 === 1);
+      const thickness = glueStripe ? .01 : servicePalette ? panel.size[2] / 19 : .013;
       const side = panel.size[0] < .4;
       return <mesh key={i} position={side
         ? [(panel.position[0] > 0 ? 1 : -1) * (panel.size[0] / 2 + .009), 0, offset]
         : [0, panel.size[1] / 2 + .009, offset]}>
-        <boxGeometry args={side ? [.009, panel.size[1] * .92, .013] : [panel.size[0] * .9, .009, .013]} />
-        <meshBasicMaterial color="#27bb70" />
+        <boxGeometry args={side ? [.009, panel.size[1] * .92, thickness] : [panel.size[0] * .9, .009, thickness]} />
+        <meshBasicMaterial color={glueStripe ? SERVICE_GLUE_STRIPE : servicePalette ? SERVICE_ALUMINUM_STRIPE : "#27bb70"} />
       </mesh>;
     })}
     {(hovered || selected) && <Html position={[0, panel.size[1] / 2 + .12, 0]} center distanceFactor={7} style={{ pointerEvents: "none" }}><div className="whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[11px] font-medium text-white shadow-lg">{getCarPartLabel(panel.id)}</div></Html>}
@@ -69,7 +75,7 @@ function Vehicle(props: CarDiagramProps) {
   const hasRealModel = Boolean(asset?.assetPath);
   return <group rotation={[0, -.42, 0]} scale={profile.scale}>
     {hasRealModel ? <Suspense fallback={null}><LicensedVehicleModel asset={asset!} /></Suspense> : <><mesh position={[0, .44, 0]}><boxGeometry args={[1.95, .62, 4.28]} /><meshStandardMaterial color="#FFFFFF" metalness={.55} roughness={.34} /></mesh><mesh position={[0, 1.01, .12]}><boxGeometry args={[1.62, .66, 1.82]} /><meshStandardMaterial color="#17202c" metalness={.7} roughness={.18} transparent opacity={.88} /></mesh>{[-1, 1].flatMap((x) => [-1.3, 1.35].map((z) => <mesh key={`${x}-${z}`} position={[x, .28, z]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.37, .37, .2, 28]} /><meshStandardMaterial color="#080b10" roughness={.48} /></mesh>))}</>}
-    {PANELS.map((panel) => { const state = props.partsState[panel.id]; const canOpen = props.canEdit || (state && state.repairType !== "SEM_DANO"); return <VehiclePanel key={panel.id} panel={panel} state={state} selected={props.selectedPartId === panel.id} canOpen={Boolean(canOpen)} overlayOnly={hasRealModel} onSelect={() => props.onSelectPart(panel.id)} />; })}
+    {PANELS.map((panel) => { const state = props.partsState[panel.id]; const canOpen = props.canEdit || (state && state.repairType !== "SEM_DANO"); return <VehiclePanel key={panel.id} panel={panel} state={state} selected={props.selectedPartId === panel.id} canOpen={Boolean(canOpen)} overlayOnly={hasRealModel} servicePalette={props.servicePalette} onSelect={() => props.onSelectPart(panel.id)} />; })}
   </group>;
 }
 

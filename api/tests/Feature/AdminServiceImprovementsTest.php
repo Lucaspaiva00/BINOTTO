@@ -25,6 +25,7 @@ class AdminServiceImprovementsTest extends TestCase
         Schema::create('servicos', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('oficina_id')->nullable(); $t->unsignedBigInteger('tecnico_id')->nullable();
             $t->unsignedBigInteger('criado_por_usuario_id')->nullable(); $t->string('status');
+            $t->string('quantidade_tipo')->nullable(); $t->integer('quantidade')->nullable(); $t->string('moeda')->nullable();
             $t->date('data_inicio')->nullable(); $t->date('data_fim')->nullable();
             $t->decimal('valor_total', 12, 2)->default(0); $t->decimal('preco_tecnico', 12, 2)->nullable();
             $t->decimal('percentual_tecnico', 12, 2)->nullable(); $t->json('precos_detalhados')->nullable();
@@ -46,7 +47,7 @@ class AdminServiceImprovementsTest extends TestCase
         });
         Schema::create('servico_logs', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id'); $t->unsignedBigInteger('oficina_id')->nullable();
-            $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('tipo'); $t->text('descricao')->nullable(); $t->timestamps();
+            $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('tipo'); $t->text('descricao')->nullable(); $t->json('payload')->nullable(); $t->timestamps();
         });
         Schema::create('servicos_recusados', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id'); $t->unsignedBigInteger('tecnico_id'); $t->timestamps();
@@ -130,6 +131,22 @@ class AdminServiceImprovementsTest extends TestCase
             ->assertOk()->assertJsonPath('data.vehicleRepairs.0.especificacoes.ut', 7)
             ->assertJsonPath('data.vehicleRepairs.0.amassadosAte2', 4);
         $this->assertArrayNotHasKey('especificacoes_pecas', $service->fresh()->primeiroVeiculo->toArray());
+    }
+
+    public function test_direct_creation_records_the_technician_decision(): void
+    {
+        $admin = new \App\Models\User;
+        $admin->id = 9;
+        $this->actingAs($admin);
+
+        foreach (['aceito', 'recusado', 'aguardando_aprovacao'] as $status) {
+            $response = $this->postJson('/api/admin/servicos/direto', [
+                'oficina_id' => 1, 'tecnico_id' => 2, 'status' => $status,
+            ])->assertCreated()->assertJsonPath('data.status', $status)->assertJsonPath('data.technicianId', 2);
+
+            $service = Servico::findOrFail($response->json('data.id'));
+            $this->assertSame($status === 'aceito', $service->aceito_em !== null);
+        }
     }
 
     public function test_registered_technician_clears_manual_name_and_accepts_assignment(): void

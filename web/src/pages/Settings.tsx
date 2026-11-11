@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 
+import { Button } from "@/components/ui/button";
+import { getServiceVehicleView, saveServiceVehicleView } from "@/constants/serviceVehicleView";
+
 const sections = [
   { id: "dashboard", label: "Dashboard" },
   { id: "usuario", label: "Usuário" },
@@ -15,6 +18,8 @@ type SectionId = (typeof sections)[number]["id"];
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+
+  const [vehicleView, setVehicleView] = useState(getServiceVehicleView);
 
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
@@ -39,8 +44,23 @@ export default function Settings() {
       </div>
       <section
         aria-label={sections.find(({ id }) => id === activeSection)?.label}
-        className="mt-5 min-h-[380px] rounded-xl border border-border bg-card"
-      />
+        className="mt-5 min-h-[380px] rounded-xl border border-border bg-card p-5"
+      >
+        {activeSection === "servico" && (
+          <div className="space-y-3">
+            <h2 className="font-semibold">Visualização do veículo</h2>
+            <div className="flex gap-2" role="group" aria-label="Visualização do veículo">
+              {(["2d", "3d"] as const).map(view => (
+                <Button key={view} type="button" aria-pressed={vehicleView === view}
+                  variant={vehicleView === view ? "default" : "outline"}
+                  onClick={() => { saveServiceVehicleView(view); setVehicleView(view); }}>
+                  Veículo {view.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
     </AppLayout>
   );
 }

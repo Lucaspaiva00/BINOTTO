@@ -1,5 +1,6 @@
+import { useId } from "react";
 import { CAR_PART_LAYOUTS, getCarPartLabel } from "@/constants/carParts";
-import { getRepairTypeColor } from "@/constants/repairTypes";
+import { getRepairTypeColor, SERVICE_REPAIR_COLORS, SERVICE_ALUMINUM_STRIPE, SERVICE_GLUE_STRIPE } from "@/constants/repairTypes";
 import type { PartInspection } from "@/types/carParts";
 
 interface Props {
@@ -33,12 +34,24 @@ const SEPARATED_PANELS = [
 
 /** Vista superior 2D: as mesmas IDs das peças do modelo 3D e dos formulários. */
 export function CarDiagram2D({ partsState, selectedPartId, onSelectPart, canEdit = true, square = false, layout = "classic", partOrder, partLabel = getCarPartLabel }: Props) {
+  const patternId = useId();
   const separated = layout === "separated";
   const panels = separated ? SEPARATED_PANELS : CAR_PART_LAYOUTS;
 
   return (
     <div className={`rounded-xl border border-border p-3 ${separated ? "bg-slate-950" : "bg-white"} ${square ? "aspect-square w-full" : "sm:p-5"}`}>
       <svg viewBox={separated ? "0 0 300 369" : "0 0 300 405"} role={separated ? "group" : "img"} aria-label="Vista superior 2D do veículo, com peças selecionáveis" className={`mx-auto block w-full ${square ? "h-full" : "max-w-[420px]"}`}>
+        {separated && <defs>
+          {(["ALUMINIO_PDR", "ALUMINIO_PINTURA"] as const).map(type => (
+            <pattern id={`${patternId}-${type}`} key={type} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="8" height="8" fill={SERVICE_REPAIR_COLORS[type]} />
+              <rect width="4" height="8" fill={SERVICE_ALUMINUM_STRIPE} />
+            </pattern>
+          ))}
+          <pattern id={`${patternId}-cola`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+            <rect width="2" height="6" fill={SERVICE_GLUE_STRIPE} />
+          </pattern>
+        </defs>}
         {separated ? (
           <g aria-hidden="true" fill="#1e293b" stroke="#64748b" strokeWidth="1.3">
             <path d="M117 106 H183 L180 137 H120 Z M120 219 H180 L184 248 H116 Z" />
@@ -53,7 +66,12 @@ export function CarDiagram2D({ partsState, selectedPartId, onSelectPart, canEdit
           const number = (partOrder?.indexOf(part.id) ?? index) + 1;
           const value = partsState[part.id];
           const selected = selectedPartId === part.id;
-          const color = value?.assessed === false || !value?.repairType ? "#f8fafc" : getRepairTypeColor(value.repairType);
+          const type = value?.repairType;
+          let color = "#f8fafc";
+          if (value?.assessed !== false && type) {
+            color = separated ? SERVICE_REPAIR_COLORS[type] : getRepairTypeColor(type);
+            if (separated && type.startsWith("ALUMINIO_")) color = `url(#${patternId}-${type})`;
+          }
           const x = "path" in part ? part.x : part.x + part.w / 2;
           const y = "path" in part ? part.y : part.y + part.h / 2;
           return (
@@ -66,6 +84,9 @@ export function CarDiagram2D({ partsState, selectedPartId, onSelectPart, canEdit
                 <path className="part-shape" d={part.path} transform={"transform" in part ? part.transform : undefined} fill={color} stroke={selected ? "#fbbf24" : "#94a3b8"} strokeWidth={selected ? 3 : 1.5} />
               ) : (
                 <rect className="part-shape" x={part.x} y={part.y} width={part.w} height={part.h} rx={Math.min(12, part.w / 5)} fill={color} stroke={selected ? "#111827" : "#b8bec6"} strokeWidth={selected ? 3.5 : 2.5} />
+              )}
+              {"path" in part && value?.specification?.cola && (
+                <path aria-hidden="true" pointerEvents="none" d={part.path} transform={"transform" in part ? part.transform : undefined} fill={`url(#${patternId}-cola)`} />
               )}
               {separated && part.id.startsWith("porta_dianteira_") && (
                 <path aria-hidden="true" pointerEvents="none" d="M60 123 V178 H86 Q86 156 77 145 Z" transform={"transform" in part ? part.transform : undefined} fill="#1e293b" stroke="#64748b" />

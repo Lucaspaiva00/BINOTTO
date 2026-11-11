@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { Camera, CarFront, Check, CircleDollarSign, ClipboardList, Loader2, Paintbrush, ThumbsDown, ThumbsUp } from "lucide-react";
+import { useState } from "react";
+import { Camera, CarFront, Check, CircleDollarSign, ClipboardList, Loader2, ThumbsDown, ThumbsUp } from "lucide-react";
 import { toast } from "sonner";
 import { CarDiagram } from "@/components/pericia/CarDiagram";
 import { CarDiagram2D } from "@/components/pericia/CarDiagram2D";
@@ -12,18 +12,29 @@ import { Label } from "@/components/ui/label";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { REPAIR_TYPE_LABEL, getRepairTypeColor } from "@/constants/repairTypes";
+import { serviceRepairSwatch } from "@/constants/repairTypes";
+import { getServiceVehicleView } from "@/constants/serviceVehicleView";
+import { VehiclePhotoCard } from "./VehiclePhotoCard";
 import { periciaService, type VehiclePhotoField } from "@/services/periciaService";
-import { API_BASE_URL } from "@/services/api/config";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { SERVICE_STATUS_LABEL } from "@/utils/serviceStatus";
 import type { PartInspection, RepairType } from "@/types/carParts";
 import type { ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
-  parseAmount, localTodayISO, defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, SERVICE_DENT_FIELDS, VEHICLE_PHOTOS, resolveDetailedPrices, servicePartLabel,
+  parseAmount, localTodayISO, defaultPrices, emptyVehiclePhotos, SERVICE_PARTS_ORDER, SERVICE_DENT_FIELDS, VEHICLE_PHOTOS, resolveDetailedPrices, servicePartLabel, shortServicePartLabel, summarizeServiceParts,
   type DetailedPrices, type DetailedPriceKey, type SuggestionPriceKey, type VehiclePhotoKey, type VehiclePhotoMap,
 } from "./serviceDetails";
+
+const VEHICLE_LEGEND: { type: RepairType | "COLA"; label: string }[] = [
+  { type: "COLA", label: "Cola" },
+  { type: "PDR", label: "PDR" },
+  { type: "PINTURA", label: "Pintura" },
+  { type: "ALUMINIO_PDR", label: "Alumínio PDR" },
+  { type: "ALUMINIO_PINTURA", label: "Alumínio PTP" },
+  { type: "TROCA", label: "Troca" },
+  { type: "SEM_DANO", label: "Sem dano" },
+];
 
 export type TechnicianCompensationType = "none" | "valor" | "porcentagem";
 export interface ServiceAdminFormState {
@@ -65,46 +76,15 @@ interface Props {
   onPartChange?: (id: string, next: PartInspection) => void;
   onAccept?: () => void;
   onRefuse?: () => void;
+  fixedInvoice?: boolean;
   canAccept?: boolean;
   canRefuse?: boolean;
   actionBusy?: boolean;
   statusOptions?: ServiceStatus[];
   errors?: Record<string, string>;
 }
-function resolvePhoto(photo: string): string {
-  if (/^https?:\/\//.test(photo)) return photo;
-  const host = API_BASE_URL.replace(/\/api\/admin\/?$/, "");
-  return `${host}/${photo.replace(/^\/+/, "")}`;
-}
-function VehiclePhotoCard({ label, photo, onChange }: {
-  label: string; photo: File | string | null; onChange: (photo: File | string | null) => void;
-}) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (!photo) { setUrl(null); return; }
-    if (typeof photo === "string") { setUrl(resolvePhoto(photo)); return; }
-    const src = URL.createObjectURL(photo);
-    setUrl(src);
-    return () => URL.revokeObjectURL(src);
-  }, [photo]);
-  return <div className="overflow-hidden rounded-lg border border-border">
-    <div className="relative h-20 bg-muted sm:h-24">{url ? <img src={url} alt={label} className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center"><Camera className="h-6 w-6 text-muted-foreground" /></div>}</div>
-    <div className="space-y-1 p-2"><p className="text-xs font-medium">{label}</p>
-      <label className="block cursor-pointer rounded border px-2 py-1 text-center text-xs hover:bg-accent">
-        {url ? "Substituir" : "Fotografar"}
-        <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => {
-          const file = e.target.files?.[0];
-          if (file) { if (file.size > 8 * 1024 * 1024) toast.error("Foto maior que 8 MB."); else onChange(file); }
-          e.target.value = "";
-        }} />
-      </label>
-      {url && <Button className="w-full h-7" type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>Remover</Button>}
-    </div>
-  </div>;
-}
-
 export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, partEditor, onPartSelect, onPartChange,
-  onAccept, onRefuse, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {},
+  onAccept, onRefuse, fixedInvoice = false, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {},
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
@@ -154,7 +134,8 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   function updatePrice(key: DetailedPriceKey | SuggestionPriceKey, update: Partial<DetailedPrices[DetailedPriceKey | SuggestionPriceKey]>) {
     onChange("detailedPrices", { ...value.detailedPrices, [key]: { ...value.detailedPrices[key], ...update } });
   }
-  const [vehicleView, setVehicleView] = useState<"2d" | "3d">("2d");
+  const [vehicleView] = useState(getServiceVehicleView);
+  const partTotals = summarizeServiceParts(partsState);
   const totals = resolveDetailedPrices(value.detailedPrices);
   const formatted = (amount: number | undefined) => amount == null ? "—" : new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   return <div className="space-y-5">
@@ -173,7 +154,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         </div>
         <div className="flex items-center gap-2 lg:pt-7">
           <Button type="button" size="sm" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
-          <Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId || value.status === "aceito"} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>Recusar</Button>
+          <Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>{value.status === "recusado" ? "Recusado" : "Recusar"}</Button>
         </div>
       </div>
     </section>
@@ -191,34 +172,38 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     </section>
 
     <div className="@container">
-      <div className="grid items-start gap-4 @min-[760px]:grid-cols-[minmax(0,1fr)_minmax(0,2.25fr)]">
-    <section className="min-w-0 rounded-2xl border border-border bg-card p-4 space-y-3">
-      <h2 className="font-semibold">Serviço</h2>
+      <div className="grid gap-4 @min-[760px]:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+    <section className="min-w-0 space-y-3 rounded-2xl border border-border bg-card p-4" aria-label="Serviço">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Tipo de perícia">
         <Button type="button" size="sm" variant={value.inspectionType === "simples" ? "default" : "outline"} onClick={() => onChange("inspectionType", "simples")}>Perícia básica</Button>
         <Button type="button" size="sm" variant={value.inspectionType === "completa" ? "default" : "outline"} onClick={() => onChange("inspectionType", "completa")}>Perícia detalhada</Button>
       </div>
-      <p className="text-xs text-muted-foreground">Por enquanto, essa escolha identifica o serviço sem modificar automaticamente os cálculos.</p>
-      <div className="flex flex-wrap gap-2"><Button type="button" size="sm" aria-pressed={allPartsAre("PDR")} variant={allPartsAre("PDR") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PDR")}>Tudo PDR</Button><Button type="button" size="sm" aria-pressed={allPartsAre("PINTURA")} variant={allPartsAre("PINTURA") ? "default" : "outline"} disabled={!onPartChange} onClick={() => bulk("PINTURA")}><Paintbrush className="mr-1 h-4 w-4"/>Tudo Pintura</Button></div>
-      <div className="flex items-center gap-2" role="group" aria-label="Visualização do veículo">
-        <Button type="button" size="sm" variant={vehicleView === "2d" ? "default" : "outline"} onClick={() => setVehicleView("2d")}>Veículo 2D</Button>
-        <Button type="button" size="sm" variant={vehicleView === "3d" ? "default" : "outline"} onClick={() => setVehicleView("3d")}>Veículo 3D</Button>
+      <div className="space-y-px overflow-hidden rounded-xl">
+        <div className="grid grid-cols-2 gap-px" role="group" aria-label="Reparação de todas as peças">
+          {([["PDR", "PDR"], ["PINTURA", "PTP"]] as const).map(([type, label]) => (
+            <Button key={type} type="button" size="sm" aria-pressed={allPartsAre(type)}
+              variant={allPartsAre(type) ? "default" : "secondary"} disabled={!onPartChange} onClick={() => bulk(type)}
+              className={`h-9 rounded-none ${allPartsAre(type) ? "" : "bg-slate-950 text-white hover:bg-slate-800"}`}>
+              <span aria-hidden className="size-3 rounded-sm" style={{ background: serviceRepairSwatch(type) }} />{label}
+            </Button>
+          ))}
+        </div>
+        <div className="[&>div]:rounded-t-none">
+        {vehicleView === "2d"
+          ? <CarDiagram2D square layout="separated" partOrder={SERVICE_PARTS_ORDER} partLabel={servicePartLabel} partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
+          : <CarDiagram square servicePalette partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
       </div>
-      {vehicleView === "2d"
-        ? <CarDiagram2D square layout="separated" partOrder={SERVICE_PARTS_ORDER} partLabel={servicePartLabel} partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} />
-        : <CarDiagram square partsState={partsState} selectedPartId={selectedPiece} onSelectPart={id => { setSelectedPiece(id); onPartSelect?.(id); }} canEdit={Boolean(onPartSelect)} vehicleModel={`${value.brand} ${value.vehicleModel}`} />}
-      <div className="flex flex-wrap items-center gap-3 text-xs"><span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded-sm border bg-white" />Não avaliada</span>{(["PDR", "PINTURA", "TROCA", "ALUMINIO_PDR", "ALUMINIO_PINTURA", "SEM_DANO"] as RepairType[]).map(type => <span className="inline-flex items-center gap-1" key={type}><span className="inline-block h-3 w-3 rounded-sm border" style={type.startsWith("ALUMINIO") ? { background: "repeating-linear-gradient(45deg,#2687f9,#2687f9 3px,#27bb70 3px,#27bb70 4px)" } : { backgroundColor: getRepairTypeColor(type) }} />{REPAIR_TYPE_LABEL[type]}</span>)}</div>
-
+      </div>
     </section>
     <section className="relative min-w-0 rounded-2xl border border-border bg-card" aria-labelledby="service-spec-title">
-      <div className="p-3 sm:p-4" inert={Boolean(partEditor)}>
+      <div className="flex h-full flex-col p-3 sm:p-4" inert={Boolean(partEditor)}>
         <h2 id="service-spec-title" className="mb-3 font-semibold">Especificações</h2>
-        <table className="w-full table-fixed text-xs [overflow-wrap:anywhere]">
+        <table className="h-full w-full table-fixed text-xs [overflow-wrap:anywhere]">
           <colgroup>
-            <col className="w-[24%]" />
+            <col className="w-[25%]" />
             {SERVICE_DENT_FIELDS.map(([key]) => <col key={key} className="w-[8%]" />)}
             <col className="w-[6%]" /><col className="w-[9%]" /><col className="w-[8%]" />
-            <col className="w-[10%]" /><col className="w-[6%]" /><col className="w-[13%]" />
+            <col className="w-[10%]" /><col className="w-[6%]" /><col className="w-[12%]" />
           </colgroup>
           <thead className="text-muted-foreground">
             <tr className="border-b [&>th]:px-0.5 [&>th]:py-2">
@@ -243,13 +228,13 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                 <th scope="row" className="py-1 text-left font-medium">
                   {onPartSelect
                     ? <button type="button" className="w-full rounded px-0.5 py-1 text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring"
-                        onClick={() => { setSelectedPiece(id); onPartSelect(id); }}>{servicePartLabel(id)}</button>
-                    : servicePartLabel(id)}
+                        onClick={() => { setSelectedPiece(id); onPartSelect(id); }} title={servicePartLabel(id)}>{shortServicePartLabel(id)}</button>
+                    : shortServicePartLabel(id)}
                 </th>
                 {SERVICE_DENT_FIELDS.map(([key]) => <td key={key} className="tabular-nums">{spec?.[key] ?? "—"}</td>)}
                 {flags.map(([label, checked]) => <td key={label}>
-                  <span className="inline-flex size-3.5 items-center justify-center rounded-sm border border-muted-foreground/60 align-middle">
-                    {checked && <Check aria-hidden="true" className="size-3 text-emerald-600" />}
+                  <span className="relative inline-flex size-3.5 items-center justify-center rounded-full border border-muted-foreground/60 align-middle">
+                    {checked && <Check aria-hidden="true" strokeWidth={3} className="absolute -right-1 -top-1 size-5 text-emerald-600 dark:text-emerald-400" />}
                     <span className="sr-only">{label}: {checked ? "sim" : "não"}</span>
                   </span>
                 </td>)}
@@ -259,12 +244,26 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
               </tr>;
             })}
           </tbody>
+          <tfoot className="border-t bg-muted/60 font-semibold tabular-nums">
+            <tr className="[&>td]:px-0.5 [&>td]:py-3 [&>td]:text-center">
+              <th scope="row" className="px-1 text-left">TOTAL</th>
+              {SERVICE_DENT_FIELDS.map(([key]) => <td key={key}>{partTotals[key]}</td>)}
+              <td colSpan={4} />
+              <td>{partTotals.ut}</td>
+              <td>{formatted(partTotals.total)}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       {partEditor && <div className="absolute inset-0 z-10 overflow-y-auto rounded-2xl border border-primary/40 bg-card p-4 shadow-lg">
         {partEditor}
       </div>}
     </section>
+        <ul aria-label="Legenda do veículo" className="flex flex-wrap justify-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card px-3 py-3 text-xs @min-[760px]:col-span-2">
+          {VEHICLE_LEGEND.map(({ type, label }) => <li key={type} className="inline-flex items-center gap-1">
+            <span aria-hidden className="size-3.5 rounded-sm border border-muted-foreground/50" style={{ background: serviceRepairSwatch(type) }} />{label}
+          </li>)}
+        </ul>
       </div>
     </div>
 
@@ -296,10 +295,10 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
               <span className="font-semibold">{heading}</span>
 
               <div className="space-y-2">
-                <div className="flex gap-1" role="group" aria-label={`Formato da oficina — ${heading}`}>
+                {!fixedInvoice && <div className="flex gap-1" role="group" aria-label={`Formato da oficina — ${heading}`}>
                   <Button type="button" size="sm" aria-pressed={office.tipo === "porcentagem"} variant={office.tipo === "porcentagem" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "porcentagem" })}>%</Button>
                   <Button type="button" size="sm" aria-pressed={office.tipo === "valor"} variant={office.tipo === "valor" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "valor" })}>Valor</Button>
-                </div>
+                </div>}
                 {office.tipo === "valor" ? (
                   <CurrencyInput aria-label={`Fatura — ${heading}`} value={parseAmount(office.valor)} onChange={amount => updatePrice(officeKey, { valor: String(amount) })} />
                 ) : (

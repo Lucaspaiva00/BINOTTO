@@ -255,6 +255,7 @@ class ServicoController extends Controller
                         ? ($data['remuneracao_tecnico'] ?? null)
                         : null,
                     'status' => $data['status'],
+                    'aceito_em' => $data['status'] === ServicoStatusEnum::ACEITO->value && ! empty($data['tecnico_id']) ? now() : null,
                     'observacoes' => $data['observacoes'] ?? null,
                     'disponivel_para_todos' => false,
                     'liberado_para_todos_em' => now(),

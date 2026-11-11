@@ -25,3 +25,23 @@ export function getRepairTypeLabel(type: string): string {
 export function getRepairTypeColor(type: string): string {
   return REPAIR_TYPE_COLOR[type as RepairType] ?? REPAIR_TYPE_COLOR.SEM_DANO;
 }
+
+export const SERVICE_REPAIR_COLORS: Record<RepairType, string> = {
+  SEM_DANO: "#d1d5db",
+  PDR: "#1f8bff",
+  PINTURA: "#facc15",
+  TROCA: "#e34c4c",
+  ALUMINIO_PDR: "#1f8bff",
+  ALUMINIO_PINTURA: "#facc15",
+};
+
+export const SERVICE_ALUMINUM_STRIPE = "#22c55e";
+export const SERVICE_GLUE_STRIPE = "#111827";
+
+export function serviceRepairSwatch(type: RepairType | "COLA"): string {
+  if (type === "COLA") return `repeating-linear-gradient(135deg, #f8fafc 0 4px, ${SERVICE_GLUE_STRIPE} 4px 6px)`;
+  const color = SERVICE_REPAIR_COLORS[type];
+  return type.startsWith("ALUMINIO_")
+    ? `repeating-linear-gradient(135deg, ${color} 0 4px, ${SERVICE_ALUMINUM_STRIPE} 4px 8px)`
+    : color;
+}

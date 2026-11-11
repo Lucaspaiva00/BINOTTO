@@ -74,6 +74,29 @@ export function servicePartLabel(id: string) {
   return getCarPartLabel(id);
 }
 
+export function shortServicePartLabel(id: string) {
+  return servicePartLabel(id)
+    .replace(/dianteir[oa]/gi, "Diant.")
+    .replace(/traseir[oa]/gi, "Tras.")
+    .replace(/esquerd[oa]/gi, "Esq.")
+    .replace(/direit[oa]/gi, "Dir.");
+}
+
+export function summarizeServiceParts(parts: Record<string, PartInspection>) {
+  const totals = { amassadosMenor25: 0, amassados25a50: 0, amassadosMaior50: 0, ut: 0, total: 0 };
+  let cents = 0;
+  for (const id of SERVICE_PARTS_ORDER) {
+    const part = parts[id];
+    const spec = part?.specification;
+    if (!spec) continue;
+    for (const [key] of SERVICE_DENT_FIELDS) totals[key] += spec[key] ?? 0;
+    totals.ut += spec.ut ?? 0;
+    if (part.repairType !== "TROCA") cents += Math.round((spec.total ?? 0) * 100);
+  }
+  totals.total = cents / 100;
+  return totals;
+}
+
 export function normalizeServiceRepairs(repairs: ServiceVehicleRepair[] = []): Record<string, PartInspection> {
   const result = Object.fromEntries(CAR_PARTS.map(part => [part.id, {
     assessed: false, repairType: "SEM_DANO", dentCount: 0, impactsOver25: 0, impactsUnder25: 0,
