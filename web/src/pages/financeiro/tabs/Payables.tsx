@@ -202,10 +202,9 @@ export function Payables() {
     }
   }
 
-  async function remove(id: number) {
+  async function remove(id: number, deleteService = false) {
     try {
-      // A exclusão do lançamento não deve apagar o serviço vinculado.
-      const { message } = await payableService.remove(id, false);
+      const { message } = await payableService.remove(id, deleteService);
       toast.success(message);
       setReloadToken((n) => n + 1);
     } catch (error) {
@@ -407,11 +406,15 @@ export function Payables() {
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
-                            <AlertDialogDescription>O lançamento financeiro será excluído definitivamente. O serviço vinculado, se houver, será preservado. Esta ação não pode ser desfeita.</AlertDialogDescription>
+                            <AlertDialogDescription>
+                              Escolha o que deseja excluir. A exclusão é definitiva. O serviço só pode ser excluído se não houver outras movimentações financeiras ou perícias vinculadas.
+                            </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id); }}>Excluir</AlertDialogAction>
+                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(p.id); }}>Excluir lançamento</AlertDialogAction>
+                            {p.serviceId && <AlertDialogAction className="bg-destructive text-destructive-foreground"
+                              onClick={(e) => { e.stopPropagation(); void remove(p.id, true); }}>Excluir lançamento e serviço</AlertDialogAction>}
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

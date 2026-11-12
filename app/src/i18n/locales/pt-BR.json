@@ -1,4 +1,16 @@
 {
+  "accountEntry": {
+    "choose": "Escolha seu perfil",
+    "admin": "Administrativo",
+    "technician": "Técnico",
+    "dismantler": "Desmontador",
+    "workshop": "Empresa / Oficina",
+    "login": "Entrar",
+    "register": "Criar conta",
+    "back": "Voltar",
+    "unknownCity": "Cidade não informada",
+    "manualPrice": "Valor informado pela oficina"
+  },
   "common": {
     "confirm": "Confirmar",
     "cancel": "Cancelar",

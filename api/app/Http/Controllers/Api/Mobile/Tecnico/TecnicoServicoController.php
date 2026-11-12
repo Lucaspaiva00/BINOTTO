@@ -45,7 +45,7 @@ class TecnicoServicoController extends Controller
         $date = $request->input('date');
         $statusFilter = $request->input('status');
 
-        $servicos = Servico::with(['oficina:id,nome_fantasia', 'tecnico', 'primeiroVeiculo'])
+        $servicos = Servico::with(['oficina:id,nome_fantasia,cidade', 'tecnico', 'primeiroVeiculo'])
             ->visiveisParaTecnico($tecnico->id)
             ->when($request->boolean('hide_rejected'), function ($query) use ($tecnico) {
                 $query->whereDoesntHave('recusas', function ($q) use ($tecnico) {

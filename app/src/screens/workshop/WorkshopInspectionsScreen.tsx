@@ -18,9 +18,7 @@ import { colors } from "@/theme/colors";
 import AppHeader from "@/components/common/AppHeader";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { formatDate } from "@/utils/date";
 import ListCard from "@/components/common/ListCard";
-import { formatMoneyOrDash } from "@/utils/currency";
 import { DateRangeValue, SearchDateRangeInput } from "@/components/common/SearchDateRangeInput";
 import { SearchInput } from "@/components/common/SearchInput";
 import WorkshopManagementService from "@/services/WorkshopManagementService";
@@ -219,7 +217,7 @@ export default function WorkshopInspectionsScreen() {
         body={
           <View style={styles.cardCustomBody}>
             <View style={[styles.cardRow, { alignItems: "center", gap: 8 }]}>
-              <Text style={[styles.plateText, { flexShrink: 0 }]} numberOfLines={1}>
+              <Text style={[styles.plateText, { flexShrink: 1, maxWidth: "33%" }]} numberOfLines={1}>
                 {item.placa || "--"}
               </Text>
               <Text style={[styles.carModelText, { flex: 1, minWidth: 0 }]} numberOfLines={1} ellipsizeMode="tail">
@@ -230,16 +228,6 @@ export default function WorkshopInspectionsScreen() {
                   {statusLabel}
                 </Text>
               </View>
-            </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.dateText}>
-                {item.created_at ? formatDate(item.created_at, locale) : "--/--/----"}
-              </Text>
-              <Text style={styles.priceText}>
-                {(item.valor_pericia ?? item.preco_sugerido)
-                  ? formatMoneyOrDash(item.valor_pericia ?? item.preco_sugerido, item.moeda, locale)
-                  : ""}
-              </Text>
             </View>
           </View>
         }

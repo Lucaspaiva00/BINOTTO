@@ -165,13 +165,26 @@ class OficinaDocumentoController extends Controller
             return response()->json(['message' => 'Documento não encontrado.'], 404);
         }
 
-        if (! $documento || ! $documento->arquivo || ! Storage::disk('public')->exists($documento->arquivo)) {
+        $disk = Storage::disk('public');
+        $ownerFolder = $usuario->perfil === 'TECNICO' ? "tecnicos/{$usuario->tecnico->id}/" : "oficinas/{$usuario->oficina->id}/";
+        $path = null;
+        foreach ([$documento?->arquivo, $documento?->url] as $stored) {
+            if (! is_string($stored) || $stored === '') continue;
+            $candidate = ltrim((string) parse_url($stored, PHP_URL_PATH), '/');
+            $candidate = preg_replace('#^(?:public/)?storage/#', '', $candidate);
+            if (str_starts_with($candidate, $ownerFolder)
+                && ! preg_match('#(?:^|/)\.\.(?:/|$)#', $candidate)
+                && ! str_contains($candidate, '\\')
+                && $disk->exists($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
+        if ($path === null) {
             return response()->json(['message' => 'Arquivo não encontrado no armazenamento.'], 404);
         }
 
-        $disk = Storage::disk('public');
-        $mime = $documento->mime_type ?: $disk->mimeType($documento->arquivo);
-        $extension = strtolower(pathinfo($documento->nome ?: $documento->arquivo, PATHINFO_EXTENSION));
+        $extension = strtolower(pathinfo($documento->nome ?: $path, PATHINFO_EXTENSION));
         $previewable = in_array($extension, ['pdf', 'png', 'jpg', 'jpeg'], true);
         if ($previewable) {
             $previewMime = match ($extension) {
@@ -180,14 +193,14 @@ class OficinaDocumentoController extends Controller
                 default => 'image/jpeg',
             };
             // Serve previews inline instead of forcing the browser to download.
-            return response()->file($disk->path($documento->arquivo), [
+            return response()->file($disk->path($path), [
                 'Content-Type' => $previewMime,
                 'Content-Disposition' => 'inline; filename="' . str_replace(['"', "\\r", "\\n"], '', basename($documento->nome ?: 'documento')) . '"',
                 'X-Content-Type-Options' => 'nosniff',
             ]);
         }
 
-        return $disk->download($documento->arquivo, $documento->nome);
+        return $disk->download($path, $documento->nome);
     }
 
     public function destroy(int $usuarioId, int $documentoId)

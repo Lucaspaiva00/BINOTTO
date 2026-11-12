@@ -12,7 +12,7 @@ import { colors } from "@/theme/colors";
 import { isServiceAvailableForTechnician } from "@/utils/serviceAvailability";
 import { colorStatus } from "@/services/ColorStatusService";
 import { getStatusLabelKey } from "@/utils/status";
-import { Calendar, Car, Wrench, MapPin } from "lucide-react-native";
+import { Calendar, Car, Wrench } from "lucide-react-native";
 import { formatDate } from "@/utils/date";
 import { formatMoneyOrDash } from "@/utils/currency";
 
@@ -46,10 +46,9 @@ export default function ServiceCardTechnician({
   const inExecution = service.status === "em_execucao";
   const isComingSoon = service.status === "em_breve";
   const isAvailable = isServiceAvailableForTechnician(service, technicianId);
-  const waitingApproval = service.status === "aguardando_aprovacao";
-  const city = service.cidade || service.oficina?.cidade || service.endereco?.cidade || service.localidade?.cidade || service.municipio || "";
-  const state = service.uf || service.oficina?.uf || service.endereco?.uf || "";
-  const location = [city, state].filter(Boolean).join(" / ");
+  const city = [service.oficina?.cidade, service.cidade, service.endereco?.cidade, service.localidade?.cidade, service.municipio, service.tecnico_label]
+    .find(value => typeof value === "string" && value.trim())?.trim();
+  const serviceDate = service.data_servico || service.data_inicio;
 
   return (
     <TouchableOpacity
@@ -64,8 +63,8 @@ export default function ServiceCardTechnician({
               <Wrench size={18} color={colors.primary} />
             </View>
 
-            <Text style={styles.titleText}>
-              {service.tecnico_label ? service.tecnico_label : null}
+            <Text style={styles.titleText} numberOfLines={1}>
+              {city || t("accountEntry.unknownCity")}
             </Text>
           </View>
 
@@ -93,14 +92,8 @@ export default function ServiceCardTechnician({
           </View>
         </View>
 
-        {(inExecution || waitingApproval) && (
+        {inExecution && (
           <View style={styles.contextRow}>
-            {waitingApproval && (
-              <Text style={styles.contextText}>
-                {service.tecnico_label ? service.tecnico_label : null}
-              </Text>
-            )}
-
             {inExecution && (
               <>
                 <Car size={16} color="#aaa" strokeWidth={2} />
@@ -116,25 +109,14 @@ export default function ServiceCardTechnician({
           </View>
         )}
 
-        <View style={styles.contextRow}>
-          <MapPin size={16} color={colors.primary} strokeWidth={2} />
-          <Text style={styles.contextText} numberOfLines={2}>
-            {location || "Cidade não informada"}
-          </Text>
-        </View>
-
-        {isComingSoon && (
-          <View style={styles.metaRow}></View>
-        )}
-
         {(!inExecution && !isComingSoon) && (
           <View style={styles.metaRow}>
             <View style={styles.metaGroup}>
               <View style={styles.metaItem}>
                 <Calendar size={16} color="#aaa" strokeWidth={2} />
                 <Text style={styles.infoText}>
-                  {service.data_inicio
-                    ? formatDate(service.data_inicio)
+                  {serviceDate
+                    ? formatDate(serviceDate)
                     : "--"}
                 </Text>
               </View>

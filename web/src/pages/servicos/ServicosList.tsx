@@ -5,7 +5,7 @@ import { pdfPending } from "./servicePdf";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, FileText, ClipboardList, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, FileText, ClipboardList, Menu, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +74,7 @@ function ServiceActions({ service, open, deleting, onOpenChange, onEdit, onDelet
       if (event.key === "Escape") { event.preventDefault(); onOpenChange(false); triggerRef.current?.focus(); }
     }}>
       <button ref={triggerRef} type="button" className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent" aria-label={`Ações do serviço ${service.id}`} aria-expanded={open} aria-controls={open ? menuId : undefined} onMouseEnter={openMenu} onClick={openMenu}>
-        <MoreHorizontal className="h-4 w-4" />
+        <Menu className="h-4 w-4" />
       </button>
       {open && createPortal(
         <div ref={menuRef} id={menuId} role="group" aria-label={`Ações do serviço ${service.id}`} className="fixed z-50 w-40 py-1" style={position}>

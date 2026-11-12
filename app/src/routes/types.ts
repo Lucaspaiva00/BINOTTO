@@ -4,6 +4,7 @@ import { UserRegisterResponse } from "@/types/social";
 
 export type PublicStackParamList = {
   AccountEntry: undefined;
+  ProfileAccess: { profile: "technician" | "workshop" };
   Login: undefined;
   RegisterTechnician: undefined;
   RegisterWorkshop: undefined;

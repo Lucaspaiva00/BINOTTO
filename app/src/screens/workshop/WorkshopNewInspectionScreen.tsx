@@ -239,7 +239,7 @@ export default function WorkshopNewInspectionScreen() {
         chassi: data.chassi || "",
         marcaModelo: data.marca_modelo || "",
         periciaCompleta: data.tipo === "completa",
-        inserirValor: Number(data.preco_sugerido) > 0 || Number(data.valor_pericia) > 0,
+        inserirValor: true,
         precoSugerido: String(Number(data.preco_sugerido) * 100 || "0"),
         valorPericia: String(Number(data.valor_pericia) * 100 || "0"),
       });
@@ -259,14 +259,13 @@ export default function WorkshopNewInspectionScreen() {
 
   const handleUseInspection = (inspection: any) => {
     setSelectedInspectionId(Number(inspection.id));
-    const hasPrice = Number(inspection.preco_sugerido) > 0 || Number(inspection.valor_pericia) > 0;
     setInspectionData((prev: any) => ({
       ...prev,
       placa: inspection.placa ?? prev.placa,
       chassi: inspection.chassi ?? prev.chassi,
       marcaModelo: inspection.marca_modelo ?? prev.marcaModelo,
       periciaCompleta: inspection.tipo === "completa",
-      inserirValor: hasPrice,
+      inserirValor: true,
       precoSugerido: String(Number(inspection.preco_sugerido) * 100 || "0"),
       valorPericia: String(Number(inspection.valor_pericia) * 100 || "0"),
     }));
@@ -721,23 +720,7 @@ export default function WorkshopNewInspectionScreen() {
           )}
 
           <View style={styles.surfaceSection}>
-            <View style={{ ...styles.switchRow, marginBottom: 16 }}>
-              <Text style={styles.switchLabel}>
-                {inspectionData.periciaCompleta
-                  ? t("technicianNewServiceScreen.inspectionValueLabel")
-                  : "Valor informado pela oficina"}
-              </Text>
-              <CustomSwitch
-                value={inspectionData.inserirValor}
-                onValueChange={(value) => {
-                  if (!canEdit) return;
-                  setInspectionData((prev: any) => ({ ...prev, inserirValor: value }));
-                }}
-                activeColor={colors.primary}
-                inactiveColor={colors.border}
-              />
-            </View>
-            {inspectionData.inserirValor ? (
+            <Text style={[styles.switchLabel, { marginBottom: 12 }]}>{t("accountEntry.manualPrice")}</Text>
               <Input
                 keyboardType="numeric"
                 value={formatCurrencyInput(
@@ -748,17 +731,14 @@ export default function WorkshopNewInspectionScreen() {
                   const value = parseCurrencyInput(text);
                   setInspectionData((prev: any) => ({
                     ...prev,
+                    inserirValor: true,
                     ...(prev.periciaCompleta ? { valorPericia: value } : { precoSugerido: value }),
                   }));
                 }}
                 style={{ minHeight: 44, fontSize: 14 }}
                 editable={canEdit}
               />
-            ) : (
-              <Text style={[styles.description, { fontStyle: "italic" }]}>
-                {t("technicianNewServiceScreen.hiddenValue")}
-              </Text>
-            )}
+
           </View>
 
           <TouchableOpacity

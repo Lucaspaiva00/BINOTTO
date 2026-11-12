@@ -1,7 +1,7 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import { AccountEntryScreen } from "@/screens/auth/AccountEntryScreen";
+import { AccountEntryScreen, ProfileAccessScreen } from "@/screens/auth/AccountEntryScreen";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
 import { CompleteRegistrationScreen } from "@/screens/auth/CompleteRegistrationScreen";
 import { RegisterTechnicianScreen } from "@/screens/auth/RegisterTechnicianScreen";
@@ -34,6 +34,7 @@ export function PublicNavigator(): JSX.Element {
         component={AccountEntryScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen name="ProfileAccess" component={ProfileAccessScreen} options={{ headerShown: false }} />
       <Stack.Screen
         name="Login"
         component={LoginScreen}

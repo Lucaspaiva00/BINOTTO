@@ -86,8 +86,8 @@ export default function WorkshopDashboardScreen() {
   const handleConfirmModal = () => {
     // Never advance before the API has returned and persisted a valid request.
     if (creatingService || !serviceCreatedId) return;
-    setShowModal(false);
     navigation.navigate("ServiceUpdate", { serviceId: serviceCreatedId });
+    setShowModal(false);
   };
 
   const handleOpenServiceUpdate = (serviceId: number) => {
@@ -143,7 +143,8 @@ export default function WorkshopDashboardScreen() {
       setServiceCreatedId(serviceId);
       setHasPreferredTechs(Boolean(res.possuiPreferidos));
       // Refresh the list so the newly saved request is also visible on return.
-      await loadPendentes(1, false);
+      setTab("pending");
+      void loadPendentes(1, false);
     } catch (err: any) {
       setShowModal(false);
       setError(err?.response?.data?.message || err?.message || "Não foi possível salvar a solicitação. Tente novamente.");
@@ -422,7 +423,7 @@ export default function WorkshopDashboardScreen() {
                 <ListCard
                   onPress={() =>
                     isFinalizado?{}:
-                    service.status == "em_breve"
+                    service.status === "em_breve" || (service.status === "aguardando" && !service.data_inicio)
                       ? handleOpenServiceUpdate(Number(service.id))
                       : handleOpenDetails(Number(service.id))
                   }
