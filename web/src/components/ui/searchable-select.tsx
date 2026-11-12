@@ -54,7 +54,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
   return (
     <div className={cn("relative", className)} onMouseLeave={close} onBlur={event => {
       if (!event.currentTarget.contains(event.relatedTarget)) close();
-    }} onKeyDown={event => {
+    }} onKeyDownCapture={event => {
       if (event.key === "Escape" && open) {
         event.preventDefault();
         close();
