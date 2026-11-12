@@ -70,6 +70,7 @@ class AdminServiceImprovementsTest extends TestCase
             $t->date('data_emissao')->nullable(); $t->date('data_pagamento')->nullable(); $t->text('observacoes')->nullable();
             $t->date('data_lancamento')->nullable(); $t->date('data_vencimento')->nullable(); $t->string('status')->default('pendente'); $t->timestamps();
         });
+        (require database_path('migrations/2026_11_12_180000_create_painel_movimentacoes.php'))->up();
         DB::table('oficinas')->insert(['id' => 1, 'nome_fantasia' => 'Oficina Teste', 'cidade' => 'Milão', 'pais' => 'Itália']);
         DB::table('tecnicos')->insert(['id' => 2, 'nome_completo' => 'Técnico Teste']);
     }
@@ -141,12 +142,50 @@ class AdminServiceImprovementsTest extends TestCase
 
         foreach (['aceito', 'recusado', 'aguardando_aprovacao'] as $status) {
             $response = $this->postJson('/api/admin/servicos/direto', [
-                'oficina_id' => 1, 'tecnico_id' => 2, 'status' => $status,
+                'oficina_id' => 1, 'tecnico_id' => 2, 'status' => $status, 'placa' => 'AB 123 CD',
             ])->assertCreated()->assertJsonPath('data.status', $status)->assertJsonPath('data.technicianId', 2);
 
             $service = Servico::findOrFail($response->json('data.id'));
+            $this->assertSame('AB123CD', $service->primeiroVeiculo->placa);
             $this->assertSame($status === 'aceito', $service->aceito_em !== null);
         }
+    }
+
+    public function test_creation_reference_and_panel_history(): void
+    {
+        $admin = new \App\Models\User;
+        $admin->id = 9;
+        $this->actingAs($admin);
+        $payload = ['oficina_id' => 1, 'status' => 'aguardando', 'referencia_veiculo' => 'ambos'];
+
+        $this->postJson('/api/admin/servicos/direto', $payload + ['placa' => 'AB 12'])
+            ->assertUnprocessable()->assertJsonValidationErrors('chassi');
+        $created = $this->postJson('/api/admin/servicos/direto', $payload + ['placa' => 'AB 12', 'chassi' => 'XYZ 42'])
+            ->assertCreated()->assertJsonPath('data.licensePlate', 'AB12')->assertJsonPath('data.chassis', 'XYZ42');
+        $id = $created->json('data.id');
+        $this->assertDatabaseCount('painel_movimentacoes', 1);
+        $this->getJson('/api/admin/configuracoes/historico')->assertOk()
+            ->assertJsonFragment(['origem' => 'painel', 'metodo' => 'POST', 'referencia' => (string) $id]);
+    }
+
+    public function test_receivables_indicate_payments_to_all_assigned_technicians(): void
+    {
+        $service = $this->service(['tecnico_id' => 2]);
+        DB::table('contas_receber')->insert([
+            'servico_id' => $service->id, 'valor_servico' => 200, 'status' => 'recebido',
+            'data_lancamento' => '2026-09-02',
+        ]);
+        $payment = ['servico_id' => $service->id, 'tecnico_id' => 2, 'valor_a_pagar' => 50, 'valor_pago' => 0];
+        DB::table('contas_pagar')->insert($payment);
+        $first = DB::table('contas_pagar')->value('id');
+        DB::table('contas_pagar')->insert(array_replace($payment, ['valor_a_pagar' => 100]));
+        $url = '/api/admin/contas-receber?servico_de=2026-09-01&servico_ate=2026-09-01&valor_de=150';
+        $this->getJson($url)->assertOk()->assertJsonPath('data.0.technicianPayment', 'pendente');
+        DB::table('contas_pagar')->where('id', $first)->update(['valor_pago' => 50]);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.0.technicianPayment', 'parcial');
+        DB::table('contas_pagar')->where('id', '!=', $first)->update(['status' => 'pago']);
+        $this->getJson($url)->assertOk()->assertJsonPath('data.0.technicianPayment', 'total');
+        $this->getJson($url.'&valor_ate=199')->assertOk()->assertJsonCount(0, 'data');
     }
 
     public function test_registered_technician_clears_manual_name_and_accepts_assignment(): void

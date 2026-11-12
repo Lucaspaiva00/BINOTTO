@@ -11,6 +11,9 @@ export interface ListServicesParams {
   pais?: string;
   oficina_id?: number;
   cidade?: string;
+  tecnico?: string;
+  placa?: string;
+  chassi?: string;
   data_inicial?: string;
   data_final?: string;
   preco_minimo?: number;
@@ -47,6 +50,7 @@ export interface CreateServiceRequestPayload {
 }
 
 export interface AdminServicePayload {
+  referencia_veiculo?: "placa" | "chassi" | "ambos";
   oficina_id: number;
   data_servico?: string;
   tecnico_nome_manual?: string | null;

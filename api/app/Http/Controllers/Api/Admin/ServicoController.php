@@ -44,6 +44,13 @@ class ServicoController extends Controller
             ->when($request->filled('oficina_id'), function ($query) use ($request) {
                 $query->where('oficina_id', $request->integer('oficina_id'));
             })
+            ->when($request->filled('tecnico'), function ($query) use ($request) {
+                $term = '%'.strtolower((string) $request->input('tecnico')).'%';
+                $query->where(function ($inner) use ($term) {
+                    $inner->whereRaw('LOWER(tecnico_nome_manual) LIKE ?', [$term])
+                        ->orWhereHas('tecnico', fn ($tech) => $tech->whereRaw('LOWER(nome_completo) LIKE ?', [$term]));
+                });
+            })
             ->when($request->filled('cidade'), function ($query) use ($request) {
                 $cidade = trim((string) $request->input('cidade'));
                 $query->whereHas('oficina', fn ($oficina) => $oficina->whereRaw('LOWER(cidade) LIKE LOWER(?)', ["%{$cidade}%"]));
@@ -79,6 +86,13 @@ class ServicoController extends Controller
                     }
                 });
             });
+
+        foreach (['placa', 'chassi'] as $field) {
+            if (! $request->filled($field)) continue;
+            $term = '%'.strtoupper(preg_replace('/\s+/u', '', (string) $request->input($field)) ?? '').'%';
+            $query->whereHas('primeiroVeiculo', fn ($vehicle) =>
+                $vehicle->whereRaw("REPLACE(UPPER($field), ' ', '') LIKE ?", [$term]));
+        }
 
         if ($preco) {
             $minimo = $preco['preco_minimo'] ?? 0;
@@ -232,6 +246,15 @@ class ServicoController extends Controller
      */
     public function storeDirect(Request $request)
     {
+        $request->merge([
+            'placa' => preg_replace('/\s+/u', '', (string) $request->input('placa', '')),
+            'chassi' => preg_replace('/\s+/u', '', (string) $request->input('chassi', '')),
+        ]);
+        $request->validate([
+            'referencia_veiculo' => ['nullable', Rule::in(['placa', 'chassi', 'ambos'])],
+            'placa' => ['required_without:chassi', 'required_if:referencia_veiculo,placa,ambos', 'nullable', 'string', 'max:20'],
+            'chassi' => ['required_without:placa', 'required_if:referencia_veiculo,chassi,ambos', 'nullable', 'string', 'max:30'],
+        ]);
         $data = $this->validateAdminService($request, true);
 
         try {

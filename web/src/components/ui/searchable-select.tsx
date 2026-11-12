@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Input } from "./input";
 import { cn } from "@/lib/utils";
@@ -18,6 +18,10 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedLabel, setSelectedLabel] = useState("");
+  const [highlight, setHighlight] = useState(-1);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const listId = useId();
   const selected = options.find((option) => option.value === value);
 
   useEffect(() => {
@@ -34,12 +38,49 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
     return options.filter((option) => option.label.toLocaleLowerCase().includes(term));
   }, [options, query]);
 
+  function close() {
+    setOpen(false);
+    setQuery("");
+    setHighlight(-1);
+  }
+
+  function select(option: SearchableOption) {
+    setSelectedLabel(option.label);
+    onChange(option.value);
+    close();
+    trigger.current?.focus();
+  }
+
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative", className)} onMouseLeave={close} onBlur={event => {
+      if (!event.currentTarget.contains(event.relatedTarget)) close();
+    }} onKeyDown={event => {
+      if (event.key === "Escape" && open) {
+        event.preventDefault();
+        close();
+        trigger.current?.focus();
+      } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        setOpen(true);
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        let next = highlight < 0 ? (direction > 0 ? 0 : filtered.length - 1) : highlight + direction;
+        while (next >= 0 && next < filtered.length && filtered[next].disabled) next += direction;
+        if (next >= 0 && next < filtered.length) {
+          setHighlight(next);
+          list.current?.children[next]?.scrollIntoView({ block: "nearest" });
+        }
+      } else if (event.key === "Enter" && open && highlight >= 0 && !filtered[highlight]?.disabled && filtered[highlight]) {
+        event.preventDefault();
+        select(filtered[highlight]);
+      }
+    }}>
       <button
         type="button"
+        ref={trigger}
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => open ? close() : setOpen(true)}
         className="border-input dark:bg-input/30 flex h-10 w-full items-center justify-between rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className={value ? "text-foreground" : "text-muted-foreground"}>
@@ -54,28 +95,27 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
             <Input
               autoFocus
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setHighlight(-1); }}
+              role="combobox" aria-expanded={true} aria-controls={listId}
+              aria-activedescendant={highlight >= 0 ? `${listId}-${highlight}` : undefined}
               placeholder="Digite para pesquisar..."
               className="pl-8"
             />
           </div>
-          <div className="max-h-60 overflow-y-auto">
+          <div ref={list} id={listId} role="listbox" className="max-h-60 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="px-2 py-3 text-sm text-muted-foreground">Nenhum resultado.</p>
-            ) : filtered.map((option) => (
+            ) : filtered.map((option, index) => (
               <button
                 type="button"
                 key={option.value}
                 disabled={option.disabled}
-                onClick={() => {
-                  setSelectedLabel(option.label);
-                  onChange(option.value);
-                  setOpen(false);
-                  setQuery("");
-                }}
+                id={`${listId}-${index}`} role="option" aria-selected={option.value === value}
+                onMouseEnter={() => setHighlight(index)}
+                onClick={() => select(option)}
                 className={cn(
                   "w-full rounded px-2 py-2 text-left text-sm hover:bg-accent disabled:opacity-50",
-                  value === option.value && "bg-accent",
+                  (highlight === index || value === option.value) && "bg-accent",
                 )}
               >
                 {option.label}

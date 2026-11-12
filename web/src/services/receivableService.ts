@@ -5,6 +5,13 @@ import type { FinanceOrigin, FinanceStatus, Receivable, ReceivablePayload } from
 const BASE_URL = "/contas-receber";
 
 export interface ListReceivablesParams {
+  servico_de?: string;
+  servico_ate?: string;
+  veiculo?: string;
+  referencia?: string;
+  tecnico?: string;
+  valor_de?: string;
+  valor_ate?: string;
   data_de?: string;
   data_ate?: string;
   status?: FinanceStatus;

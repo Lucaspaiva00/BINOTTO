@@ -15,7 +15,44 @@ class ContaReceberController extends Controller
 {
     public function index(Request $request)
     {
+        $date = 'DATE(COALESCE((SELECT COALESCE(data_servico, data_inicio, servicos.created_at) FROM servicos WHERE servicos.id = contas_receber.servico_id), data_emissao, data_lancamento, data_vencimento))';
+        $payments = ContaPagar::query()->whereColumn('contas_pagar.servico_id', 'contas_receber.servico_id')
+            ->whereNotNull('contas_pagar.tecnico_id')->where('status', '!=', 'cancelado')->where('valor_a_pagar', '>', 0);
         $contasReceber = ContaReceber::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_receber'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
+            ->addSelect([
+                'technician_payments' => (clone $payments)->selectRaw('COUNT(*)'),
+                'technician_payments_complete' => (clone $payments)->where(function ($query) {
+                    $query->where('status', 'pago')->orWhereColumn('valor_pago', '>=', 'valor_a_pagar');
+                })->selectRaw('COUNT(*)'),
+                'technician_payments_started' => (clone $payments)->where(function ($query) {
+                    $query->where('status', 'pago')->orWhere('valor_pago', '>', 0);
+                })->selectRaw('COUNT(*)'),
+            ])
+            ->when($request->filled('servico_de'), fn ($query) => $query->whereRaw("$date >= ?", [$request->input('servico_de')]))
+            ->when($request->filled('servico_ate'), fn ($query) => $query->whereRaw("$date <= ?", [$request->input('servico_ate')]))
+            ->when($request->filled('veiculo'), function ($query) use ($request) {
+                $text = '%'.strtolower((string) $request->input('veiculo')).'%';
+                $query->where(function ($inner) use ($text) {
+                    $inner->whereRaw('LOWER(descricao) LIKE ?', [$text])
+                        ->orWhereHas('servico.primeiroVeiculo', fn ($vehicle) => $vehicle->whereRaw('LOWER(marca_modelo) LIKE ?', [$text]));
+                });
+            })
+            ->when($request->filled('referencia'), function ($query) use ($request) {
+                $ref = '%'.strtoupper(preg_replace('/\s+/u', '', (string) $request->input('referencia')) ?? '').'%';
+                $query->whereHas('servico.primeiroVeiculo', fn ($vehicle) => $vehicle->where(function ($inner) use ($ref) {
+                    $inner->whereRaw("REPLACE(UPPER(placa), ' ', '') LIKE ?", [$ref])
+                        ->orWhereRaw("REPLACE(UPPER(chassi), ' ', '') LIKE ?", [$ref]);
+                }));
+            })
+            ->when($request->filled('tecnico'), function ($query) use ($request) {
+                $name = '%'.strtolower((string) $request->input('tecnico')).'%';
+                $query->where(function ($inner) use ($name) {
+                    $inner->whereHas('tecnico', fn ($tech) => $tech->whereRaw('LOWER(nome_completo) LIKE ?', [$name]))
+                        ->orWhereHas('servico', fn ($service) => $service->whereRaw('LOWER(tecnico_nome_manual) LIKE ?', [$name]));
+                });
+            })
+            ->when($request->filled('valor_de') && is_numeric($request->input('valor_de')), fn ($query) => $query->where('valor_servico', '>=', (float) $request->input('valor_de')))
+            ->when($request->filled('valor_ate') && is_numeric($request->input('valor_ate')), fn ($query) => $query->where('valor_servico', '<=', (float) $request->input('valor_ate')))
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })

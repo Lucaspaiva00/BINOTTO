@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { Camera, FileImage, X } from "lucide-react";
 import { API_BASE_URL } from "@/services/api/config";
-import { REPAIR_TYPE_LABEL, serviceRepairSwatch } from "@/constants/repairTypes";
+import { SERVICE_ALUMINUM_STRIPE, REPAIR_TYPE_LABEL, serviceRepairSwatch } from "@/constants/repairTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -168,7 +168,7 @@ export function ServicePartDialog({ partId, value, onClose, onSave }: {
         </Button>
         <Button type="button" variant={aluminum ? "default" : "outline"} aria-pressed={aluminum}
           onClick={() => patch({ repairType: chooseType(repairType, !aluminum), specification: { ...spec, aluminio: !aluminum } })}>
-          <span aria-hidden className="size-5 rounded-full border" style={{ background: serviceRepairSwatch("PINTURA") }} />Alumínio
+          <span aria-hidden className="size-5 rounded-full border" style={{ background: SERVICE_ALUMINUM_STRIPE }} />Alumínio
         </Button>
       </div>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Tipo de reparação">

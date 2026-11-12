@@ -38,6 +38,10 @@ class ContaReceberResource extends JsonResource
             'invoiceFileName' => $this->fatura_nome,
             'invoiceNumber' => $this->numero_fatura,
             'invoiceStatus' => $this->status_fatura,
+            'technicianPayment' => $this->when($this->technician_payments !== null, fn () =>
+                (int) $this->technician_payments === 0 ? null
+                    : ((int) $this->technician_payments_complete === (int) $this->technician_payments ? 'total'
+                        : ((int) $this->technician_payments_started > 0 ? 'parcial' : 'pendente'))),
             'installments' => $this->parcelas ?? [],
             'receivedDate' => $this->data_recebimento?->format('Y-m-d'),
             'notes' => $this->observacoes,

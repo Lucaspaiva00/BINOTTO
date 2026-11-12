@@ -38,6 +38,8 @@ export interface Receivable {
   invoiceFileName?: string | null;
   invoiceNumber?: string | null;
   invoiceStatus?: string | null;
+  invoiceChannels?: Array<"whatsapp" | "email">;
+  technicianPayment?: "total" | "parcial" | "pendente" | null;
   installments?: FinanceInstallment[];
   receivedDate: string | null;
   notes: string | null;

@@ -1,8 +1,10 @@
+import { ColumnFilter } from "@/components/ui/column-filter";
+import type { ReactNode } from "react";
 import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Eye, Trash2, Search, FileText, FileX2, MessageCircle, Mail, CircleCheck, CircleAlert, CircleX, Minus } from "lucide-react";
+import { Plus, Eye, Trash2, FileText, MessageCircle, Mail, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -30,48 +32,41 @@ import type { Receivable, ReceivablePayload, FinanceOrigin, FinanceStatus, Finan
 import type { UserSelectionItem } from "@/types/user";
 import { RECEIVABLE_CATEGORIES, PAYMENT_METHODS } from "@/constants/finance";
 import { formatCurrency } from "@/utils/currency";
-import { endOfMonth, formatDate, startOfMonth, todayISO } from "@/utils/date";
+import { formatDate, todayISO } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { PAGE_SIZE, shopName } from "./shared";
 
-/** Status indicators only reflect fields actually persisted by the API. */
-function InvoiceProgress({ record }: { record: Receivable }) {
-  const hasInvoice = Boolean(record.invoiceNumber || record.invoiceAttachment || record.invoice);
-  const invoiceStatus = (record.invoiceStatus || "").toLowerCase();
-  const sent = ["enviada", "paga"].includes(invoiceStatus);
-  const paidInstallments = (record.installments || []).filter((p) => Boolean(p.data_pagamento));
-  const fullyReceived = ["recebido", "pago"].includes(record.status);
-  const partiallyReceived = !fullyReceived && paidInstallments.length > 0;
-  const overdue = !fullyReceived && Boolean(record.dueDate) && record.dueDate < todayISO();
-  const invoiceLabel = hasInvoice ? (record.invoiceNumber || "Anexada") : "Sem fatura";
-  const title = (label: string) => label;
-  return (
-    <div className="flex items-center gap-3 whitespace-nowrap text-xs" onClick={(e) => e.stopPropagation()}>
-      <div className="flex items-center gap-1.5" title={title(hasInvoice ? `Fatura ${invoiceLabel} — ${record.installments?.length || 0} parcela(s)` : "Sem fatura cadastrada")}>
-        {hasInvoice ? <FileText className="h-4 w-4 text-emerald-500" /> : <FileX2 className="h-4 w-4 text-muted-foreground" />}
-        <span className="max-w-24 truncate">{invoiceLabel}</span>
-        {hasInvoice && <InvoiceAttachment kind="receber" id={record.id} attached={record.invoiceAttachment} />}
-      </div>
-      <span className="text-border">|</span>
-      <div className="flex items-center gap-1" title={sent ? "Fatura marcada como enviada; canal não registrado" : "Envio não confirmado"}>
-        <span className="text-muted-foreground">Enviada</span>
-        {sent ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
-        <MessageCircle className="h-4 w-4 text-muted-foreground opacity-50" aria-label="WhatsApp: canal não registrado" />
-        <Mail className="h-4 w-4 text-muted-foreground opacity-50" aria-label="E-mail: canal não registrado" />
-      </div>
-      <span className="text-border">|</span>
-      <div className="flex items-center gap-1" title={fullyReceived ? `Recebida em ${formatDate(record.receivedDate || paidInstallments[paidInstallments.length - 1]?.data_pagamento || "")}` : partiallyReceived ? `${paidInstallments.length} parcela(s) recebida(s)` : "Não recebida"}>
-        <span className="text-muted-foreground">Recebida</span>
-        {fullyReceived ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : partiallyReceived ? <CircleAlert className="h-4 w-4 text-amber-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
-      </div>
-      <span className="text-border">|</span>
-      <div className="flex items-center gap-1" title={fullyReceived ? "Pagamento concluído" : partiallyReceived ? "Pagamento parcial" : overdue ? "Pagamento vencido" : "Pagamento pendente"}>
-        <span className="text-muted-foreground">Paga</span>
-        {fullyReceived ? <CircleCheck className="h-4 w-4 text-emerald-500" /> : partiallyReceived ? <CircleAlert className="h-4 w-4 text-amber-500" /> : overdue ? <CircleX className="h-4 w-4 text-red-500" /> : <Minus className="h-4 w-4 text-muted-foreground" />}
-      </div>
-    </div>
-  );
+const dash = <Minus aria-hidden className="mx-auto size-4 text-muted-foreground" />;
+
+function dot(color: "green" | "yellow" | "red", title: string) {
+  const backgrounds = { green: "bg-emerald-500", yellow: "bg-amber-400", red: "bg-red-500" };
+  return <span title={title} role="img" aria-label={title} className={`mx-auto block size-3 rounded-full ${backgrounds[color]}`} />;
+}
+
+function invoiceCells(record: Receivable) {
+  const hasInvoice = Boolean(record.invoiceNumber || record.invoiceAttachment || record.invoice || ["emitida", "enviada", "paga"].includes(record.invoiceStatus ?? ""));
+  const installments = record.installments ?? [];
+  const receivedAmount = installments.reduce((sum, part) => sum + Number(part.valor_pago ?? 0), 0);
+  const received = ["recebido", "pago"].includes(record.status) || record.invoiceStatus === "paga"
+    || (record.serviceAmount > 0 && receivedAmount >= record.serviceAmount);
+  const partial = !received && receivedAmount > 0;
+  const channels = record.invoiceChannels ?? [];
+  const payment = record.technicianPayment;
+  return <>
+    <TableCell className="border-l text-center" title={hasInvoice ? "Fatura emitida" : "Sem fatura"}>{hasInvoice
+      ? <FileText className="mx-auto size-4 text-emerald-500" aria-label="Fatura emitida" /> : dash}</TableCell>
+    <TableCell className="text-center" title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
+      {channels.length ? <span className="inline-flex gap-1">
+        {channels.includes("whatsapp") && <MessageCircle className="size-4 text-emerald-500" aria-label="WhatsApp" />}
+        {channels.includes("email") && <Mail className="size-4 text-sky-500" aria-label="E-mail" />}
+      </span> : dash}
+    </TableCell>
+    <TableCell className="text-center">{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
+    <TableCell className="text-center">{!(received || partial) || !payment ? dash : payment === "total"
+      ? dot("green", "Técnicos pagos integralmente") : payment === "parcial"
+      ? dot("yellow", "Pagamento parcial aos técnicos") : dot("red", "Pagamento aos técnicos pendente")}</TableCell>
+  </>;
 }
 
 interface ReceivableForm {
@@ -226,13 +221,7 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export function Receivables() {
-  const [from, setFrom] = useState(startOfMonth());
-  const [to, setTo] = useState(endOfMonth());
-  const [shopFilter, setShopFilter] = useState("all");
-  const [originFilter, setOriginFilter] = useState<"all" | FinanceOrigin>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | FinanceStatus>("all");
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
   const [items, setItems] = useState<Receivable[]>([]);
@@ -247,15 +236,6 @@ export function Receivables() {
   const [editing, setEditing] = useState<ReceivableForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1);
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -288,12 +268,8 @@ export function Receivables() {
         const response = await receivableService.list({
           page,
           per_page: PAGE_SIZE,
-          data_de: from || undefined,
-          data_ate: to || undefined,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          origem: originFilter === "all" ? undefined : originFilter,
-          busca: debouncedQuery.trim() || undefined,
-          oficina_id: shopFilter === "all" ? undefined : Number(shopFilter),
+          ...filters,
+          oficina_id: filters.oficina_id ? Number(filters.oficina_id) : undefined,
         });
         if (cancelled) return;
 
@@ -311,7 +287,7 @@ export function Receivables() {
     return () => {
       cancelled = true;
     };
-  }, [page, from, to, shopFilter, originFilter, statusFilter, debouncedQuery, reloadToken]);
+  }, [page, filters, reloadToken]);
 
   function openNew() {
     setErrors({});
@@ -399,6 +375,25 @@ export function Receivables() {
     ? r.installments.reduce((sub, part) => sub + (part.data_pagamento?.slice(0, 7) === today.slice(0, 7) ? Number(part.valor_pago ?? 0) : 0), 0)
     : r.receivedDate?.slice(0, 7) === today.slice(0, 7) ? paidAmount(r) : 0), 0);
 
+  function filter(label: string, keys: string[], fields: ReactNode) {
+    return <ColumnFilter label={label} active={keys.some(key => Boolean(filters[key]))} onApply={data => {
+      const next = { ...filters };
+      for (const key of keys) {
+        const value = String(data?.get(key) ?? "").trim();
+        if (value) next[key] = value;
+        else delete next[key];
+      }
+      if (next.servico_de && next.servico_ate && next.servico_de > next.servico_ate) return "Confira o intervalo de datas.";
+      if (next.valor_de && next.valor_ate && Number(next.valor_de) > Number(next.valor_ate)) return "Confira o intervalo de valores.";
+      setPage(1);
+      setFilters(next);
+    }}>{fields}</ColumnFilter>;
+  }
+
+  function textFilter(label: string, key: string) {
+    return filter(label, [key], <Input name={key} aria-label={label} defaultValue={filters[key]} />);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2"><p className="text-xs text-muted-foreground">Indicadores dos {items.length} lançamentos exibidos nesta página. Os filtros e a paginação limitam os totais.</p></div>
@@ -416,138 +411,66 @@ export function Receivables() {
         </div>)}
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-end">
-        <div className="space-y-1">
-          <Label className="text-xs">De</Label>
-          <DateInput
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPage(1);
-            }}
-            className="w-[150px]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Até</Label>
-          <DateInput
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(1);
-            }}
-            className="w-[150px]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Tipo</Label>
-          <Select
-            value={originFilter}
-            onValueChange={(v) => {
-              setOriginFilter(v as "all" | FinanceOrigin);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="aplicativo">Aplicativo</SelectItem>
-              <SelectItem value="avulsa">Avulsa</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Oficina</Label>
-          <Select
-            value={shopFilter}
-            onValueChange={(v) => {
-              setShopFilter(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {workshops.map((w) => (
-                <SelectItem key={w.id} value={String(w.id)}>
-                  {w.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Status</Label>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v as "all" | FinanceStatus);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="confirmado">Confirmado</SelectItem>
-              <SelectItem value="em_aberto">Em aberto</SelectItem>
-              <SelectItem value="recebido">Recebido</SelectItem>
-              <SelectItem value="vencido">Vencido</SelectItem>
-              <SelectItem value="cancelado">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[200px] space-y-1">
-          <Label className="text-xs">Buscar</Label>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="Descrição" />
-          </div>
-        </div>
-        <Button onClick={openNew}>
-          <Plus className="w-4 h-4 mr-1" /> Novo lançamento
-        </Button>
+      <div className="flex justify-end">
+        <Button onClick={openNew}><Plus className="mr-1 size-4" /> Novo lançamento</Button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
-              <TableHead>Oficina / Cliente</TableHead>
-              <TableHead>Técnico</TableHead><TableHead>Valor a receber</TableHead><TableHead className="border-l">Fatura · Enviada · Recebida · Paga</TableHead><TableHead>Vencimento</TableHead>
+              <TableHead>{filter("Data", ["servico_de", "servico_ate"], <>
+                <DateInput name="servico_de" aria-label="De" defaultValue={filters.servico_de} />
+                <DateInput name="servico_ate" aria-label="Até" defaultValue={filters.servico_ate} />
+              </>)}</TableHead>
+              <TableHead>{textFilter("Modelo", "veiculo")}</TableHead>
+              <TableHead>{textFilter("Placa / Chassi", "referencia")}</TableHead>
+              <TableHead>{filter("Oficina / Cliente", ["oficina_id", "origem"], <>
+                <select className="w-full rounded border bg-background p-2" name="oficina_id" defaultValue={filters.oficina_id ?? ""} aria-label="Oficina">
+                  <option value="">Todas as oficinas</option>
+                  {workshops.map(workshop => <option key={workshop.id} value={workshop.id}>{workshop.name}</option>)}
+                </select>
+                <select className="w-full rounded border bg-background p-2" name="origem" defaultValue={filters.origem ?? ""} aria-label="Origem">
+                  <option value="">Todas as origens</option><option value="aplicativo">Aplicativo</option><option value="avulsa">Avulsa</option>
+                </select>
+              </>)}</TableHead>
+              <TableHead>{textFilter("Técnico", "tecnico")}</TableHead>
+              <TableHead>{filter("Valor a receber", ["valor_de", "valor_ate"], <>
+                <Input name="valor_de" aria-label="Valor mínimo" type="number" min="0" step="0.01" defaultValue={filters.valor_de} />
+                <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
+              </>)}</TableHead>
+              <TableHead className="border-l text-center">Fatura</TableHead>
+              <TableHead className="text-center">Enviada</TableHead>
+              <TableHead className="text-center">{filter("Recebida", ["status"], <select className="w-full rounded border bg-background p-2" name="status" defaultValue={filters.status ?? ""} aria-label="Status">
+                <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="confirmado">Confirmado</option>
+                <option value="em_aberto">Em aberto</option><option value="recebido">Recebido</option><option value="pago">Pago</option>
+                <option value="vencido">Vencido</option><option value="cancelado">Cancelado</option>
+              </select>)}</TableHead>
+              <TableHead className="text-center">Paga</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10">
+                <TableCell colSpan={11} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((r) => (
-                <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer hover:bg-accent/50">
+                <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer whitespace-nowrap hover:bg-accent/50">
                   <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>
                   <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
-                  <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : (r.workshop || shopName(workshops, r.workshopId))}</TableCell>
-                  <TableCell>{r.technician || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
-                  <TableCell className="border-l"><InvoiceProgress record={r} /></TableCell>
-                  <TableCell className="whitespace-nowrap text-sm">{r.dueDate ? formatDate(r.dueDate) : "—"}</TableCell>
+                  <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, ""))}</TableCell>
+                  <TableCell title={r.technician ?? undefined}>{r.technician?.trim().split(/\s+/)[0] || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
+                  {invoiceCells(r)}
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
                       <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(r); }}>

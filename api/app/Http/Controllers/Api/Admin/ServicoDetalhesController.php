@@ -221,8 +221,8 @@ class ServicoDetalhesController extends Controller
                 $brand = trim((string) $request->input('marca', ''));
                 $model = trim((string) $request->input('modelo', ''));
                 $veiculo->update([
-                    'placa' => trim(strtoupper((string) $request->input('placa', ''))),
-                    'chassi' => trim(strtoupper((string) $request->input('chassi', ''))),
+                    'placa' => strtoupper(preg_replace('/\s+/u', '', (string) $request->input('placa', '')) ?? ''),
+                    'chassi' => strtoupper(preg_replace('/\s+/u', '', (string) $request->input('chassi', '')) ?? ''),
                     'marca' => $brand !== '' ? $brand : null,
                     'modelo' => $model !== '' ? $model : null,
                     'marca_modelo' => trim($brand.' '.$model) ?: null,

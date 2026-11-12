@@ -1,3 +1,4 @@
+import { normalizeVehicleReference } from "@/constants/servicePreferences";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Camera, CarFront, Check, CircleDollarSign, ClipboardList, Loader2, ThumbsDown, ThumbsUp } from "lucide-react";
@@ -96,7 +97,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
     setRecognizing(field);
     try {
       const result = await periciaService.recognizePhoto(field, file);
-      if (result) onChange(({ placa: "plate", chassi: "chassis", marca: "brand", modelo: "vehicleModel" } as const)[field], result);
+      if (result) onChange(({ placa: "plate", chassi: "chassis", marca: "brand", modelo: "vehicleModel" } as const)[field], field === "placa" || field === "chassi" ? normalizeVehicleReference(result) : result);
       else toast.info("Foto anexada. Preencha ou confira o campo manualmente.");
     } catch (e) {
       toast.warning(getApiErrorMessage(e));
@@ -104,7 +105,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   }
   function cameraField(field: VehiclePhotoField, key: "plate" | "chassis" | "brand" | "vehicleModel", label: string) {
     return <div className="space-y-2" key={key}><Label>{label}</Label><div className="flex gap-2">
-      <Input value={value[key]} onChange={e => onChange(key, ["plate", "chassis"].includes(key) ? e.target.value.toUpperCase() : e.target.value)} placeholder={label} />
+      <Input value={value[key]} onChange={e => onChange(key, ["plate", "chassis"].includes(key) ? normalizeVehicleReference(e.target.value) : e.target.value)} placeholder={label} aria-invalid={Boolean(errors[key])} />
       <label className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-md border hover:bg-accent" aria-label={`Fotografar ${label}`}>
         {recognizing === field ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
         <input className="hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={Boolean(recognizing)} onChange={e => {
@@ -113,7 +114,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
           e.target.value = "";
         }}/>
       </label>
-    </div></div>;
+    </div>{errors[key] && <p role="alert" className="text-xs text-destructive">{errors[key]}</p>}</div>;
   }
   function allPartsAre(type: "PDR" | "PINTURA") {
     return SERVICE_PARTS_ORDER.every(id => {
@@ -299,8 +300,10 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
                   <Button type="button" size="sm" aria-pressed={office.tipo === "porcentagem"} variant={office.tipo === "porcentagem" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "porcentagem" })}>%</Button>
                   <Button type="button" size="sm" aria-pressed={office.tipo === "valor"} variant={office.tipo === "valor" ? "default" : "outline"} onClick={() => updatePrice(officeKey, { tipo: "valor" })}>Valor</Button>
                 </div>}
-                {office.tipo === "valor" ? (
-                  <CurrencyInput aria-label={`Fatura — ${heading}`} value={parseAmount(office.valor)} onChange={amount => updatePrice(officeKey, { valor: String(amount) })} />
+                {fixedInvoice || office.tipo === "valor" ? (
+                  <CurrencyInput aria-label={`Fatura — ${heading}`}
+                    value={office.tipo === "valor" ? parseAmount(office.valor) : calculated?.oficina ?? 0}
+                    onChange={amount => updatePrice(officeKey, { tipo: "valor", valor: String(amount) })} />
                 ) : (
                   <>
                     <Input aria-label={`Percentual da oficina — ${heading}`} inputMode="decimal" value={office.valor.replace(".", ",")} onChange={event => updatePrice(officeKey, { valor: event.target.value.replace(/[^0-9,]/g, "") })} />

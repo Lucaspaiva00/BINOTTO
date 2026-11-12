@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { ArrowLeft, Building2, Cog, Eye, Save, Wrench, CheckCircle2, Pencil } from "lucide-react";
+import { ArrowLeft, Eye, Save, FileText, CheckCircle2, Pencil } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -9,36 +9,23 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { serviceService } from "@/services/serviceService";
 import { userService } from "@/services/userService";
-import { SERVICE_STATUS_CLASS, SERVICE_STATUS_LABEL } from "@/utils/serviceStatus";
 import { formatDateTime } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
-import { getServiceLogFields } from "./serviceLogFields";
 import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
 
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import type { PericiaStatus } from "@/types/pericia";
 import type { PartInspection } from "@/types/carParts";
-import type { Service, ServiceLog, ServiceStatus } from "@/types/service";
+import type { Service, ServiceStatus } from "@/types/service";
 import type { UserSelectionItem } from "@/types/user";
 import {
   ServiceAdminForm,
   formatEditableDecimal,
   type ServiceAdminFormState,
 } from "./ServiceAdminForm";
+import { pdfPending } from "./servicePdf";
 import { ServicePartDialog } from "./ServicePartDialog";
 import { emptyVehiclePhotos, pricesFromService, buildServiceDetailsFormData, normalizeServiceRepairs, validateDetails, localTodayISO } from "./serviceDetails";
-
-function formatLogDateTime(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} às ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function logActor(log: ServiceLog): { name: string; role: string; icon: typeof Wrench } {
-  if (log.technician) return { name: log.technician, role: "Técnico", icon: Wrench };
-  if (log.workshop) return { name: log.workshop, role: "Oficina", icon: Building2 };
-  return { name: "Sistema", role: "Sistema", icon: Cog };
-}
 
 function formFromService(service: Service): ServiceAdminFormState {
   const compensationType = service.technicianPercentage !== null
@@ -187,12 +174,7 @@ export default function ServicoDetail() {
       const completed = await persist(finalize);
       if (!completed) return;
       toast.success(finalize ? "Serviço finalizado e enviado ao Financeiro." : "Serviço atualizado.");
-      const isNowLocked = ["finalizado", "concluido", "recusado", "cancelado"].includes(completed.status ?? "");
-      if (finalize || isNowLocked) {
-        setEditingFinalized(false);
-      } else {
-        navigate("/servicos");
-      }
+      navigate("/servicos");
     } catch (error) {
       toast.error(getApiErrorMessage(error));
     } finally {
@@ -227,7 +209,7 @@ export default function ServicoDetail() {
     if (saving || actionBusy) return;
     if (status === "cancelado" && !confirmed) { setConfirmation("cancel"); return; }
     setActionBusy(true);
-    try { const saved = await persist(false, status); if (!saved) return; setEditingFinalized(false); toast.success(status === "cancelado" ? "Serviço cancelado." : "Serviço em execução."); }
+    try { const saved = await persist(false, status); if (!saved) return; setEditingFinalized(false); toast.success(status === "cancelado" ? "Serviço cancelado." : "Serviço em execução."); if (status === "cancelado") navigate("/servicos"); }
     catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
   }
 
@@ -253,7 +235,7 @@ export default function ServicoDetail() {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <Button variant="outline" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button>
         <div className="flex items-center gap-2">
-          {service.status && <Badge variant="outline" className={SERVICE_STATUS_CLASS[service.status]}>{SERVICE_STATUS_LABEL[service.status]}</Badge>}
+          <Button variant="outline" onClick={pdfPending}><FileText className="mr-2 size-4" />Gerar PDF</Button>
           {lockedByStatus && !editingFinalized
             ? <Button onClick={requestEditFinalized} variant="outline"><Pencil className="w-4 h-4 mr-2" />Editar</Button>
             : <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="w-4 h-4 mr-2" />{saving ? "Salvando..." : "Salvar alterações"}</Button>}
@@ -261,7 +243,7 @@ export default function ServicoDetail() {
       </div>
 
       <fieldset disabled={saving || actionBusy || !editingEnabled} className="min-w-0">
-      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
+      <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors} fixedInvoice
         onPartSelect={editingEnabled ? (partId => {setSelectedPartId(partId);setEditingPart({...partsState[partId],photos:[...partsState[partId].photos]});}) : undefined}
         onPartChange={editingEnabled ? changePart : undefined} onAccept={editingEnabled ? (() => void adminAction("accept")) : undefined} onRefuse={editingEnabled ? (() => void adminAction("refuse")) : undefined}
         canAccept={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} canRefuse={editingEnabled && ["aguardando", "em_breve", "aguardando_aprovacao"].includes(form.status)} actionBusy={actionBusy} statusOptions={statusOptions} partEditor={selectedPartId && <ServicePartDialog key={selectedPartId} partId={selectedPartId} value={editingPart} onClose={() => {setSelectedPartId(null);setEditingPart(null);}}
@@ -288,34 +270,6 @@ export default function ServicoDetail() {
         </section>
       )}
 
-      {service.logs && service.logs.length > 0 && (
-        <section className="bg-card border border-border rounded-2xl p-6 mt-4">
-          <h2 className="text-base font-semibold text-foreground mb-6">Histórico do serviço</h2>
-          <div className="relative pl-8">
-            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border" />
-            <div className="space-y-8">
-              {service.logs.map((log) => {
-                const actor = logActor(log);
-                const Icon = actor.icon;
-                const payloadFields = getServiceLogFields(log);
-                return (
-                  <div key={log.id} className="relative">
-                    <div className="absolute top-0 left-0 -translate-x-1/2 w-8 h-8 rounded-full bg-[hsl(var(--app-accent))] text-black flex items-center justify-center"><Icon className="w-4 h-4" /></div>
-                    <div className="ml-4">
-                      <p className="text-xs text-muted-foreground">{formatLogDateTime(log.createdAt)}</p>
-                      <p className="text-sm font-medium text-foreground mt-0.5">{log.description ?? log.type ?? "Evento"}</p>
-                      <p className="text-xs text-muted-foreground">{actor.name} · {actor.role}</p>
-                      {log.reason && <p className="text-xs text-muted-foreground mt-1">Motivo: {log.reason}</p>}
-                      {payloadFields.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{payloadFields.map((field) => <div key={field.label} className="bg-muted/40 border border-border rounded-lg px-3 py-2"><p className="text-[11px] text-muted-foreground">{field.label}</p><p className="text-sm text-foreground">{field.value}</p></div>)}</div>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground mt-4"><span>Criado em {formatDateTime(service.createdAt)}</span><span>Atualizado em {formatDateTime(service.updatedAt)}</span></div>
       {editingEnabled && <div className="mt-6 flex flex-wrap justify-end gap-3 border-t pt-4">
         <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar alterações"}</Button>
@@ -323,6 +277,7 @@ export default function ServicoDetail() {
         {!lockedByStatus && form.status === "aceito" && <Button disabled={saving || actionBusy} onClick={() => void transition("em_execucao")}>Iniciar serviço</Button>}
         {!lockedByStatus && <Button variant="destructive" disabled={saving || actionBusy} onClick={() => void transition("cancelado")}>Cancelar serviço</Button>}
       </div>}
+      <div className="mt-4 flex justify-end"><Button variant="outline" onClick={pdfPending}><FileText className="mr-2 size-4" />Gerar PDF</Button></div>
     </AppLayout>
   );
 }

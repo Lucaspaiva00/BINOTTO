@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { GripVertical } from "lucide-react";
+import { getServiceColumns, getVehicleReference, saveServiceColumns, saveVehicleReference, SERVICE_COLUMNS, type ServiceColumn, type ColumnPreference } from "@/constants/servicePreferences";
+import { AdminHistory } from "./AdminHistory";
+import { useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,7 @@ const sections = [
   { id: "financeiro", label: "Financeiro" },
   { id: "administradores", label: "Administradores" },
   { id: "coeficientes", label: "Coeficientes" },
+  { id: "historico", label: "Histórico" },
 ] as const;
 
 type SectionId = (typeof sections)[number]["id"];
@@ -20,6 +24,23 @@ export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
 
   const [vehicleView, setVehicleView] = useState(getServiceVehicleView);
+
+  const [reference, setReference] = useState(getVehicleReference);
+  const [columns, setColumns] = useState(getServiceColumns);
+  const dragged = useRef<ServiceColumn | null>(null);
+
+  function updateColumns(next: ColumnPreference[]) {
+    setColumns(next);
+    saveServiceColumns(next);
+  }
+
+  function moveColumn(id: ServiceColumn, target: number) {
+    const index = columns.findIndex(column => column.id === id);
+    if (index < 0 || target < 0 || target >= columns.length || index === target) return;
+    const next = [...columns];
+    next.splice(target, 0, ...next.splice(index, 1));
+    updateColumns(next);
+  }
 
   return (
     <AppLayout title="Configurações" subtitle="Preferências do painel administrativo">
@@ -46,6 +67,7 @@ export default function Settings() {
         aria-label={sections.find(({ id }) => id === activeSection)?.label}
         className="mt-5 min-h-[380px] rounded-xl border border-border bg-card p-5"
       >
+        {activeSection === "historico" && <AdminHistory />}
         {activeSection === "servico" && (
           <div className="space-y-3">
             <h2 className="font-semibold">Visualização do veículo</h2>
@@ -58,6 +80,33 @@ export default function Settings() {
                 </Button>
               ))}
             </div>
+            <h2 className="pt-4 font-semibold">Referência do carro</h2>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Referência do carro">
+              {([["placa", "Placa"], ["chassi", "Chassi"], ["ambos", "Placa e chassi"]] as const).map(([key, label]) =>
+                <Button key={key} type="button" aria-pressed={reference === key} variant={reference === key ? "default" : "outline"}
+                  onClick={() => { setReference(key); saveVehicleReference(key); }}>{label}</Button>)}
+            </div>
+            <h2 className="pt-4 font-semibold">Mostradores da tela principal</h2>
+            <ul className="max-w-lg divide-y rounded-lg border">
+              {columns.map(({ id, visible }, index) => <li key={id} className="flex items-center justify-between gap-2 px-3 py-1"
+                onDragOver={event => event.preventDefault()}
+                onDrop={event => { event.preventDefault(); if (dragged.current) moveColumn(dragged.current, index); dragged.current = null; }}>
+                <label className="flex flex-1 items-center gap-2">
+                  <input type="checkbox" checked={visible} onChange={event => updateColumns(columns.map(column =>
+                    column.id === id ? { ...column, visible: event.target.checked } : column))} />
+                  {SERVICE_COLUMNS[id]}
+                </label>
+                <Button variant="ghost" size="icon" draggable className="cursor-grab" aria-label={`Reordenar ${SERVICE_COLUMNS[id]}`}
+                  onDragStart={event => { dragged.current = id; event.dataTransfer.setData("text/plain", id); }}
+                  onDragEnd={() => { dragged.current = null; }}
+                  onKeyDown={event => {
+                    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+                      event.preventDefault();
+                      moveColumn(id, index + (event.key === "ArrowUp" ? -1 : 1));
+                    }
+                  }}><GripVertical className="size-4" /></Button>
+              </li>)}
+            </ul>
           </div>
         )}
       </section>

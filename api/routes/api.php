@@ -37,7 +37,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('admin')->middleware(['locale'])->group(function () {
     Route::post('/auth/login', [LoginController::class, 'login']);
 
-    Route::middleware(['auth:api', 'permission:admin'])->group(function () {
+    Route::middleware(['auth:api', 'permission:admin', \App\Http\Middleware\RegistrarMovimentacaoPainel::class])->group(function () {
+        Route::get('/configuracoes/historico', [\App\Http\Controllers\Api\Admin\HistoricoPainelController::class, 'index']);
+
         Route::prefix('usuarios')->group(function () {
             Route::get('/selecao', [AdminUsuarioController::class, 'listSelecao']);
             Route::get('/', [AdminUsuarioController::class, 'index']);

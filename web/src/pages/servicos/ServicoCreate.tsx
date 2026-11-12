@@ -1,3 +1,5 @@
+import { getVehicleReference, normalizeVehicleReference } from "@/constants/servicePreferences";
+import type { ServiceStatus } from "@/types/service";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -51,7 +53,8 @@ export default function ServicoCreate() {
     markDirty();
   }
 
-  async function submit() {
+  async function submit(nextStatus: ServiceStatus = form.status) {
+    if (saving) return;
     const next: Record<string, string> = {};
     const detailsError = validateDetails(form, partsState);
     if (detailsError) { toast.error(detailsError); return; }
@@ -60,13 +63,16 @@ export default function ServicoCreate() {
     if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
     const price = totals.carro.oficina;
     const compensation = totals.carro.tecnico;
+    const reference = getVehicleReference();
+    if (reference !== "chassi" && !normalizeVehicleReference(form.plate)) next.plate = "Informe a placa.";
+    if (reference !== "placa" && !normalizeVehicleReference(form.chassis)) next.chassis = "Informe o chassi.";
     if (!form.serviceDate) next.serviceDate = "Informe a data do serviço.";
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero se necessário.";
     if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
     if (techPrice.tipo === "porcentagem" && parseAmount(techPrice.valor) > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
     setErrors(next);
-    if (Object.keys(next).length) return;
+    if (Object.keys(next).length) { toast.error(Object.values(next)[0]); return; }
 
     setSaving(true);
     let createdId: number | null = null;
@@ -77,8 +83,9 @@ export default function ServicoCreate() {
         tecnico_nome_manual: form.technicianId ? null : form.manualTechnicianName.trim() || null,
         tecnico_id: form.technicianId ? Number(form.technicianId) : null,
         status: form.status,
-        placa: form.plate.trim() || null,
-        chassi: form.chassis.trim() || null,
+        referencia_veiculo: reference,
+        placa: normalizeVehicleReference(form.plate) || null,
+        chassi: normalizeVehicleReference(form.chassis) || null,
         marca_modelo: `${form.brand} ${form.vehicleModel}`.trim() || null,
         valor_total: price,
         remuneracao_tipo: techPrice.tipo,
@@ -86,7 +93,7 @@ export default function ServicoCreate() {
         observacoes: form.notes.trim() || null,
       });
       createdId = created.id;
-      await serviceService.saveDetails(created.id, buildServiceDetailsFormData(form, partsState));
+      await serviceService.saveDetails(created.id, buildServiceDetailsFormData({ ...form, status: nextStatus }, partsState));
       markSaved();
       toast.success(`Serviço #${created.id} criado.`);
       navigate("/servicos");
@@ -106,7 +113,7 @@ export default function ServicoCreate() {
         <Button variant="outline" size="sm" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}>
           <ArrowLeft className="mr-2 h-4 w-4" />Voltar
         </Button>
-        <Button onClick={submit} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
+        <Button onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
       </div>
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
@@ -118,7 +125,11 @@ export default function ServicoCreate() {
         onSave={part => { if (selectedPartId) changePart(selectedPartId, part); setSelectedPartId(null); setSelectedValue(null); }} />}
         />
       </fieldset>
-      <div className="mt-6 flex justify-end"><Button onClick={submit} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button></div>
+      <div className="mt-6 flex flex-wrap justify-end gap-2">
+        <Button onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
+        <Button variant="outline" onClick={() => void submit("em_execucao")} disabled={saving}>Iniciar serviço</Button>
+        <Button variant="outline" onClick={() => void submit("finalizado")} disabled={saving}>Carro finalizado</Button>
+      </div>
 
     </AppLayout>
   );
