@@ -113,7 +113,7 @@ export default function ServicoCreate() {
         <Button variant="outline" size="sm" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}>
           <ArrowLeft className="mr-2 h-4 w-4" />Voltar
         </Button>
-        <Button onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
+        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
       </div>
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
@@ -126,9 +126,9 @@ export default function ServicoCreate() {
         />
       </fieldset>
       <div className="mt-6 flex flex-wrap justify-end gap-2">
-        <Button onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
-        <Button variant="outline" onClick={() => void submit("em_execucao")} disabled={saving}>Iniciar serviço</Button>
-        <Button variant="outline" onClick={() => void submit("finalizado")} disabled={saving}>Carro finalizado</Button>
+        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
+        <Button className="bg-green-700 text-white hover:bg-green-800" onClick={() => void submit("em_execucao")} disabled={saving}>Iniciar serviço</Button>
+        <Button className="bg-orange-700 text-white hover:bg-orange-800" onClick={() => void submit("finalizado")} disabled={saving}>Carro finalizado</Button>
       </div>
 
     </AppLayout>

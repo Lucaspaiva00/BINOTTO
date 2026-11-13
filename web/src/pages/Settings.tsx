@@ -82,9 +82,17 @@ export default function Settings() {
             </div>
             <h2 className="pt-4 font-semibold">Referência do carro</h2>
             <div className="flex flex-wrap gap-2" role="group" aria-label="Referência do carro">
-              {([["placa", "Placa"], ["chassi", "Chassi"], ["ambos", "Placa e chassi"]] as const).map(([key, label]) =>
-                <Button key={key} type="button" aria-pressed={reference === key} variant={reference === key ? "default" : "outline"}
-                  onClick={() => { setReference(key); saveVehicleReference(key); }}>{label}</Button>)}
+              {([["placa", "Placa"], ["chassi", "Chassi"]] as const).map(([key, label]) => {
+                const selected = reference === key || reference === "ambos";
+                return <Button key={key} type="button" aria-pressed={selected}
+                  variant={selected ? "default" : "outline"}
+                  disabled={reference === key}
+                  onClick={() => {
+                    const next = reference === "ambos" ? (key === "placa" ? "chassi" : "placa") : "ambos";
+                    setReference(next);
+                    saveVehicleReference(next);
+                  }}>{label}</Button>;
+              })}
             </div>
             <h2 className="pt-4 font-semibold">Mostradores da tela principal</h2>
             <ul className="max-w-lg divide-y rounded-lg border">

@@ -107,8 +107,8 @@ export const serviceService = {
     return data.data;
   },
 
-  async remove(id: number | string): Promise<string> {
-    const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}`);
+  async remove(id: number | string, deleteFinance: boolean): Promise<string> {
+    const { data } = await api.delete<{ message: string }>(`${BASE_URL}/${id}`, { data: { excluir_financeiro: deleteFinance } });
     return data.message;
   },
 

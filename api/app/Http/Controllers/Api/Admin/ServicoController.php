@@ -442,9 +442,11 @@ class ServicoController extends Controller
     /**
      * Exclusão administrativa segura: nunca remove perícias ou registros financeiros.
      */
-    public function destroy(int $id)
+    public function destroy(Request $request, int $id)
     {
-        return DB::transaction(function () use ($id) {
+        $validated = $request->validate(['excluir_financeiro' => ['sometimes', 'boolean']]);
+
+        return DB::transaction(function () use ($id, $validated) {
             $servico = Servico::query()->lockForUpdate()->find($id);
             if (! $servico) {
                 return response()->json(['message' => 'Serviço não encontrado.'], 404);
@@ -461,12 +463,17 @@ class ServicoController extends Controller
                 ], 409);
             }
 
-            // Preserva os registros financeiros já emitidos, mesmo em dados legados.
-            if (ContaReceber::where('servico_id', $id)->exists()
-                || ContaPagar::where('servico_id', $id)->exists()) {
+            $receber = ContaReceber::where('servico_id', $id);
+            $pagar = ContaPagar::where('servico_id', $id);
+            if (! array_key_exists('excluir_financeiro', $validated) && ($receber->exists() || $pagar->exists())) {
                 return response()->json([
-                    'message' => 'Este serviço possui lançamentos financeiros vinculados. Regularize esses registros antes de excluir.',
+                    'message' => 'Escolha se deseja excluir os lançamentos financeiros vinculados.',
                 ], 409);
+            }
+
+            if ($validated['excluir_financeiro'] ?? false) {
+                $receber->delete();
+                $pagar->delete();
             }
 
             // A perícia permanece no histórico da oficina, sem vínculo com o serviço excluído.

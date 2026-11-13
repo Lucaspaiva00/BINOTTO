@@ -172,10 +172,10 @@ export default function ServicosList() {
     };
   }, [page, filters, reloadToken]);
 
-  async function deleteService(id: number) {
+  async function deleteService(id: number, deleteFinance: boolean) {
     setDeletingId(id);
     try {
-      const message = await serviceService.remove(id);
+      const message = await serviceService.remove(id, deleteFinance);
       toast.success(message);
       if (services.length === 1 && page > 1) setPage((current) => current - 1);
       else setReloadToken((current) => current + 1);
@@ -260,13 +260,17 @@ export default function ServicosList() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir serviço definitivamente?</AlertDialogTitle>
             <AlertDialogDescription>
-              O serviço será excluído definitivamente. As perícias permanecerão no histórico, sem vínculo com o serviço. Registros financeiros existentes serão preservados e, nesse caso, a exclusão não será permitida.
+              Deseja excluir também os registros financeiros vinculados? A perícia será mantida em ambos os casos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deletingId !== null}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); if (pendingDeleteId !== null) void deleteService(pendingDeleteId); }}>
-              {deletingId !== null ? "Excluindo..." : "Confirmar exclusão"}
+            <AlertDialogAction disabled={deletingId !== null} onClick={(event) => {
+              event.preventDefault();
+              if (pendingDeleteId !== null) void deleteService(pendingDeleteId, false);
+            }}>Não, manter o financeiro</AlertDialogAction>
+            <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); if (pendingDeleteId !== null) void deleteService(pendingDeleteId, true); }}>
+              Sim, excluir também o financeiro
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
