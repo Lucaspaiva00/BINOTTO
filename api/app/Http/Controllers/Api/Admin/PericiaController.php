@@ -57,13 +57,14 @@ class PericiaController extends Controller
                     $query->where('tipo', $tipo);
                 }
             })
-            ->when($request->filled('data_inicial') && $request->filled('data_final'), function ($query) use ($request) {
-                $query->whereDate('created_at', '>=', $request->data_inicial)
-                    ->whereDate('created_at', '<=', $request->data_final);
-            })
-            ->when($request->filled('data_inicial') && ! $request->filled('data_final'), function ($query) use ($request) {
-                $query->whereDate('created_at', $request->data_inicial);
-            })
+            ->when($request->filled('data_inicial'), fn ($query) => $query->whereDate('created_at', '>=', $request->data_inicial))
+            ->when($request->filled('data_final'), fn ($query) => $query->whereDate('created_at', '<=', $request->data_final))
+            ->when($request->filled('oficina'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
+                $oficina->whereRaw('LOWER(nome_fantasia) LIKE ?', ['%'.mb_strtolower($request->oficina).'%'])))
+            ->when($request->filled('placa'), fn ($query) => $query->whereRaw('UPPER(placa) LIKE ?', ['%'.strtoupper($request->placa).'%']))
+            ->when($request->filled('modelo'), fn ($query) => $query->whereRaw('LOWER(marca_modelo) LIKE ?', ['%'.mb_strtolower($request->modelo).'%']))
+            ->when(is_numeric($request->valor_min), fn ($query) => $query->whereRaw('COALESCE(valor_pericia, preco_sugerido) >= ?', [(float) $request->valor_min]))
+            ->when(is_numeric($request->valor_max), fn ($query) => $query->whereRaw('COALESCE(valor_pericia, preco_sugerido) <= ?', [(float) $request->valor_max]))
             ->when($request->filled('busca'), function ($query) use ($request) {
                 $term = trim($request->input('busca'));
                 $plate = strtoupper(str_replace('-', '', $term));

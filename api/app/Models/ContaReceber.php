@@ -27,6 +27,8 @@ class ContaReceber extends Model
         'categoria',
         'forma_pagamento',
         'fatura',
+        'iva',
+        'contabilidade',
         'numero_fatura',
         'status_fatura',
         'parcelas',

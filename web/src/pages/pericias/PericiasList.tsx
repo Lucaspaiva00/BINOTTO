@@ -1,14 +1,15 @@
-import { useEffect, useState } from "react";
+import { ColumnFilter } from "@/components/ui/column-filter";
+import { PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, Search, ScanSearch, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, ScanSearch, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { periciaService } from "@/services/periciaService";
@@ -19,7 +20,7 @@ import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatu
 import type { Pericia, PericiaStatus } from "@/types/pericia";
 
 const PER_PAGE = 20;
-type StatusFilter = "all" | PericiaStatus;
+
 
 function displayValue(pericia: Pericia): number | null {
   return pericia.inspectionValue ?? pericia.suggestedPrice ?? null;
@@ -27,11 +28,8 @@ function displayValue(pericia: Pericia): number | null {
 
 export default function PericiasList() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("all");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [columns] = useState(() => getTableColumns("binotto-pericia-columns", PERICIA_COLUMNS));
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [pericias, setPericias] = useState<Pericia[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -42,11 +40,6 @@ export default function PericiasList() {
   const [openActionsId, setOpenActionsId] = useState<number | null>(null);
 
   useEffect(() => {
-    const timeout = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
-    return () => clearTimeout(timeout);
-  }, [search]);
-
-  useEffect(() => {
     let cancelled = false;
     async function loadPericias() {
       setLoading(true);
@@ -54,10 +47,7 @@ export default function PericiasList() {
         const response = await periciaService.list({
           page,
           per_page: PER_PAGE,
-          status: status === "all" ? undefined : status,
-          data_inicial: startDate || undefined,
-          data_final: endDate || undefined,
-          busca: debouncedSearch.trim() || undefined,
+          ...filters,
         });
         if (cancelled) return;
         setPericias(response.data);
@@ -71,7 +61,7 @@ export default function PericiasList() {
     }
     loadPericias();
     return () => { cancelled = true; };
-  }, [page, status, startDate, endDate, debouncedSearch]);
+  }, [page, filters]);
 
   async function deleteInspection() {
     if (!deleting || deletingBusy) return;
@@ -90,50 +80,68 @@ export default function PericiasList() {
   }
 
 
+  function filter(label: string, keys: string[], fields: ReactNode) {
+    return <ColumnFilter label={label} active={keys.some(key => Boolean(filters[key]))} onApply={data => {
+      const next = { ...filters };
+      for (const key of keys) {
+        const value = String(data?.get(key) ?? "").trim();
+        if (value) next[key] = value;
+        else delete next[key];
+      }
+      if (next.data_inicial && next.data_final && next.data_inicial > next.data_final) return "Intervalo inválido.";
+      setFilters(next);
+      setPage(1);
+    }}>{fields}</ColumnFilter>;
+  }
+
+  const textFilter = (label: string, key: string) => filter(label, [key], <Input aria-label={label} name={key} defaultValue={filters[key]} />);
+  const headers = {
+    date: filter("Data", ["data_inicial", "data_final"], <>
+      <DateInput name="data_inicial" aria-label="Data inicial" defaultValue={filters.data_inicial} />
+      <DateInput name="data_final" aria-label="Data final" defaultValue={filters.data_final} />
+    </>),
+    workshop: textFilter("Oficina", "oficina"),
+    plate: textFilter("Placa", "placa"),
+    model: textFilter("Modelo", "modelo"),
+    value: filter("Valor", ["valor_min", "valor_max"], <>
+      <Input type="number" min="0" step="0.01" name="valor_min" aria-label="Valor mínimo" defaultValue={filters.valor_min} />
+      <Input type="number" min="0" step="0.01" name="valor_max" aria-label="Valor máximo" defaultValue={filters.valor_max} />
+    </>),
+    status: filter("Status", ["status"], <select name="status" aria-label="Status" defaultValue={filters.status ?? ""} className="w-full rounded border bg-background p-2">
+      <option value="">Todos os status</option>
+      {(Object.keys(PERICIA_STATUS_LABEL) as PericiaStatus[]).map(status => <option key={status} value={status}>{PERICIA_STATUS_LABEL[status]}</option>)}
+    </select>),
+  };
+
   return (
     <AppLayout title="Perícias" subtitle={`${total} perícia(s) encontrada(s)`}>
       <div className="flex justify-end mb-4">
         <Button onClick={() => navigate("/pericias/novo")}><Plus className="w-4 h-4 mr-2" />Nova perícia</Button>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-center mb-4">
-        <div className="relative flex-1 min-w-55">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por nº da perícia, oficina ou placa" className="pl-9" />
-        </div>
-
-        <Select value={status} onValueChange={(v) => { setStatus(v as StatusFilter); setPage(1); }}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {(Object.keys(PERICIA_STATUS_LABEL) as PericiaStatus[]).map((k) => <SelectItem key={k} value={k}>{PERICIA_STATUS_LABEL[k]}</SelectItem>)}
-          </SelectContent>
-        </Select>
-
-        <DateInput value={startDate} onChange={(e) => { setStartDate(e.target.value); setPage(1); }} className="w-40" aria-label="Data inicial" />
-        <DateInput value={endDate} onChange={(e) => { setEndDate(e.target.value); setPage(1); }} className="w-40" aria-label="Data final" />
-      </div>
-
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
         <Table className="min-w-[1000px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="whitespace-nowrap">Data</TableHead><TableHead>Oficina</TableHead><TableHead>Placa</TableHead><TableHead>Modelo</TableHead><TableHead className="whitespace-nowrap">Valor</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead>
+              {columns.map(id => <TableHead key={id}>{headers[id]}</TableHead>)}
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
             ) : pericias.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
             ) : pericias.map((p) => (
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
-                <TableCell className="whitespace-nowrap text-sm">{formatDateTime(p.createdAt)}</TableCell>
-                <TableCell>{p.workshop || "—"}</TableCell>
-                <TableCell className="font-medium whitespace-nowrap">{p.licensePlate || "—"}</TableCell>
-                <TableCell>{p.model || "—"}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatCurrency(displayValue(p))}</TableCell>
-                <TableCell className="whitespace-nowrap">{p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—"}</TableCell>
+                {columns.map(id => <TableCell key={id} className="whitespace-nowrap">{{
+                  date: formatDateTime(p.createdAt),
+                  workshop: p.workshop || "—",
+                  plate: p.licensePlate || "—",
+                  model: p.model || "—",
+                  value: formatCurrency(displayValue(p)),
+                  status: p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—",
+                }[id]}</TableCell>)}
                 <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                   <div className="relative inline-block text-left" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null); }}>
                     <Button size="icon" variant="ghost" aria-label="Ações da perícia" aria-expanded={openActionsId === p.id} onClick={() => setOpenActionsId((id) => id === p.id ? null : p.id)}>

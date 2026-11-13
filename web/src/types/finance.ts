@@ -16,6 +16,8 @@ export interface Receivable {
   origin: FinanceOrigin;
   workshopId: number | null;
   workshop?: string | null;
+  city?: string | null;
+  country?: string | null;
   technicianId?: number | null;
   technician?: string | null;
   serviceId: number | null;
@@ -33,6 +35,8 @@ export interface Receivable {
   client: string | null;
   category: string | null;
   paymentMethod: string | null;
+  vat?: number | null;
+  accounting?: string | null;
   invoice?: string | null;
   invoiceAttachment?: boolean;
   invoiceFileName?: string | null;
@@ -63,6 +67,8 @@ export interface ReceivablePayload {
   cliente?: string | null;
   categoria?: string | null;
   forma_pagamento?: string | null;
+  iva?: number | null;
+  contabilidade?: string | null;
   fatura?: string | null;
   numero_fatura?: string | null;
   status_fatura?: string | null;

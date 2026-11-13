@@ -1,3 +1,4 @@
+import { FINANCE_COLUMNS, PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { GripVertical } from "lucide-react";
 import { getServiceColumns, getVehicleReference, saveServiceColumns, saveVehicleReference, SERVICE_COLUMNS, type ServiceColumn, type ColumnPreference } from "@/constants/servicePreferences";
 import { AdminHistory } from "./AdminHistory";
@@ -19,6 +20,25 @@ const sections = [
 ] as const;
 
 type SectionId = (typeof sections)[number]["id"];
+
+function TableDisplaySettings<T extends string>({ storageKey, labels }: { storageKey: string; labels: Record<T, string> }) {
+  const [visible, setVisible] = useState(() => getTableColumns(storageKey, labels));
+  return <div className="space-y-3">
+    <h2 className="font-semibold">Mostrador da tela principal</h2>
+    <ul className="max-w-lg divide-y rounded-lg border">
+      {(Object.keys(labels) as T[]).map(id => <li key={id}>
+        <label className="flex items-center gap-2 px-3 py-2">
+          <input type="checkbox" checked={visible.includes(id)} onChange={event => {
+            const next = event.target.checked ? [...visible, id] : visible.filter(column => column !== id);
+            localStorage.setItem(storageKey, JSON.stringify(next));
+            setVisible(next);
+          }} />
+          {labels[id]}
+        </label>
+      </li>)}
+    </ul>
+  </div>;
+}
 
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
@@ -67,6 +87,8 @@ export default function Settings() {
         aria-label={sections.find(({ id }) => id === activeSection)?.label}
         className="mt-5 min-h-[380px] rounded-xl border border-border bg-card p-5"
       >
+        {activeSection === "financeiro" && <TableDisplaySettings key="finance" storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} />}
+        {activeSection === "pericias" && <TableDisplaySettings key="pericias" storageKey="binotto-pericia-columns" labels={PERICIA_COLUMNS} />}
         {activeSection === "historico" && <AdminHistory />}
         {activeSection === "servico" && (
           <div className="space-y-3">

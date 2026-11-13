@@ -1,3 +1,6 @@
+import { periciaService } from "@/services/periciaService";
+import { buildPericiaFormData } from "@/utils/buildPericiaFormData";
+import { Input } from "@/components/ui/input";
 import { getVehicleReference, normalizeVehicleReference } from "@/constants/servicePreferences";
 import type { ServiceStatus } from "@/types/service";
 import { useEffect, useState } from "react";
@@ -16,8 +19,11 @@ import { buildServiceDetailsFormData, createInitialServiceParts, validateDetails
 import type { UserSelectionItem } from "@/types/user";
 import { ServiceAdminForm, initialServiceForm, type ServiceAdminFormState } from "./ServiceAdminForm";
 
-export default function ServicoCreate() {
+export default function ServicoCreate({ inspection = false }: { inspection?: boolean }) {
   const navigate = useNavigate();
+  const back = inspection ? "/pericias" : "/servicos";
+  const action = inspection ? "Criar perícia" : "Criar serviço";
+  const [inspectorName, setInspectorName] = useState("");
   const [draft, setForm] = useState<ServiceAdminFormState>(initialServiceForm);
   const [manualRepairPrice, setManualRepairPrice] = useState(false);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
@@ -64,19 +70,54 @@ export default function ServicoCreate() {
     const price = totals.carro.oficina;
     const compensation = totals.carro.tecnico;
     const reference = getVehicleReference();
-    if (reference !== "chassi" && !normalizeVehicleReference(form.plate)) next.plate = "Informe a placa.";
-    if (reference !== "placa" && !normalizeVehicleReference(form.chassis)) next.chassis = "Informe o chassi.";
+    if ((inspection || reference !== "chassi") && !normalizeVehicleReference(form.plate)) next.plate = "Informe a placa.";
+    if ((inspection || reference !== "placa") && !normalizeVehicleReference(form.chassis)) next.chassis = "Informe o chassi.";
     if (!form.serviceDate) next.serviceDate = "Informe a data do serviço.";
     if (!form.workshopId) next.workshopId = "Selecione a oficina.";
     if (!Number.isFinite(price) || price < 0) next.price = "Informe um preço válido, inclusive zero se necessário.";
     if (!Number.isFinite(compensation) || compensation < 0) next.compensationValue = "Informe um valor válido.";
     if (techPrice.tipo === "porcentagem" && parseAmount(techPrice.valor) > 100) next.compensationValue = "A porcentagem não pode ser maior que 100%.";
+    if (inspection && !inspectorName.trim()) next.inspector = "Informe o nome do perito.";
+    if (inspection && !form.brand.trim()) next.brand = "Informe a marca.";
+    if (inspection && !form.vehicleModel.trim()) next.vehicleModel = "Informe o modelo.";
     setErrors(next);
     if (Object.keys(next).length) { toast.error(Object.values(next)[0]); return; }
 
     setSaving(true);
     let createdId: number | null = null;
     try {
+      if (inspection) {
+        const photoSlots = {
+          frente_motorista: "diagonalFrontDriver", traseira_carona: "diagonalRearPassenger",
+          placa: "vehicle_plate", chassi: "vehicle_chassis", marca: "vehicle_brand", modelo: "vehicle_model",
+        } as const;
+        const photos = Object.fromEntries(Object.entries(photoSlots).map(([key, slot]) => {
+          const photo = form.vehiclePhotos[key as keyof typeof photoSlots];
+          return [slot, photo instanceof File ? photo : null];
+        }));
+        const created = await periciaService.create(buildPericiaFormData({
+          workshopId: Number(form.workshopId),
+          technicianId: form.technicianId ? Number(form.technicianId) : null,
+          inspectorName,
+          licensePlate: normalizeVehicleReference(form.plate),
+          chassis: normalizeVehicleReference(form.chassis),
+          model: `${form.brand} ${form.vehicleModel}`.trim(),
+          brand: form.brand,
+          vehicleModel: form.vehicleModel,
+          tipo: form.inspectionType,
+          includeValue: true,
+          inspectionValue: price,
+          suggestedPrice: null,
+          disassemblyValue: totals.desmontagem.oficina,
+          photos,
+          completePhotos: {},
+          partsState,
+        }));
+        markSaved();
+        toast.success("Perícia criada.");
+        navigate(`/pericias/${created.id}`);
+        return;
+      }
       const created = await serviceService.createDirect({
         oficina_id: Number(form.workshopId),
         data_servico: form.serviceDate,
@@ -108,17 +149,22 @@ export default function ServicoCreate() {
   }
 
   return (
-    <AppLayout title="Criar serviço" subtitle="Cadastro completo do serviço">
+    <AppLayout title={inspection ? "Nova perícia" : action}>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <Button variant="outline" size="sm" onClick={() => { if (confirmDiscard()) navigate("/servicos"); }}>
+        <Button variant="outline" size="sm" onClick={() => { if (confirmDiscard()) navigate(back); }}>
           <ArrowLeft className="mr-2 h-4 w-4" />Voltar
         </Button>
-        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
+        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : action}</Button>
       </div>
       <fieldset disabled={saving} className="min-w-0">
+      {inspection && <label className="mb-4 block max-w-md space-y-2">
+        <span>Nome do perito</span>
+        <Input value={inspectorName} onChange={event => { setInspectorName(event.target.value); markDirty(); }} required />
+        {errors.inspector && <span className="text-destructive">{errors.inspector}</span>}
+      </label>}
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
-        fixedInvoice canAccept={Boolean(form.technicianId) && form.status !== "aceito"}
-        canRefuse={Boolean(form.technicianId) && form.status !== "recusado"}
+        fixedInvoice canAccept={!inspection && Boolean(form.technicianId) && form.status !== "aceito"}
+        canRefuse={!inspection && Boolean(form.technicianId) && form.status !== "recusado"}
         onAccept={() => change("status", "aceito")} onRefuse={() => change("status", "recusado")}
         onPartSelect={id => { setSelectedPartId(id); setSelectedValue({ ...partsState[id], photos: [...partsState[id].photos] }); }}
         onPartChange={changePart} partEditor={selectedPartId && <ServicePartDialog key={selectedPartId} partId={selectedPartId} value={selectedValue} onClose={() => { setSelectedPartId(null); setSelectedValue(null); }}
@@ -126,9 +172,9 @@ export default function ServicoCreate() {
         />
       </fieldset>
       <div className="mt-6 flex flex-wrap justify-end gap-2">
-        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Criar serviço"}</Button>
-        <Button className="bg-green-700 text-white hover:bg-green-800" onClick={() => void submit("em_execucao")} disabled={saving}>Iniciar serviço</Button>
-        <Button className="bg-orange-700 text-white hover:bg-orange-800" onClick={() => void submit("finalizado")} disabled={saving}>Carro finalizado</Button>
+        <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : action}</Button>
+        {!inspection && <><Button className="bg-green-700 text-white hover:bg-green-800" onClick={() => void submit("em_execucao")} disabled={saving}>Iniciar serviço</Button>
+        <Button className="bg-orange-700 text-white hover:bg-orange-800" onClick={() => void submit("finalizado")} disabled={saving}>Carro finalizado</Button></>}
       </div>
 
     </AppLayout>

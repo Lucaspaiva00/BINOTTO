@@ -30,6 +30,19 @@ class ContaReceberController extends Controller
             ])
             ->when($request->filled('servico_de'), fn ($query) => $query->whereRaw("$date >= ?", [$request->input('servico_de')]))
             ->when($request->filled('servico_ate'), fn ($query) => $query->whereRaw("$date <= ?", [$request->input('servico_ate')]))
+            ->when(is_numeric($request->input('iva')), fn ($query) => $query->where('iva', (float) $request->input('iva')))
+            ->when($request->filled('contabilidade'), fn ($query) =>
+                $query->whereRaw('LOWER(contabilidade) LIKE ?', ['%'.mb_strtolower($request->contabilidade).'%']))
+            ->when($request->filled('numero_fatura'), fn ($query) =>
+                $query->whereRaw('LOWER(numero_fatura) LIKE ?', ['%'.mb_strtolower($request->numero_fatura).'%']))
+            ->when($request->filled('fatura'), fn ($query) => $query->where(function ($invoice) use ($request) {
+                $term = '%'.mb_strtolower($request->fatura).'%';
+                $invoice->whereRaw('LOWER(numero_fatura) LIKE ?', [$term])->orWhereRaw('LOWER(fatura) LIKE ?', [$term]);
+            }))
+            ->when($request->filled('cidade'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
+                $oficina->whereRaw('LOWER(cidade) LIKE ?', ['%'.mb_strtolower($request->cidade).'%'])))
+            ->when($request->filled('pais'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
+                $oficina->whereRaw('LOWER(pais) LIKE ?', ['%'.mb_strtolower($request->pais).'%'])))
             ->when($request->filled('veiculo'), function ($query) use ($request) {
                 $text = '%'.strtolower((string) $request->input('veiculo')).'%';
                 $query->where(function ($inner) use ($text) {

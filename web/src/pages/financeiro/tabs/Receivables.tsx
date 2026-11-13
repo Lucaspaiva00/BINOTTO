@@ -1,3 +1,4 @@
+import { FINANCE_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { ColumnFilter } from "@/components/ui/column-filter";
 import type { ReactNode } from "react";
 import { InvoiceAttachment } from "./InvoiceAttachment";
@@ -88,6 +89,8 @@ interface ReceivableForm {
   client: string;
   category: string;
   paymentMethod: string;
+  vat: string;
+  accounting: string;
   invoice: string;
   invoiceNumber: string;
   invoiceStatus: string;
@@ -113,7 +116,7 @@ function emptyForm(): ReceivableForm {
     client: "",
     category: "",
     paymentMethod: "",
-    invoice: "", invoiceNumber: "", invoiceStatus: "", installments: [],
+    vat: "", accounting: "", invoice: "", invoiceNumber: "", invoiceStatus: "", installments: [],
     settleDate: "",
     notes: "",
     entryDate: todayISO(),
@@ -143,6 +146,8 @@ function toForm(r: Receivable): ReceivableForm {
     client: r.client ?? "",
     category: r.category ?? "",
     paymentMethod: r.paymentMethod ?? "",
+    vat: r.vat == null ? "" : String(r.vat),
+    accounting: r.accounting ?? "",
     invoice: r.invoice ?? "",
     invoiceNumber: r.invoiceNumber ?? "",
     invoiceStatus: r.invoiceStatus ?? "",
@@ -163,6 +168,8 @@ export function toPayload(form: ReceivableForm): ReceivablePayload {
     referencia_veiculo_tipo: form.vehicleReferenceType,
     descricao: form.description,
     data_vencimento: form.dueDate,
+    iva: !form.vat ? null : Number(form.vat),
+    contabilidade: form.accounting?.trim() || null,
     fatura: form.invoice || null,
     numero_fatura: form.invoiceNumber || null,
     status_fatura: form.invoiceStatus || null,
@@ -221,6 +228,7 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export function Receivables() {
+  const [columns] = useState(() => getTableColumns("binotto-finance-columns", FINANCE_COLUMNS));
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
@@ -415,16 +423,21 @@ export function Receivables() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table>
+        <Table className="table-fixed min-w-max [&_th]:w-28 [&_td]:border-r [&_th]:border-r [&_td]:px-2 [&_th]:px-2">
           <TableHeader>
             <TableRow>
-              <TableHead>{filter("Data", ["servico_de", "servico_ate"], <>
+              {columns.includes("date") && <TableHead>{filter("Data", ["servico_de", "servico_ate"], <>
                 <DateInput name="servico_de" aria-label="De" defaultValue={filters.servico_de} />
                 <DateInput name="servico_ate" aria-label="Até" defaultValue={filters.servico_ate} />
-              </>)}</TableHead>
+              </>)}</TableHead>}
+              {columns.includes("number") && <TableHead>{textFilter("Número", "numero_fatura")}</TableHead>}
+              {columns.includes("city") && <TableHead>{textFilter("Cidade", "cidade")}</TableHead>}
+              {columns.includes("country") && <TableHead>{textFilter("País", "pais")}</TableHead>}
+              {columns.includes("vat") && <TableHead>{filter("IVA", ["iva"], <Input type="number" min="0" step="0.01" name="iva" aria-label="IVA" defaultValue={filters.iva} />)}</TableHead>}
+              {columns.includes("accounting") && <TableHead>{textFilter("Contabilidade", "contabilidade")}</TableHead>}
               <TableHead>{textFilter("Modelo", "veiculo")}</TableHead>
               <TableHead>{textFilter("Placa / Chassi", "referencia")}</TableHead>
-              <TableHead>{filter("Oficina / Cliente", ["oficina_id", "origem"], <>
+              {columns.includes("workshop") && <TableHead>{filter("Oficina / Cliente", ["oficina_id", "origem"], <>
                 <select className="w-full rounded border bg-background p-2" name="oficina_id" defaultValue={filters.oficina_id ?? ""} aria-label="Oficina">
                   <option value="">Todas as oficinas</option>
                   {workshops.map(workshop => <option key={workshop.id} value={workshop.id}>{workshop.name}</option>)}
@@ -432,13 +445,13 @@ export function Receivables() {
                 <select className="w-full rounded border bg-background p-2" name="origem" defaultValue={filters.origem ?? ""} aria-label="Origem">
                   <option value="">Todas as origens</option><option value="aplicativo">Aplicativo</option><option value="avulsa">Avulsa</option>
                 </select>
-              </>)}</TableHead>
+              </>)}</TableHead>}
               <TableHead>{textFilter("Técnico", "tecnico")}</TableHead>
-              <TableHead>{filter("Valor a receber", ["valor_de", "valor_ate"], <>
+              {columns.includes("value") && <TableHead>{filter("Valor a receber", ["valor_de", "valor_ate"], <>
                 <Input name="valor_de" aria-label="Valor mínimo" type="number" min="0" step="0.01" defaultValue={filters.valor_de} />
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
-              </>)}</TableHead>
-              <TableHead className="border-l text-center">Fatura</TableHead>
+              </>)}</TableHead>}
+              <TableHead className="border-l text-center">{textFilter("Fatura", "fatura")}</TableHead>
               <TableHead className="text-center">Enviada</TableHead>
               <TableHead className="text-center">{filter("Recebida", ["status"], <select className="w-full rounded border bg-background p-2" name="status" defaultValue={filters.status ?? ""} aria-label="Status">
                 <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="confirmado">Confirmado</option>
@@ -452,23 +465,28 @@ export function Receivables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10">
+                <TableCell colSpan={columns.length + 8} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={columns.length + 8} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((r) => (
                 <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer whitespace-nowrap hover:bg-accent/50">
-                  <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>
+                  {columns.includes("date") && <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>}
+                  {columns.includes("number") && <TableCell>{r.invoiceNumber || "—"}</TableCell>}
+                  {columns.includes("city") && <TableCell>{r.city || "—"}</TableCell>}
+                  {columns.includes("country") && <TableCell>{r.country || "—"}</TableCell>}
+                  {columns.includes("vat") && <TableCell>{r.vat == null ? "—" : formatCurrency(r.vat)}</TableCell>}
+                  {columns.includes("accounting") && <TableCell title={r.accounting ?? undefined}>{r.accounting || "—"}</TableCell>}
                   <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
-                  <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, ""))}</TableCell>
-                  <TableCell title={r.technician ?? undefined}>{r.technician?.trim().split(/\s+/)[0] || "—"}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>
+                  {columns.includes("workshop") && <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, ""))}</TableCell>}
+                  <TableCell title={r.technician ?? undefined}>{r.technician?.trim().split(/\s+/)[0] || "—"}</TableCell>{columns.includes("value") && <TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>}
                   {invoiceCells(r)}
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
@@ -686,6 +704,8 @@ export function Receivables() {
                   </div>
                   <div className="space-y-2"><Label>Referência</Label><Input readOnly value={editing.vehicleReferenceType === "chassi" ? editing.chassis : editing.plate} /></div>
                   <div className="col-span-2 grid gap-3 md:grid-cols-3">
+                    <label className="space-y-2"><span>IVA</span><Input type="number" min="0" step="0.01" value={editing.vat} onChange={event => setEditing({ ...editing, vat: event.target.value })} /></label>
+                    <label className="space-y-2"><span>Contabilidade</span><Input maxLength={255} value={editing.accounting} onChange={event => setEditing({ ...editing, accounting: event.target.value })} /></label>
                     <div className="space-y-2"><Label>Fatura da oficina</Label><Input value={editing.invoice} onChange={(e) => setEditing({ ...editing, invoice: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Nº da fatura</Label><Input value={editing.invoiceNumber} onChange={(e) => setEditing({ ...editing, invoiceNumber: e.target.value })} /></div>
                     <div className="space-y-2"><Label>Status da fatura</Label><Select value={editing.invoiceStatus || "pendente"} onValueChange={v => setEditing({...editing, invoiceStatus:v})}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent><SelectItem value="pendente">Pendente</SelectItem><SelectItem value="emitida">Emitida</SelectItem><SelectItem value="enviada">Enviada ao cliente</SelectItem><SelectItem value="paga">Paga pelo cliente</SelectItem></SelectContent></Select></div>

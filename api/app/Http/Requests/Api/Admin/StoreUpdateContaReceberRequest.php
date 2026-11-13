@@ -33,6 +33,8 @@ class StoreUpdateContaReceberRequest extends FormRequest
             'cliente' => 'nullable|string|max:255',
             'categoria' => 'nullable|string|max:255',
             'forma_pagamento' => 'nullable|string|max:255',
+            'iva' => 'nullable|numeric|min:0|max:9999999999.99',
+            'contabilidade' => 'nullable|string|max:255',
             'fatura' => 'nullable|string|max:255',
             'numero_fatura' => 'nullable|string|max:100',
             'status_fatura' => 'nullable|string|max:50',
