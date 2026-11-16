@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,22 +11,22 @@ type AccessProps = NativeStackScreenProps<PublicStackParamList, "ProfileAccess">
 
 export function AccountEntryScreen({ navigation }: EntryProps): JSX.Element {
   const { t } = useTranslation();
+  const [gradient, setGradient] = useState(false);
+  const profiles = ["admin", "technician", "dismantler", "workshop"] as const;
+  const tones = gradient ? [colors.primary, "#FFE26B", "#FFEB92", "#FFF2BC"] : ["#FFE88D", colors.primary, "#FFE88D", colors.primary];
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Binotto PDR</Text>
         <Text style={styles.subtitle}>{t("accountEntry.choose")}</Text>
-        <TouchableOpacity accessibilityRole="button" style={[styles.option, styles.unavailable]} disabled>
-          <Text style={styles.optionText}>{t("accountEntry.admin")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={() => navigation.navigate("ProfileAccess", { profile: "technician" })}>
-          <Text style={styles.primaryText}>{t("accountEntry.technician")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" style={[styles.option, styles.unavailable]} disabled>
-          <Text style={styles.optionText}>{t("accountEntry.dismantler")}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity accessibilityRole="button" style={styles.primary} onPress={() => navigation.navigate("ProfileAccess", { profile: "workshop" })}>
-          <Text style={styles.primaryText}>{t("accountEntry.workshop")}</Text>
+        {profiles.map((profile, index) => (
+          <TouchableOpacity key={profile} accessibilityRole="button" style={[styles.primary, { backgroundColor: tones[index] }]}
+            onPress={() => navigation.navigate("Login", { profile })}>
+            <Text style={styles.primaryText}>{t(`accountEntry.${profile}`)}</Text>
+          </TouchableOpacity>
+        ))}
+        <TouchableOpacity accessibilityRole="button" style={styles.back} onPress={() => setGradient(current => !current)}>
+          <Text style={styles.optionText}>{gradient ? "Ver modelo com dois tons" : "Ver modelo em degradê"}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -66,6 +66,5 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.black, fontWeight: "700" },
   option: { borderColor: colors.primary, borderWidth: 1, borderRadius: 12, padding: 16, alignItems: "center" },
   optionText: { color: colors.white, fontWeight: "600" },
-  unavailable: { opacity: 0.65 },
   back: { alignItems: "center", padding: 12 },
 });

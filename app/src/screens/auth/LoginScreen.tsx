@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Image,
@@ -42,11 +42,13 @@ const languages = [
   // { key: "en", code: "EN", label: "English" },
 ] as const;
 
-export function LoginScreen({ navigation }: Props): JSX.Element {
+export function LoginScreen({ navigation, route }: Props): JSX.Element {
   const { signInSocial, signIn } = useAuth();
   const { locale, language, setLanguage } = useLanguage();
   const { t } = useTranslation();
 
+  const profile = route.params?.profile;
+  const canRegister = profile === "technician" || profile === "workshop";
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -170,26 +172,8 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
         return;
       }
     } catch (error) {
-      const axiosError = error as any;
-      const status = axiosError?.response?.status;
-      const data = axiosError?.response?.data;
-      const endpoint = `${GLOBAL.baseURL}/auth/login`;
-
-      const debugPayload = {
-        endpoint,
-        status: status ?? "NO_RESPONSE",
-        data: data ?? null,
-        message: axiosError?.message ?? String(error),
-        code: axiosError?.code ?? null,
-      };
-
-      console.log("[LOGIN_ERROR]", debugPayload);
-
-      setError(
-        data?.error || data?.message
-          ? `${data?.error || data?.message}\n\n${JSON.stringify(debugPayload, null, 2)}`
-          : `${t("loginScreen.loginFailed")}\n\n${JSON.stringify(debugPayload, null, 2)}`,
-      );
+      const response = (error as { response?: { data?: { error?: string; message?: string } } }).response;
+      setError(response?.data?.error || response?.data?.message || t("loginScreen.loginFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -266,20 +250,8 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
             <ErrorAlert message={error} onClose={() => setError(null)} />
           )}
 
-          <Pressable onPress={() => navigation.navigate("AccountEntry")} style={{ alignSelf: "flex-start", paddingVertical: 12 }}>
-            <Text style={{ color: colors.primary, fontWeight: "600" }}>Voltar para escolha de acesso e cadastro</Text>
-          </Pressable>
-
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text allowFontScaling={false} style={styles.dividerText}>
-              {t("loginScreen.divider")}
-            </Text>
-            <View style={styles.dividerLine} />
-          </View>
-
           <Text allowFontScaling={false} style={styles.inputLabel}>
-            {t("loginScreen.signInWithAccount")}
+            {t("loginScreen.signInWithAccount")}{profile && <> <Text style={{ color: colors.white, fontWeight: "700" }}>{t(`accountEntry.${profile}`)}</Text></>}
           </Text>
 
           <TextInput
@@ -359,6 +331,14 @@ export function LoginScreen({ navigation }: Props): JSX.Element {
             onPress={handleLogin}
             disabled={isSubmitting}
           />
+
+          {canRegister && <Pressable style={styles.privacyButton} onPress={() =>
+            profile === "technician" ? navigation.navigate("RegisterTechnician") : navigation.navigate("RegisterWorkshop")}>
+            <Text style={styles.forgotText}>{t("accountEntry.register")}</Text>
+          </Pressable>}
+          <Pressable style={styles.privacyButton} onPress={() => navigation.goBack()}>
+            <Text style={styles.forgotText}>{t("accountEntry.back")}</Text>
+          </Pressable>
 
           <Pressable
             style={styles.privacyButton}

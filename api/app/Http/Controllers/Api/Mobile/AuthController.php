@@ -26,7 +26,7 @@ class AuthController extends Controller
             'plataforma' => 'nullable|string',
         ]);
 
-        $login = $request->input('login');
+        $login = trim($request->input('login'));
         $password = $request->input('senha');
 
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'whatsapp';
@@ -36,7 +36,9 @@ class AuthController extends Controller
             $login = '+' . $digits;
         }
 
-        $user = User::withTrashed()->where($field, $login)->first();
+        $user = ($field === 'email'
+            ? User::query()->whereRaw('LOWER(email) = ?', [mb_strtolower($login)])
+            : User::query()->where('whatsapp', $login))->first();
 
         if (!$user) {
             return response()->json(['error' => __('auth.invalid_credentials')], 401);
@@ -77,7 +79,7 @@ class AuthController extends Controller
                 'user' => [
                     'id' => $user->id,
                     'whatsapp' => $user->whatsapp,
-                    'workshopName' => $user->oficinaConvite->nome_fantasia,
+                    'workshopName' => $user->oficinaConvite?->nome_fantasia,
                 ]
             ], 200);
         }
@@ -92,7 +94,9 @@ class AuthController extends Controller
             'expires_in' => auth('api')->factory()->getTTL() * 60,
             'user' => [
                 'id' => $user->id,
-                'name' => $user->perfil === 'TECNICO'\n                    ? ($user->tecnico?->nome_completo ?? $user->tecnico?->apelido ?? $user->nome)\n                    : ($user->perfil === 'OFICINA' ? ($user->oficina?->nome_fantasia ?? $user->nome) : $user->nome),
+                'name' => $user->perfil === 'TECNICO'
+                    ? ($user->tecnico?->nome_completo ?? $user->tecnico?->apelido ?? $user->nome)
+                    : ($user->perfil === 'OFICINA' ? ($user->oficina?->nome_fantasia ?? $user->nome) : $user->nome),
                 'email' => $user->email,
                 'whatsapp' => $user->whatsapp,
                 'countryCode' => $user->codigo_pais_telefone,
@@ -101,7 +105,7 @@ class AuthController extends Controller
                 'profile' => $user->perfil,
                 'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico?->id : ($user->perfil === 'OFICINA' ? $user->oficina?->id : null),
                 'canRequestTechnician' => $user->perfil === 'OFICINA'
-                    ? $user->oficina->podeSolicitarTecnico()
+                    ? ($user->oficina?->podeSolicitarTecnico() ?? false)
                     : false,
                 'active' => $user->ativo,
             ]
@@ -197,7 +201,7 @@ class AuthController extends Controller
                 'profile' => $user->perfil,
                 'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico->id : $user->oficina->id,
                 'canRequestTechnician' => $user->perfil === 'OFICINA'
-                    ? $user->oficina->podeSolicitarTecnico()
+                    ? ($user->oficina?->podeSolicitarTecnico() ?? false)
                     : false,
                 'active' => $user->ativo,
             ]
@@ -296,7 +300,7 @@ class AuthController extends Controller
                     'profile' => $user->perfil,
                     'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico->id : $user->oficina->id,
                     'canRequestTechnician' => $user->perfil === 'OFICINA'
-                        ? $user->oficina->podeSolicitarTecnico()
+                        ? ($user->oficina?->podeSolicitarTecnico() ?? false)
                         : false,
                     'active' => $user->ativo,
                 ]
@@ -404,7 +408,7 @@ class AuthController extends Controller
                 'profile' => $user->perfil,
                 'profileId' => $user->perfil === 'TECNICO' ? $user->tecnico->id : $user->oficina->id,
                 'canRequestTechnician' => $user->perfil === 'OFICINA'
-                    ? $user->oficina->podeSolicitarTecnico()
+                    ? ($user->oficina?->podeSolicitarTecnico() ?? false)
                     : false,
                 'active' => $user->ativo,
             ]
