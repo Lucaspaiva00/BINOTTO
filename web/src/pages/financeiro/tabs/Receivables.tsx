@@ -5,7 +5,7 @@ import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Eye, Trash2, FileText, MessageCircle, Mail, Minus } from "lucide-react";
+import { Plus, Trash2, FileText, MessageCircle, Mail, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -423,21 +423,20 @@ export function Receivables() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="table-fixed min-w-max [&_th]:w-28 [&_td]:border-r [&_th]:border-r [&_td]:px-2 [&_th]:px-2">
+        <Table className="min-w-max [&_td]:px-2 [&_th]:px-2 [&_tr>:nth-last-child(2)]:sticky [&_tr>:nth-last-child(2)]:right-12 [&_tr>:nth-last-child(3)]:sticky [&_tr>:nth-last-child(3)]:right-28 [&_tr>:nth-last-child(4)]:sticky [&_tr>:nth-last-child(4)]:right-44 [&_tr>:nth-last-child(5)]:sticky [&_tr>:nth-last-child(5)]:right-60 [&_tr>:nth-last-child(-n+5)]:bg-card [&_tr>:nth-last-child(-n+5)]:border-l">
           <TableHeader>
             <TableRow>
-              {columns.includes("date") && <TableHead>{filter("Data", ["servico_de", "servico_ate"], <>
+                {columns.map(id => <TableHead key={id} className="max-w-40 truncate">{ {
+                  date: filter("Data", ["servico_de", "servico_ate"], <>
                 <DateInput name="servico_de" aria-label="De" defaultValue={filters.servico_de} />
                 <DateInput name="servico_ate" aria-label="Até" defaultValue={filters.servico_ate} />
-              </>)}</TableHead>}
-              {columns.includes("number") && <TableHead>{textFilter("Número", "numero_fatura")}</TableHead>}
-              {columns.includes("city") && <TableHead>{textFilter("Cidade", "cidade")}</TableHead>}
-              {columns.includes("country") && <TableHead>{textFilter("País", "pais")}</TableHead>}
-              {columns.includes("vat") && <TableHead>{filter("IVA", ["iva"], <Input type="number" min="0" step="0.01" name="iva" aria-label="IVA" defaultValue={filters.iva} />)}</TableHead>}
-              {columns.includes("accounting") && <TableHead>{textFilter("Contabilidade", "contabilidade")}</TableHead>}
-              <TableHead>{textFilter("Modelo", "veiculo")}</TableHead>
-              <TableHead>{textFilter("Placa / Chassi", "referencia")}</TableHead>
-              {columns.includes("workshop") && <TableHead>{filter("Oficina / Cliente", ["oficina_id", "origem"], <>
+              </>),
+                  number: textFilter("Número", "numero_fatura"),
+                  city: textFilter("Cidade", "cidade"),
+                  country: textFilter("País", "pais"),
+                  vat: filter("IVA", ["iva"], <Input type="number" min="0" step="0.01" name="iva" aria-label="IVA" defaultValue={filters.iva} />),
+                  accounting: textFilter("Contabilidade", "contabilidade"),
+                  workshop: filter("Oficina / Cliente", ["oficina_id", "origem"], <>
                 <select className="w-full rounded border bg-background p-2" name="oficina_id" defaultValue={filters.oficina_id ?? ""} aria-label="Oficina">
                   <option value="">Todas as oficinas</option>
                   {workshops.map(workshop => <option key={workshop.id} value={workshop.id}>{workshop.name}</option>)}
@@ -445,19 +444,15 @@ export function Receivables() {
                 <select className="w-full rounded border bg-background p-2" name="origem" defaultValue={filters.origem ?? ""} aria-label="Origem">
                   <option value="">Todas as origens</option><option value="aplicativo">Aplicativo</option><option value="avulsa">Avulsa</option>
                 </select>
-              </>)}</TableHead>}
-              <TableHead>{textFilter("Técnico", "tecnico")}</TableHead>
-              {columns.includes("value") && <TableHead>{filter("Valor a receber", ["valor_de", "valor_ate"], <>
+              </>),
+                  value: filter("Valor a receber", ["valor_de", "valor_ate"], <>
                 <Input name="valor_de" aria-label="Valor mínimo" type="number" min="0" step="0.01" defaultValue={filters.valor_de} />
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
-              </>)}</TableHead>}
-              <TableHead className="border-l text-center">{textFilter("Fatura", "fatura")}</TableHead>
+              </>),
+                }[id]}</TableHead>)}
+              <TableHead className="border-l text-center">Fatura</TableHead>
               <TableHead className="text-center">Enviada</TableHead>
-              <TableHead className="text-center">{filter("Recebida", ["status"], <select className="w-full rounded border bg-background p-2" name="status" defaultValue={filters.status ?? ""} aria-label="Status">
-                <option value="">Todos os status</option><option value="pendente">Pendente</option><option value="confirmado">Confirmado</option>
-                <option value="em_aberto">Em aberto</option><option value="recebido">Recebido</option><option value="pago">Pago</option>
-                <option value="vencido">Vencido</option><option value="cancelado">Cancelado</option>
-              </select>)}</TableHead>
+              <TableHead className="text-center">Recebida</TableHead>
               <TableHead className="text-center">Paga</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
@@ -465,34 +460,32 @@ export function Receivables() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 8} className="text-center py-10">
+                <TableCell colSpan={columns.length + 5} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 8} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={columns.length + 5} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((r) => (
                 <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer whitespace-nowrap hover:bg-accent/50">
-                  {columns.includes("date") && <TableCell className="whitespace-nowrap text-sm">{formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate)}</TableCell>}
-                  {columns.includes("number") && <TableCell>{r.invoiceNumber || "—"}</TableCell>}
-                  {columns.includes("city") && <TableCell>{r.city || "—"}</TableCell>}
-                  {columns.includes("country") && <TableCell>{r.country || "—"}</TableCell>}
-                  {columns.includes("vat") && <TableCell>{r.vat == null ? "—" : formatCurrency(r.vat)}</TableCell>}
-                  {columns.includes("accounting") && <TableCell title={r.accounting ?? undefined}>{r.accounting || "—"}</TableCell>}
-                  <TableCell>{[r.brand, r.vehicleModel].filter(Boolean).join(" ") || r.description || "—"}</TableCell><TableCell>{r.vehicleReference || r.plate || r.chassis || "—"}</TableCell>
-                  {columns.includes("workshop") && <TableCell className="text-sm">{r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, ""))}</TableCell>}
-                  <TableCell title={r.technician ?? undefined}>{r.technician?.trim().split(/\s+/)[0] || "—"}</TableCell>{columns.includes("value") && <TableCell className="whitespace-nowrap font-medium">{formatCurrency(r.serviceAmount)}</TableCell>}
+                {columns.map(id => <TableCell key={id} className="max-w-40 truncate">{ {
+                  date: formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate),
+                  number: r.invoiceNumber || "—",
+                  city: r.city || "—",
+                  country: r.country || "—",
+                  vat: r.vat == null ? "—" : formatCurrency(r.vat),
+                  accounting: r.accounting || "—",
+                  workshop: r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, "")),
+                  value: formatCurrency(r.serviceAmount),
+                }[id]}</TableCell>)}
                   {invoiceCells(r)}
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(r); }}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="ghost" aria-label="Excluir lançamento" onClick={(e) => e.stopPropagation()}>

@@ -31,6 +31,9 @@ export interface Pericia {
   priceVisibility?: {carro: boolean; desmontagem: boolean; total: boolean; sugerido: boolean} | null;
   workshopId?: number | null;
   workshop: string | null;
+  city?: string | null;
+  country?: string | null;
+  notes?: string | null;
   technicianId?: number | null;
   technician: string | null;
   serviceId: number | null;

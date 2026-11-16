@@ -1,14 +1,14 @@
+import { ColumnFilter } from "@/components/ui/column-filter";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Search, Wrench, UserRound, Plus } from "lucide-react";
+import { Wrench, UserRound, Plus } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { userService } from "@/services/userService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
@@ -26,30 +26,12 @@ export default function UsersList() {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [country, setCountry] = useState<string>("all");
   const [city, setCity] = useState("");
-  const [debouncedCity, setDebouncedCity] = useState("");
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastPage, setLastPage] = useState(1);
   const [total, setTotal] = useState(0);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [query]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedCity(city);
-      setPage(1);
-    }, 400);
-    return () => clearTimeout(timeout);
-  }, [city]);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,8 +45,8 @@ export default function UsersList() {
           perfil: type === "all" ? undefined : type,
           status: status === "all" ? undefined : status,
           pais: country === "all" ? undefined : country,
-          cidade: debouncedCity.trim() || undefined,
-          busca: debouncedQuery.trim() || undefined,
+          cidade: city.trim() || undefined,
+          busca: query.trim() || undefined,
         });
         if (cancelled) return;
         setUsers(response.data);
@@ -81,18 +63,21 @@ export default function UsersList() {
     return () => {
       cancelled = true;
     };
-  }, [page, type, status, country, debouncedCity, debouncedQuery]);
+  }, [page, type, status, country, city, query]);
+
+  function filter(label: string, value: string, update: (value: string) => void, options?: [string, string][]) {
+    return <ColumnFilter label={label} active={Boolean(value && value !== "all")} onApply={data => {
+      update(String(data?.get("filter") ?? (options ? "all" : "")).trim());
+      setPage(1);
+    }}>{options ? <select name="filter" aria-label={label} defaultValue={value} className="w-full rounded border bg-background p-2">
+      <option value="all">Todos</option>
+      {options.map(([id, title]) => <option key={id} value={id}>{title}</option>)}
+    </select> : <Input name="filter" aria-label={label} defaultValue={value} />}</ColumnFilter>;
+  }
 
   return (
     <AppLayout title="Usuários" subtitle={`${total} resultado(s)`}>
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => navigate("/usuarios/novo")}>
-          <Plus className="w-4 h-4 mr-1" />
-          Novo usuário
-        </Button>
-      </div>
-
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <Tabs
           value={type}
           onValueChange={(v) => {
@@ -100,55 +85,14 @@ export default function UsersList() {
             setPage(1);
           }}
         >
-          <TabsList>
+          <TabsList className="h-9 text-sm">
             <TabsTrigger value="TECNICO">Técnico</TabsTrigger>
-            <TabsTrigger value="OFICINA">Oficina</TabsTrigger>
+            <TabsTrigger value="OFICINA">Cliente</TabsTrigger>
             <TabsTrigger value="all">Todos</TabsTrigger>
           </TabsList>
         </Tabs>
 
-        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
-          <Select
-            value={status}
-            onValueChange={(v) => {
-              setStatus(v as StatusFilter);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos status</SelectItem>
-              <SelectItem value="ativo">Ativos</SelectItem>
-              <SelectItem value="desativado">Suspensos</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={country}
-            onValueChange={(v) => {
-              setCountry(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="País" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos países</SelectItem>
-              {COMMON_COUNTRIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-
-          <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Cidade" className="w-full sm:w-40" />
-
-          <div className="relative w-full sm:w-60">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar nome, ID ou documento"
-              className="pl-9 w-full"
-            />
-          </div>
-        </div>
+        <Button onClick={() => navigate("/usuarios/novo")}><Plus className="w-4 h-4 mr-1" />Novo usuário</Button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl mt-4 overflow-x-auto">
@@ -157,11 +101,11 @@ export default function UsersList() {
             <TableRow>
               <TableHead className="w-12" />
               <TableHead>ID</TableHead>
-              <TableHead>Nome</TableHead>
+              <TableHead>{filter("Nome / ID / documento", query, setQuery)}</TableHead>
               <TableHead>{type === "TECNICO" ? "Apelido" : type === "OFICINA" ? "Responsável" : "Responsável / Apelido"}</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>País</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{filter("Cidade", city, setCity)}</TableHead>
+              <TableHead>{filter("País", country, setCountry, COMMON_COUNTRIES.map(c => [c, c]))}</TableHead>
+              <TableHead>{filter("Status", status, value => setStatus(value as StatusFilter), [["ativo", "Ativos"], ["desativado", "Suspensos"]])}</TableHead>
               <TableHead>Cadastro</TableHead>
             </TableRow>
           </TableHeader>

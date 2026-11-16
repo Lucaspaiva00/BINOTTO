@@ -102,6 +102,8 @@ export default function PericiasList() {
     </>),
     workshop: textFilter("Oficina", "oficina"),
     plate: textFilter("Placa", "placa"),
+    inspector: "Perito", city: "Cidade", country: "País", brand: "Marca", chassis: "Chassi",
+    technicianPrice: "Preço técnico", disassembly: "Desmontagem", notes: "Observação",
     model: textFilter("Modelo", "modelo"),
     value: filter("Valor", ["valor_min", "valor_max"], <>
       <Input type="number" min="0" step="0.01" name="valor_min" aria-label="Valor mínimo" defaultValue={filters.valor_min} />
@@ -137,6 +139,14 @@ export default function PericiasList() {
                 {columns.map(id => <TableCell key={id} className="whitespace-nowrap">{{
                   date: formatDateTime(p.createdAt),
                   workshop: p.workshop || "—",
+                  inspector: p.inspectorName || p.technician || "—",
+                  city: p.city || "—",
+                  country: p.country || "—",
+                  brand: p.brand || "—",
+                  chassis: p.chassis || "—",
+                  technicianPrice: p.technicianSuggestedValue == null ? "—" : formatCurrency(p.technicianSuggestedValue),
+                  disassembly: p.disassemblyValue == null ? "—" : formatCurrency(p.disassemblyValue),
+                  notes: <span className="block max-w-48 truncate" title={p.notes ?? undefined}>{p.notes || "—"}</span>,
                   plate: p.licensePlate || "—",
                   model: p.model || "—",
                   value: formatCurrency(displayValue(p)),

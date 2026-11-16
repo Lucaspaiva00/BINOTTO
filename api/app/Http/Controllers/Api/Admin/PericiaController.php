@@ -30,6 +30,7 @@ class PericiaController extends Controller
             ->select([
                 'id',
                 'placa',
+                'chassi',
                 'status',
                 'prazo',
                 'tipo',
@@ -44,7 +45,8 @@ class PericiaController extends Controller
                 'servico_id',
             ])
             ->with([
-                'oficina:id,nome_fantasia',
+                'oficina:id,nome_fantasia,cidade,pais',
+                'servico:id,observacoes',
                 'tecnico:id,nome_completo',
             ])
             ->when($request->input('status'), function ($query, $status) {
