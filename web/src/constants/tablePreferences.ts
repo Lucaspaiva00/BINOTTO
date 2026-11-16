@@ -5,7 +5,7 @@ export function getTableColumns<T extends string>(key: string, labels: Record<T,
   const defaults = Object.keys(labels) as T[];
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(key) ?? "null");
-    return Array.isArray(saved) ? defaults.filter(id => saved.includes(id)) : defaults;
+    return Array.isArray(saved) ? [...new Set(saved.filter((id): id is T => defaults.includes(id)))] : defaults;
   } catch {
     return defaults;
   }

@@ -256,9 +256,9 @@ export default function ServicosList() {
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
       <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open && deletingId === null) setPendingDeleteId(null); }}>
-        <AlertDialogContent aria-describedby={undefined}>
+        <AlertDialogContent aria-describedby={undefined} className="w-[calc(100%-2rem)] max-w-sm">
           <AlertDialogHeader><AlertDialogTitle>Excluir serviço</AlertDialogTitle></AlertDialogHeader>
-          <div className="grid gap-2">
+          <div className="grid min-w-0 gap-2 [&>button]:h-auto [&>button]:min-h-10 [&>button]:w-full [&>button]:whitespace-normal">
             <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => {
               event.preventDefault();
               if (pendingDeleteId !== null) void deleteService(pendingDeleteId, true);

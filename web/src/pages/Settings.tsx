@@ -23,18 +23,44 @@ type SectionId = (typeof sections)[number]["id"];
 
 function TableDisplaySettings<T extends string>({ storageKey, labels }: { storageKey: string; labels: Record<T, string> }) {
   const [visible, setVisible] = useState(() => getTableColumns(storageKey, labels));
+  const [order, setOrder] = useState(() => [...visible, ...(Object.keys(labels) as T[]).filter(id => !visible.includes(id))]);
+  const draggedColumn = useRef<T | null>(null);
+  function persist(nextOrder: T[], nextVisible: T[]) {
+    localStorage.setItem(storageKey, JSON.stringify(nextOrder.filter(id => nextVisible.includes(id))));
+    setOrder(nextOrder);
+    setVisible(nextVisible);
+  }
+
+  function move(id: T, target: number) {
+    if (target < 0 || target >= order.length) return;
+    const next = order.filter(column => column !== id);
+    next.splice(target, 0, id);
+    persist(next, visible);
+  }
+
   return <div className="space-y-3">
     <h2 className="font-semibold">Mostrador da tela principal</h2>
     <ul className="max-w-lg divide-y rounded-lg border">
-      {(Object.keys(labels) as T[]).map(id => <li key={id}>
-        <label className="flex items-center gap-2 px-3 py-2">
-          <input type="checkbox" checked={visible.includes(id)} onChange={event => {
-            const next = event.target.checked ? [...visible, id] : visible.filter(column => column !== id);
-            localStorage.setItem(storageKey, JSON.stringify(next));
-            setVisible(next);
-          }} />
+      {order.map((id, index) => <li key={id} className="flex items-center justify-between gap-2 px-3 py-1"
+        onDragOver={event => event.preventDefault()}
+        onDrop={event => {
+          event.preventDefault();
+          if (draggedColumn.current !== null) move(draggedColumn.current, index);
+          draggedColumn.current = null;
+        }}>
+        <label className="flex flex-1 items-center gap-2">
+          <input type="checkbox" checked={visible.includes(id)} onChange={event =>
+            persist(order, event.target.checked ? [...visible, id] : visible.filter(column => column !== id))} />
           {labels[id]}
         </label>
+        <Button variant="ghost" size="icon" draggable className="cursor-grab" aria-label={`Reordenar ${labels[id]}`}
+          onDragStart={event => { draggedColumn.current = id; event.dataTransfer.setData("text/plain", id); }}
+          onDragEnd={() => { draggedColumn.current = null; }}
+          onKeyDown={event => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            move(id, index + (event.key === "ArrowUp" ? -1 : 1));
+          }}><GripVertical className="size-4" /></Button>
       </li>)}
     </ul>
   </div>;
