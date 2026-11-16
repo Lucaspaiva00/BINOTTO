@@ -77,13 +77,13 @@ export default function Dashboard() {
     <AppLayout title="Dashboard" subtitle="Faturamento real da plataforma">
       {error && <p role="alert" className="mb-4 text-sm text-destructive">Não foi possível consultar o faturamento. Nenhum valor estimado foi exibido.</p>}
       {incomplete && <p role="alert" className="mb-4 text-sm text-amber-600">Existem lançamentos adicionais. Os valores semanal, mensal e os anos anteriores podem estar incompletos.</p>}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-5">
         {[
-          { label: "Faturamento anual", value: billing?.billedAmount, icon: Wallet },
-          { label: "Faturamento do mês", value: stats.month, icon: CalendarRange },
-          { label: "Faturamento da semana", value: stats.week, icon: CalendarDays },
+          { label: `Faturamento ${year}`, value: billing?.billedAmount, icon: Wallet },
+          { label: `Faturamento ${new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date())}`, value: stats.month, icon: CalendarRange },
+          { label: "Faturamento semanal", value: stats.week, icon: CalendarDays },
         ].map(({ label, value, icon: Icon }, index) => (
-          <div key={label} className="rounded-2xl border border-border bg-card p-5">
+          <div key={label}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted-foreground">{label}</p><Icon className="w-5 h-5 text-muted-foreground" />
             </div>

@@ -78,6 +78,7 @@ interface Props {
   onAccept?: () => void;
   onRefuse?: () => void;
   fixedInvoice?: boolean;
+  inspector?: { name: string; onChange: (name: string) => void };
   canAccept?: boolean;
   canRefuse?: boolean;
   actionBusy?: boolean;
@@ -85,7 +86,7 @@ interface Props {
   errors?: Record<string, string>;
 }
 export function ServiceAdminForm({ value, onChange, workshops, technicians, partsState, partEditor, onPartSelect, onPartChange,
-  onAccept, onRefuse, fixedInvoice = false, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {},
+  onAccept, onRefuse, fixedInvoice = false, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {}, inspector,
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
@@ -141,10 +142,15 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   const formatted = (amount: number | undefined) => amount == null ? "—" : new Intl.NumberFormat("pt-BR", {minimumFractionDigits: 2, maximumFractionDigits: 2}).format(amount);
   return <div className="space-y-5">
     <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-      <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />Solicitante e Técnico</h2>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,10rem)_minmax(0,1fr)_minmax(7rem,0.75fr)_auto]">
+      <h2 className="font-semibold flex items-center gap-2"><ClipboardList className="h-5 w-5" />{inspector ? "Solicitante e Perito" : "Solicitante e Técnico"}</h2>
+      <div className={inspector ? "grid gap-3 sm:grid-cols-3" : "grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(8rem,10rem)_minmax(0,1fr)_minmax(7rem,0.75fr)_auto]"}>
         <div className="min-w-0 space-y-2"><Label>Oficina</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.workshopId} onChange={v => onChange("workshopId", v)} placeholder="Selecione a oficina" options={workshops.map(w => ({ value: String(w.id), label: w.name }))}/>{errors.workshopId && <p className="text-xs text-destructive">{errors.workshopId}</p>}</div>
         <div className="min-w-0 space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
+        {inspector ? <div className="min-w-0 space-y-2">
+          <Label htmlFor="inspection-name">Perito</Label>
+          <Input id="inspection-name" value={inspector.name} onChange={event => inspector.onChange(event.target.value)} required />
+          {errors.inspector && <p className="text-xs text-destructive">{errors.inspector}</p>}
+        </div> : <>
         <div className="min-w-0 space-y-2"><Label>Técnico</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.technicianId || (value.manualTechnicianName ? "manual" : "")} onChange={v => onChange("technicianId", v)} placeholder="Sem técnico" options={[{ value: "", label: "Sem técnico" }, ...(value.manualTechnicianName ? [{ value: "manual", label: value.manualTechnicianName, disabled: true }] : []), ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
         <div className="min-w-0 space-y-2">
           <Label htmlFor="service-status">Status</Label>
@@ -157,6 +163,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
           <Button type="button" size="sm" className={`bg-green-600 text-white hover:bg-green-700 ${value.status === "aceito" ? "disabled:opacity-100" : ""}`} disabled={actionBusy || !canAccept || !value.technicianId} onClick={onAccept}><ThumbsUp className="mr-1 h-4 w-4"/>{value.status === "aceito" ? "Aceito" : "Aceitar"}</Button>
           <Button type="button" size="sm" className="bg-red-600 text-white hover:bg-red-700" disabled={actionBusy || !canRefuse || !value.technicianId} onClick={onRefuse}><ThumbsDown className="mr-1 h-4 w-4"/>{value.status === "recusado" ? "Recusado" : "Recusar"}</Button>
         </div>
+        </>}
       </div>
     </section>
 

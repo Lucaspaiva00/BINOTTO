@@ -1,6 +1,5 @@
 import { periciaService } from "@/services/periciaService";
 import { buildPericiaFormData } from "@/utils/buildPericiaFormData";
-import { Input } from "@/components/ui/input";
 import { getVehicleReference, normalizeVehicleReference } from "@/constants/servicePreferences";
 import type { ServiceStatus } from "@/types/service";
 import { useEffect, useState } from "react";
@@ -150,19 +149,15 @@ export default function ServicoCreate({ inspection = false }: { inspection?: boo
 
   return (
     <AppLayout title={inspection ? "Nova perícia" : action}>
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className={`${inspection ? "mb-2" : "mb-4"} flex items-center justify-between gap-3`}>
         <Button variant="outline" size="sm" onClick={() => { if (confirmDiscard()) navigate(back); }}>
           <ArrowLeft className="mr-2 h-4 w-4" />Voltar
         </Button>
         <Button className="bg-black text-white hover:bg-neutral-800" onClick={() => void submit()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : action}</Button>
       </div>
       <fieldset disabled={saving} className="min-w-0">
-      {inspection && <label className="mb-4 block max-w-md space-y-2">
-        <span>Nome do perito</span>
-        <Input value={inspectorName} onChange={event => { setInspectorName(event.target.value); markDirty(); }} required />
-        {errors.inspector && <span className="text-destructive">{errors.inspector}</span>}
-      </label>}
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
+        inspector={inspection ? { name: inspectorName, onChange: name => { setInspectorName(name); markDirty(); } } : undefined}
         fixedInvoice canAccept={!inspection && Boolean(form.technicianId) && form.status !== "aceito"}
         canRefuse={!inspection && Boolean(form.technicianId) && form.status !== "recusado"}
         onAccept={() => change("status", "aceito")} onRefuse={() => change("status", "recusado")}

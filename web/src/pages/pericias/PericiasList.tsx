@@ -3,7 +3,7 @@ import { PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Plus, ScanSearch, Pencil, MoreHorizontal, Trash2 } from "lucide-react";
+import { Plus, ScanSearch, Pencil, Download, MoreHorizontal, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +124,7 @@ export default function PericiasList() {
           <TableHeader>
             <TableRow>
               {columns.map(id => <TableHead key={id}>{headers[id]}</TableHead>)}
-              <TableHead className="text-right">Ações</TableHead>
+              <TableHead className="text-right">Menu</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -143,8 +143,8 @@ export default function PericiasList() {
                   status: p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—",
                 }[id]}</TableCell>)}
                 <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
-                  <div className="relative inline-block text-left" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null); }}>
-                    <Button size="icon" variant="ghost" aria-label="Ações da perícia" aria-expanded={openActionsId === p.id} onClick={() => setOpenActionsId((id) => id === p.id ? null : p.id)}>
+                  <div className="relative inline-block text-left" onMouseEnter={() => setOpenActionsId(p.id)} onMouseLeave={() => setOpenActionsId(null)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null); }}>
+                    <Button size="icon" variant="ghost" aria-label="Menu da perícia" aria-expanded={openActionsId === p.id} onClick={() => setOpenActionsId(p.id)}>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                     {openActionsId === p.id && (
@@ -152,6 +152,20 @@ export default function PericiasList() {
                         <button type="button" className="flex w-full items-center rounded-sm px-2 py-2 text-sm text-popover-foreground hover:bg-accent" onClick={() => { setOpenActionsId(null); navigate(`/pericias/${p.id}/editar`); }}>
                           <Pencil className="mr-2 h-4 w-4" />Editar
                         </button>
+                        <button type="button" className="flex w-full items-center rounded-sm px-2 py-2 text-sm hover:bg-accent" onClick={async () => {
+                          setOpenActionsId(null);
+                          try {
+                            const { blob, filename } = await periciaService.downloadPdf(p.id);
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement("a");
+                            link.href = url;
+                            link.download = filename;
+                            link.click();
+                            setTimeout(() => URL.revokeObjectURL(url), 1000);
+                          } catch (error) {
+                            toast.error(getApiErrorMessage(error));
+                          }
+                        }}><Download className="mr-2 h-4 w-4" />Gerar PDF</button>
                         <button type="button" className="flex w-full items-center rounded-sm px-2 py-2 text-sm text-destructive hover:bg-accent" onClick={() => { setOpenActionsId(null); setDeleting(p); }}>
                           <Trash2 className="mr-2 h-4 w-4" />Deletar
                         </button>

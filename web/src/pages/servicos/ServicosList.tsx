@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Plus, FileText, ClipboardList, Menu, Pencil, Trash2 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -256,23 +256,19 @@ export default function ServicosList() {
   return (
     <AppLayout title="Serviços" subtitle={`${total} solicitação(ões) encontrada(s)`}>
       <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => { if (!open && deletingId === null) setPendingDeleteId(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir serviço definitivamente?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deseja excluir também os registros financeiros vinculados? A perícia será mantida em ambos os casos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deletingId !== null}>Cancelar</AlertDialogCancel>
+        <AlertDialogContent aria-describedby={undefined}>
+          <AlertDialogHeader><AlertDialogTitle>Excluir serviço</AlertDialogTitle></AlertDialogHeader>
+          <div className="grid gap-2">
+            <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => {
+              event.preventDefault();
+              if (pendingDeleteId !== null) void deleteService(pendingDeleteId, true);
+            }}>Excluir também o financeiro</AlertDialogAction>
             <AlertDialogAction disabled={deletingId !== null} onClick={(event) => {
               event.preventDefault();
               if (pendingDeleteId !== null) void deleteService(pendingDeleteId, false);
-            }}>Não, manter o financeiro</AlertDialogAction>
-            <AlertDialogAction disabled={deletingId !== null} className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={(event) => { event.preventDefault(); if (pendingDeleteId !== null) void deleteService(pendingDeleteId, true); }}>
-              Sim, excluir também o financeiro
-            </AlertDialogAction>
-          </AlertDialogFooter>
+            }}>Manter o financeiro</AlertDialogAction>
+            <AlertDialogCancel disabled={deletingId !== null}>Cancelar</AlertDialogCancel>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
       <div className="flex flex-wrap justify-end gap-2 mb-4">
