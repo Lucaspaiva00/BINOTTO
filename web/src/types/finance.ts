@@ -82,6 +82,10 @@ export interface ReceivablePayload {
 }
 
 export interface Payable {
+  city?: string | null;
+  country?: string | null;
+  vat?: number | null;
+  accounting?: string | null;
   id: number;
   origin: FinanceOrigin;
   serviceId: number | null;
@@ -121,6 +125,8 @@ export interface Payable {
 }
 
 export interface PayablePayload {
+  iva?: number | null;
+  contabilidade?: string | null;
   origem: FinanceOrigin;
   servico_id?: number | null;
   referencia_veiculo_tipo?: "placa" | "chassi" | null;

@@ -26,6 +26,8 @@ class StoreUpdateContaPagarRequest extends FormRequest
             'fornecedor' => 'nullable|string|max:255',
             'categoria' => 'nullable|string|max:255',
             'forma_pagamento' => 'nullable|string|max:255',
+            'iva' => 'nullable|numeric|min:0|max:9999999999.99',
+            'contabilidade' => 'nullable|string|max:255',
             'fatura' => 'nullable|string|max:255',
             'numero_fatura' => 'nullable|string|max:100',
             'data_emissao' => 'nullable|date',

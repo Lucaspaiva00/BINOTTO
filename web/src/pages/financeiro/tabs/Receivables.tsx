@@ -473,7 +473,8 @@ export function Receivables() {
             ) : (
               items.map((r) => (
                 <TableRow key={r.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(r); }} className="cursor-pointer whitespace-nowrap hover:bg-accent/50">
-                {columns.map(id => <TableCell key={id} className="max-w-40 truncate">{ {
+                {columns.map(id => {
+                  const value = {
                   date: formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate),
                   number: r.invoiceNumber || "—",
                   city: r.city || "—",
@@ -482,7 +483,9 @@ export function Receivables() {
                   accounting: r.accounting || "—",
                   workshop: r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, "")),
                   value: formatCurrency(r.serviceAmount),
-                }[id]}</TableCell>)}
+                }[id];
+                  return <TableCell key={id}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
+                })}
                   {invoiceCells(r)}
                   <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
                     <div className="flex gap-1 justify-end">

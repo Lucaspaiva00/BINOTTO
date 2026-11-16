@@ -1,8 +1,9 @@
+import { PAYABLE_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Eye, Trash2, Search } from "lucide-react";
+import { Plus, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -34,7 +35,7 @@ import { endOfMonth, formatDate, startOfMonth } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { emptyForm, toForm, toPayload, type PayableForm } from "./payableForm";
-import { PAGE_SIZE, shopName, StatusBadge, techName } from "./shared";
+import { PAGE_SIZE, StatusBadge, techName } from "./shared";
 
 const FIELD_MAP: Record<string, string> = {
   origem: "origin",
@@ -60,6 +61,7 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export function Payables() {
+  const [columns] = useState(() => getTableColumns("binotto-payable-columns", PAYABLE_COLUMNS));
   const [from, setFrom] = useState(startOfMonth());
   const [to, setTo] = useState(endOfMonth());
   const [techFilter, setTechFilter] = useState("all");
@@ -355,48 +357,52 @@ export function Payables() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table>
+        <Table className="min-w-max">
           <TableHeader>
             <TableRow>
-              <TableHead>Data</TableHead>
-              <TableHead>Modelo</TableHead><TableHead>Placa / Chassi</TableHead>
-              <TableHead>Técnico / Fornecedor</TableHead>
-              <TableHead>Oficina</TableHead><TableHead>Valor a pagar</TableHead><TableHead className="border-l">Fatura</TableHead>
-              <TableHead>Situação da fatura</TableHead><TableHead>Vencimento</TableHead><TableHead>Pagamento</TableHead>
-              <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
+              {columns.map(id => <TableHead key={id}>{PAYABLE_COLUMNS[id]}</TableHead>)}
+              <TableHead className="sticky right-36 min-w-24 border-l bg-card px-2">Fatura</TableHead>
+              <TableHead className="sticky right-10 min-w-26 border-l bg-card px-2">Paga</TableHead>
+              <TableHead className="text-right sticky right-0 w-10 min-w-10 bg-card z-10 border-l border-border px-0">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10">
+                <TableCell colSpan={columns.length + 3} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={columns.length + 3} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
             ) : (
               items.map((p) => (
                 <TableRow key={p.id} onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a")) setViewing(p); }} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell className="whitespace-nowrap text-sm">{formatDate(p.serviceDate ?? p.issueDate ?? p.launchDate ?? p.dueDate)}</TableCell>
-                  <TableCell>{[p.brand, p.vehicleModel].filter(Boolean).join(" ") || p.description || "—"}</TableCell><TableCell>{p.vehicleReference || p.plate || p.chassis || "—"}</TableCell>
-                  <TableCell className="text-sm">{p.origin === "avulsa" ? (p.supplier ?? "—") : (p.technician || p.supplier || techName(technicians, p.technicianId))}</TableCell>
-                  <TableCell>{p.workshop || shopName(workshops, p.workshopId)}</TableCell><TableCell className="whitespace-nowrap font-medium">{formatCurrency(p.amountDue)}</TableCell>
-                  <TableCell className="border-l"><div className="space-y-1"><div className="flex items-center gap-2"><span>{p.invoiceNumber || "Sem número"}</span><InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} /></div><span className="block text-xs text-muted-foreground">{p.invoiceNumber || p.invoiceAttachment || p.invoice ? "Fatura cadastrada" : "Sem fatura"}</span>{p.issueDate && <span className="block text-xs text-muted-foreground">Emitida em {formatDate(p.issueDate)}</span>}</div></TableCell>
-                  <TableCell className="text-xs">{p.invoiceNumber || p.invoiceAttachment || p.invoice ? "Cadastrada" : "Sem fatura"}</TableCell>
-                  <TableCell className="whitespace-nowrap text-sm">{p.dueDate ? formatDate(p.dueDate) : "—"}</TableCell>
-                  <TableCell>
-                    <div className="space-y-1"><StatusBadge status={p.status} /><span className="block text-xs text-muted-foreground">{p.paymentDate || p.settleDate ? `Pago em ${formatDate(p.paymentDate || p.settleDate || "")}` : p.dueDate ? `Previsto: ${formatDate(p.dueDate)}` : "Aguardando pagamento"}</span></div>
+                  {columns.map(id => {
+                    const value = {
+                      date: formatDate(p.serviceDate ?? p.issueDate ?? p.launchDate ?? p.dueDate),
+                      number: p.invoiceNumber,
+                      workshop: p.technician || p.supplier || techName(technicians, p.technicianId),
+                      city: p.city,
+                      country: p.country,
+                      value: formatCurrency(p.amountDue),
+                      vat: p.vat == null ? null : formatCurrency(p.vat),
+                      accounting: p.accounting,
+                    }[id] || "—";
+                    return <TableCell key={id}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
+                  })}
+                  <TableCell className="sticky right-36 min-w-24 border-l bg-card px-2">
+                    <span className="block max-w-20 truncate" title={p.invoiceNumber ?? undefined}>{p.invoiceNumber || (p.invoice ? "Cadastrada" : "—")}</span>
+                    <InvoiceAttachment kind="pagar" id={p.id} attached={p.invoiceAttachment} />
                   </TableCell>
-                  <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
+                  <TableCell className="sticky right-10 min-w-26 border-l bg-card px-2"><StatusBadge status={p.status} /></TableCell>
+                  <TableCell className="text-right sticky right-0 w-10 min-w-10 bg-card z-10 border-l border-border px-0">
                     <div className="flex gap-1 justify-end">
-                      <Button size="sm" variant="ghost" aria-label="Ver detalhes" onClick={(e) => { e.stopPropagation(); setViewing(p); }}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
+
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="ghost" aria-label="Excluir lançamento" onClick={(e) => e.stopPropagation()}>
@@ -610,6 +616,8 @@ export function Payables() {
                     </Select>
                   </div>
                   <div className="space-y-2"><Label>Referência</Label><Input readOnly value={editing.vehicleReferenceType === "chassi" ? editing.chassis : editing.plate} /></div>
+                  <label className="space-y-2"><span>IVA</span><Input type="number" min="0" step="0.01" value={editing.vat} onChange={event => setEditing({ ...editing, vat: event.target.value })} /></label>
+                  <label className="space-y-2"><span>Contabilidade</span><Input maxLength={255} value={editing.accounting} onChange={event => setEditing({ ...editing, accounting: event.target.value })} /></label>
                   <div className="space-y-2"><Label>Fatura do técnico</Label><Input value={editing.invoice} onChange={(e) => setEditing({ ...editing, invoice: e.target.value })} /></div>
                   <div className="space-y-2"><Label>Nº da fatura do técnico</Label><Input value={editing.invoiceNumber} onChange={(e) => setEditing({ ...editing, invoiceNumber: e.target.value })} /></div>
                   <div className="col-span-2 space-y-2">

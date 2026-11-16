@@ -12,6 +12,8 @@ export interface PayableForm {
   chassis: string;
   vehicleReferenceType: "placa" | "chassi";
   commission: string;
+  vat: string;
+  accounting: string;
   invoice: string;
   invoiceNumber: string;
   technicianId: string;
@@ -34,7 +36,7 @@ export function emptyForm(): PayableForm {
   return {
     origin: "aplicativo",
     serviceId: null,
-    serviceDate: "", brand: "", vehicleModel: "", plate: "", chassis: "", vehicleReferenceType: "placa", commission: "", invoice: "", invoiceNumber: "",
+    serviceDate: "", brand: "", vehicleModel: "", plate: "", chassis: "", vehicleReferenceType: "placa", commission: "", vat: "", accounting: "", invoice: "", invoiceNumber: "",
     technicianId: "",
     workshopId: "",
     description: "",
@@ -60,7 +62,7 @@ export function toForm(p: Payable): PayableForm {
     serviceDate: p.serviceDate ?? "",
     brand: p.brand ?? "", vehicleModel: p.vehicleModel ?? "", plate: p.plate ?? "", chassis: p.chassis ?? "",
     vehicleReferenceType: p.vehicleReferenceType ?? (p.plate ? "placa" : "chassi"),
-    commission: p.commission ?? "", invoice: p.invoice ?? "", invoiceNumber: p.invoiceNumber ?? "",
+    commission: p.commission ?? "", vat: p.vat == null ? "" : String(p.vat), accounting: p.accounting ?? "", invoice: p.invoice ?? "", invoiceNumber: p.invoiceNumber ?? "",
     technicianId: p.technicianId != null ? String(p.technicianId) : "",
     workshopId: p.workshopId != null ? String(p.workshopId) : "",
     description: p.description,
@@ -86,6 +88,8 @@ export function toPayload(form: PayableForm): PayablePayload {
     descricao: form.description,
     data_vencimento: form.dueDate,
     comissao: form.commission || null,
+    iva: form.vat ? Number(form.vat) : null,
+    contabilidade: form.accounting?.trim() || null,
     fatura: form.invoice || null,
     numero_fatura: form.invoiceNumber || null,
     data_pagamento: form.settleDate || null,

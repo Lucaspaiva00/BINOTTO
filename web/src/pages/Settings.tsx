@@ -1,4 +1,4 @@
-import { FINANCE_COLUMNS, PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
+import { FINANCE_COLUMNS, PAYABLE_COLUMNS, PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { GripVertical } from "lucide-react";
 import { getServiceColumns, getVehicleReference, saveServiceColumns, saveVehicleReference, SERVICE_COLUMNS, type ServiceColumn, type ColumnPreference } from "@/constants/servicePreferences";
 import { AdminHistory } from "./AdminHistory";
@@ -113,7 +113,10 @@ export default function Settings() {
         aria-label={sections.find(({ id }) => id === activeSection)?.label}
         className="mt-5 min-h-[380px] rounded-xl border border-border bg-card p-5"
       >
-        {activeSection === "financeiro" && <TableDisplaySettings key="finance" storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} />}
+        {activeSection === "financeiro" && <div className="grid gap-6 lg:grid-cols-2">
+          <section><h2 className="mb-3 text-lg font-semibold">Contas a receber</h2><TableDisplaySettings storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} /></section>
+          <section><h2 className="mb-3 text-lg font-semibold">Contas a pagar</h2><TableDisplaySettings storageKey="binotto-payable-columns" labels={PAYABLE_COLUMNS} /></section>
+        </div>}
         {activeSection === "pericias" && <TableDisplaySettings key="pericias" storageKey="binotto-pericia-columns" labels={PERICIA_COLUMNS} />}
         {activeSection === "historico" && <AdminHistory />}
         {activeSection === "servico" && (

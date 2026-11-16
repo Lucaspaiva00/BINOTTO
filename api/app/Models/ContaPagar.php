@@ -23,6 +23,8 @@ class ContaPagar extends Model
         'fornecedor',
         'categoria',
         'forma_pagamento',
+        'iva',
+        'contabilidade',
         'fatura',
         'numero_fatura',
         'valor_a_pagar',
