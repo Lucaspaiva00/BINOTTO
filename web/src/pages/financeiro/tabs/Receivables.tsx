@@ -45,6 +45,9 @@ function dot(color: "green" | "yellow" | "red", title: string) {
   return <span title={title} role="img" aria-label={title} className={`mx-auto block size-3 rounded-full ${backgrounds[color]}`} />;
 }
 
+const invoiceColumnWidth = "w-[100px] min-w-[100px] max-w-[100px] truncate";
+const receivedColumnWidth = "w-[200px] min-w-[200px] max-w-[200px] truncate";
+
 function invoiceCells(record: Receivable) {
   const hasInvoice = Boolean(record.invoiceNumber || record.invoiceAttachment || record.invoice || ["emitida", "enviada", "paga"].includes(record.invoiceStatus ?? ""));
   const installments = record.installments ?? [];
@@ -55,7 +58,7 @@ function invoiceCells(record: Receivable) {
   const channels = record.invoiceChannels ?? [];
   const payment = record.technicianPayment;
   return <>
-    <TableCell className="border-l text-center" title={hasInvoice ? "Fatura emitida" : "Sem fatura"}>{hasInvoice
+    <TableCell className={`border-l text-center ${invoiceColumnWidth}`} title={hasInvoice ? "Fatura emitida" : "Sem fatura"}>{hasInvoice
       ? <FileText className="mx-auto size-4 text-emerald-500" aria-label="Fatura emitida" /> : dash}</TableCell>
     <TableCell className="text-center" title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
       {channels.length ? <span className="inline-flex gap-1">
@@ -63,7 +66,7 @@ function invoiceCells(record: Receivable) {
         {channels.includes("email") && <Mail className="size-4 text-sky-500" aria-label="E-mail" />}
       </span> : dash}
     </TableCell>
-    <TableCell className="text-center">{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
+    <TableCell className={`text-center ${receivedColumnWidth}`}>{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
     <TableCell className="text-center">{!(received || partial) || !payment ? dash : payment === "total"
       ? dot("green", "Técnicos pagos integralmente") : payment === "parcial"
       ? dot("yellow", "Pagamento parcial aos técnicos") : dot("red", "Pagamento aos técnicos pendente")}</TableCell>
@@ -423,7 +426,7 @@ export function Receivables() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-max [&_td]:px-2 [&_th]:px-2 [&_tr>:nth-last-child(2)]:sticky [&_tr>:nth-last-child(2)]:right-12 [&_tr>:nth-last-child(3)]:sticky [&_tr>:nth-last-child(3)]:right-28 [&_tr>:nth-last-child(4)]:sticky [&_tr>:nth-last-child(4)]:right-44 [&_tr>:nth-last-child(5)]:sticky [&_tr>:nth-last-child(5)]:right-60 [&_tr>:nth-last-child(-n+5)]:bg-card [&_tr>:nth-last-child(-n+5)]:border-l">
+        <Table className="min-w-max [&_td]:px-2 [&_th]:px-2 [&_tr>:nth-last-child(2)]:sticky [&_tr>:nth-last-child(2)]:right-12 [&_tr>:nth-last-child(4)]:sticky [&_tr>:nth-last-child(4)]:right-44 [&_tr>:nth-last-child(-n+5)]:bg-card [&_tr>:nth-last-child(-n+5)]:border-l">
           <TableHeader>
             <TableRow>
                 {columns.map(id => <TableHead key={id} className="max-w-40 truncate">{ {
@@ -450,9 +453,9 @@ export function Receivables() {
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
               </>),
                 }[id]}</TableHead>)}
-              <TableHead className="border-l text-center">Fatura</TableHead>
+              <TableHead className={`border-l text-center ${invoiceColumnWidth}`}>Fatura</TableHead>
               <TableHead className="text-center">Enviada</TableHead>
-              <TableHead className="text-center">Recebida</TableHead>
+              <TableHead className={`text-center ${receivedColumnWidth}`}>Recebida</TableHead>
               <TableHead className="text-center">Paga</TableHead>
               <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
             </TableRow>
