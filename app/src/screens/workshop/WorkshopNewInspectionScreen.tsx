@@ -381,6 +381,7 @@ export default function WorkshopNewInspectionScreen() {
     const reparosNecessarios = Object.entries(partsState).map(([partId, part]) => ({
       peca: partId,
       tipoReparo: part.tipoReparo,
+        especificacoes: part.especificacoes,
       quantidadeAmassados: part.quantidadeAmassados,
       quantidadeImpactosMaior25: part.quantidadeImpactosMaior25,
       quantidadeImpactosMenor25: part.quantidadeImpactosMenor25,
@@ -697,6 +698,7 @@ export default function WorkshopNewInspectionScreen() {
               </View>
             </View>
             <View style={styles.legendRow}>
+              <LegendDot color="#FBBF24" label={t("inspectionSummary.glue")} />
               <LegendDot color={REPAIR_COLORS.PDR} label={t("repairTypes.PDR")} />
               <LegendDot color={REPAIR_COLORS.PINTURA} label={t("repairTypes.PINTURA")} />
               <LegendDot color={REPAIR_COLORS.TROCA} label={t("repairTypes.TROCA")} />
@@ -762,6 +764,7 @@ export default function WorkshopNewInspectionScreen() {
 
         {modalPartVisible && editingPartId && (
           <InspectionModal
+            specifications
             visible={modalPartVisible}
             partName={
               editingPartId

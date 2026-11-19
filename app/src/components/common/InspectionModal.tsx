@@ -17,7 +17,7 @@ import { REPAIR_COLORS } from "@/theme/repairColors";
 
 import { Input } from "@/components/common/Input";
 
-import { PartInspection, Photo, RepairType } from "@/types/carParts";
+import { PartInspection, PartSpecification, Photo, RepairType } from "@/types/carParts";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import ImageViewerModal from "./ImageViewerModal";
 import { useTranslation } from "react-i18next";
@@ -30,6 +30,7 @@ type Props = {
   partName: string;
   value: PartInspection;
   inspectionComplete?: boolean;
+  specifications?: boolean;
   onClose: () => void;
   onSave: (data: PartInspection) => void;
   removeReparoPhoto?: (photo: Photo) => void;
@@ -40,6 +41,7 @@ export default function InspectionModal({
   partName,
   value,
   inspectionComplete = false,
+  specifications = false,
   onClose,
   onSave,
   removeReparoPhoto,
@@ -86,6 +88,7 @@ export default function InspectionModal({
 
   // states
   const [local, setLocal] = useState<PartInspection>(value);
+  const [totalInput, setTotalInput] = useState(value.especificacoes?.total?.toString() ?? "");
   const [removedPhotos, setRemovedPhotos] = useState<Photo[]>([]);
 
   // fotos
@@ -98,6 +101,7 @@ export default function InspectionModal({
   useEffect(() => {
     setRemovedPhotos([]);
     setLocal(value);
+    setTotalInput(value.especificacoes?.total?.toString() ?? "");
   }, [value]);
 
   // functions
@@ -152,12 +156,26 @@ export default function InspectionModal({
     }));
   };
 
+  const spec = local.especificacoes ?? {};
+  const aluminum = spec.aluminio ?? local.tipoReparo.startsWith("ALUMINIO_");
+  const repairType = local.tipoReparo === "ALUMINIO_PDR" ? "PDR"
+    : local.tipoReparo === "ALUMINIO_PINTURA" ? "PINTURA" : local.tipoReparo;
+  function updateSpecification(patch: Partial<PartSpecification>) {
+    setLocal(part => ({ ...part, especificacoes: { ...part.especificacoes, ...patch } }));
+  }
+
   const handleSave = () => {
     removedPhotos.forEach((photo) => {
       removeReparoPhoto?.(photo);
     });
 
-    onSave(local);
+    const counts = [spec.amassadosMenor25, spec.amassados25a50, spec.amassadosMaior50];
+    onSave(specifications && counts.some(count => count != null) ? {
+      ...local,
+      quantidadeAmassados: counts.reduce<number>((total, count) => total + (count ?? 0), 0),
+      quantidadeImpactosMenor25: spec.amassadosMenor25 ?? 0,
+      quantidadeImpactosMaior25: (spec.amassados25a50 ?? 0) + (spec.amassadosMaior50 ?? 0),
+    } : local);
     onClose();
   };
 
@@ -186,19 +204,39 @@ export default function InspectionModal({
               </Pressable>
             </View>
 
+            {specifications && <View style={styles.repairGrid}>
+              <Pressable accessibilityRole="button" accessibilityState={{ selected: !!spec.cola }}
+                style={[styles.repairChip, spec.cola && { borderColor: colors.primary }]}
+                onPress={() => updateSpecification({ cola: !spec.cola })}>
+                <Text style={styles.repairChipText}>{t("inspectionSummary.glue")}</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" accessibilityState={{ selected: aluminum }}
+                style={[styles.repairChip, aluminum && { borderColor: colors.primary }]}
+                onPress={() => {
+                  updateSpecification({ aluminio: !aluminum });
+                  if (repairType === "PDR" || repairType === "PINTURA") {
+                    selectRepairType(!aluminum ? repairType === "PDR" ? "ALUMINIO_PDR" : "ALUMINIO_PINTURA" : repairType);
+                  }
+                }}>
+                <Text style={styles.repairChipText}>{t("inspectionSummary.aluminum")}</Text>
+              </Pressable>
+            </View>}
             <View>
               <Text style={styles.sectionTitle}>
                 {t("inspectionModal.repairType").toUpperCase()}
               </Text>
 
               <View style={styles.repairGrid}>
-                {REPAIR_OPTIONS.map((option) => {
-                  const selected = local.tipoReparo === option.value;
+                {REPAIR_OPTIONS.filter(option => !specifications || !option.value.startsWith("ALUMINIO_")).map((option) => {
+                  const selected = (specifications ? repairType : local.tipoReparo) === option.value;
+                  const nextType = specifications && aluminum
+                    ? option.value === "PDR" ? "ALUMINIO_PDR" : option.value === "PINTURA" ? "ALUMINIO_PINTURA" : option.value
+                    : option.value;
 
                   return (
                     <Pressable
                       key={option.value}
-                      onPress={() => selectRepairType(option.value)}
+                      onPress={() => selectRepairType(nextType)}
                       style={[
                         styles.repairChip,
                         selected && {
@@ -223,7 +261,29 @@ export default function InspectionModal({
               </View>
             </View>
 
-            {inspectionComplete && (
+            {specifications && <View style={styles.dentsContainer}>
+              <View style={styles.dentsRow}>
+                {([["amassadosMenor25", "<25 mm"], ["amassados25a50", "25–50 mm"], ["amassadosMaior50", ">50 mm"]] as const).map(([key, label]) =>
+                  <View key={key} style={styles.dentField}>
+                    <Text style={styles.label}>{label}</Text>
+                    <Input keyboardType="number-pad" maxLength={4} value={spec[key]?.toString() ?? ""}
+                      onChangeText={text => {
+                        const digits = text.replace(/[^0-9]/g, "");
+                        updateSpecification({ [key]: digits ? Number(digits) : null });
+                      }} />
+                  </View>)}
+              </View>
+              <Text style={styles.label}>{t("inspectionSummary.total")}</Text>
+              <Input keyboardType="decimal-pad" editable={repairType !== "TROCA"}
+                value={repairType === "TROCA" ? t("inspectionSummary.newPart") : totalInput}
+                onChangeText={text => {
+                  if (!/^\d{0,8}([.,]\d{0,2})?$/.test(text)) return;
+                  setTotalInput(text);
+                  const value = Number(text.replace(",", "."));
+                  updateSpecification({ total: text && Number.isFinite(value) ? value : null });
+                }} />
+            </View>}
+            {inspectionComplete && !specifications && (
               <View style={styles.dentsContainer}>
                 <View style={styles.dentsRow}>
                   <View style={styles.dentField}>

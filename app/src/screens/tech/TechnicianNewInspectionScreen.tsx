@@ -328,6 +328,7 @@ export default function TechnicianNewInspectionScreen() {
       ([partId, part]) => ({
         peca: partId,
         tipoReparo: part.tipoReparo,
+        especificacoes: part.especificacoes,
         quantidadeAmassados: part.quantidadeAmassados,
         quantidadeImpactosMaior25: part.quantidadeImpactosMaior25,
         quantidadeImpactosMenor25: part.quantidadeImpactosMenor25,
@@ -744,6 +745,7 @@ export default function TechnicianNewInspectionScreen() {
             </View>
 
             <View style={styles.legendRow}>
+              <LegendDot color="#FBBF24" label={t("inspectionSummary.glue")} />
               <LegendDot
                 color={REPAIR_COLORS.PDR}
                 label={t("repairTypes.PDR")}
@@ -813,6 +815,7 @@ export default function TechnicianNewInspectionScreen() {
 
         {modalPartVisible && editingPartId && (
           <InspectionModal
+            specifications
             visible={modalPartVisible}
             partName={
               editingPartId

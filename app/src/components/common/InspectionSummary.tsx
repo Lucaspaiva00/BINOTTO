@@ -12,7 +12,7 @@ type Props = {
 
 export default function InspectionSummary({ parts, onSelectPart }: Props) {
   const { t } = useTranslation();
-  const rows = CAR_PARTS.filter(({ id }) => parts[id]?.tipoReparo !== "SEM_DANO" && parts[id]);
+  const rows = CAR_PARTS.filter(({ id }) => parts[id] && (parts[id].tipoReparo !== "SEM_DANO" || parts[id].especificacoes));
   if (!rows.length) return null;
 
   return <View style={styles.panel}>
@@ -23,8 +23,11 @@ export default function InspectionSummary({ parts, onSelectPart }: Props) {
           <Text style={styles.piece}>{t("inspectionSummary.piece")}</Text>
           <Text style={styles.repair}>{t("inspectionModal.repairType")}</Text>
           <Text style={styles.metric}>{t("inspectionSummary.smallImpacts")}</Text>
-          <Text style={styles.metric}>{t("inspectionSummary.largeImpacts")}</Text>
-          <Text style={styles.metric}>{t("inspectionSummary.dents")}</Text>
+          <Text style={styles.metric}>25–50 mm</Text>
+          <Text style={styles.metric}>&gt;50 mm</Text>
+          <Text style={styles.metric}>{t("inspectionSummary.glue")}</Text>
+          <Text style={styles.metric}>{t("inspectionSummary.aluminum")}</Text>
+          <Text style={styles.metric}>{t("inspectionSummary.total")}</Text>
           <Text style={styles.metric}>{t("inspectionModal.photos")}</Text>
         </View>
         {rows.map(({ id, labelKey }) => {
@@ -39,9 +42,12 @@ export default function InspectionSummary({ parts, onSelectPart }: Props) {
               <View style={[styles.dot, { backgroundColor: REPAIR_COLORS[part.tipoReparo] }]} />
               <Text style={styles.text}>{t(`repairTypes.${part.tipoReparo}`)}</Text>
             </View>
-            <Text style={styles.metric}>{part.quantidadeImpactosMenor25 ?? "—"}</Text>
-            <Text style={styles.metric}>{part.quantidadeImpactosMaior25 ?? "—"}</Text>
-            <Text style={styles.metric}>{part.quantidadeAmassados ?? "—"}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.amassadosMenor25 ?? part.quantidadeImpactosMenor25 ?? "—"}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.amassados25a50 ?? "—"}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.amassadosMaior50 ?? "—"}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.cola ? "✓" : "—"}</Text>
+            <Text style={styles.metric}>{(part.especificacoes?.aluminio ?? part.tipoReparo.startsWith("ALUMINIO_")) ? "✓" : "—"}</Text>
+            <Text style={styles.metric}>{part.tipoReparo === "TROCA" ? t("inspectionSummary.newPart") : part.especificacoes?.total ?? "—"}</Text>
             <Text style={styles.metric}>{part.fotos?.length ?? 0}</Text>
           </View>;
         })}

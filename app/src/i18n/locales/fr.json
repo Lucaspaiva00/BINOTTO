@@ -1,5 +1,5 @@
 {
-  "inspectionSummary": { "piece": "Pièce", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Bosses" },
+  "inspectionSummary": { "glue": "Colle", "aluminum": "Aluminium", "total": "Total de la pièce", "newPart": "Neuf", "piece": "Pièce", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Bosses" },
   "inspectionActions": { "save": "Enregistrer l’expertise", "pdf": "Générer le PDF", "start": "Démarrer le véhicule" },
   "accountEntry": {
     "choose": "Choisissez votre profil",

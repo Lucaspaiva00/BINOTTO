@@ -1,13 +1,4 @@
-FROM composer:2 AS vendor
-
-WORKDIR /app
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist
-
-COPY . .
-RUN composer dump-autoload --optimize --no-interaction
-
-FROM php:8.3-fpm-bookworm
+FROM php:8.3-fpm-bookworm AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         nginx \
@@ -33,6 +24,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         opcache \
         pcntl \
     && rm -rf /var/lib/apt/lists/*
+
+FROM runtime AS vendor
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction --prefer-dist
+
+COPY . .
+RUN composer dump-autoload --optimize --no-interaction
+
+FROM runtime
 
 WORKDIR /var/www/html
 

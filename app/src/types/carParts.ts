@@ -32,7 +32,17 @@ export type CarPartLayout = {
   };
 };
 
+export type PartSpecification = {
+  amassadosMenor25?: number | null;
+  amassados25a50?: number | null;
+  amassadosMaior50?: number | null;
+  cola?: boolean;
+  aluminio?: boolean;
+  total?: number | null;
+};
+
 export type PartInspection = {
+  especificacoes?: PartSpecification;
   tipoReparo: RepairType;
   quantidadeAmassados: number;
   quantidadeImpactosMaior25: number;

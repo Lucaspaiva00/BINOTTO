@@ -71,6 +71,7 @@ export const normalizeReparos = (reparos: any[]): Record<string, PartInspection>
 
     acc[id] = {
       tipoReparo,
+      especificacoes: found?.especificacoes,
       quantidadeAmassados: found?.quantidadeAmassados ?? 0,
       quantidadeImpactosMaior25: found?.quantidadeImpactosMaior25 ?? 0,
       quantidadeImpactosMenor25: found?.quantidadeImpactosMenor25 ?? 0,

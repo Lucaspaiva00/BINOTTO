@@ -1,5 +1,5 @@
 {
-  "inspectionSummary": { "piece": "Peça", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Amassados" },
+  "inspectionSummary": { "glue": "Cola", "aluminum": "Alumínio", "total": "Total da peça", "newPart": "Novo", "piece": "Peça", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Amassados" },
   "inspectionActions": { "save": "Salvar perícia", "pdf": "Gerar PDF", "start": "Iniciar carro" },
   "accountEntry": {
     "choose": "Escolha seu perfil",

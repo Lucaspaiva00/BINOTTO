@@ -1182,6 +1182,8 @@ class TecnicoServicoController extends Controller
                 'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? $atual['tamanhoAmassado'] ?? null,
                 'coeficiente' => $reparo['coeficiente'] ?? $atual['coeficiente'] ?? 0,
                 'observacoes' => $reparo['observacoes'] ?? $atual['observacoes'] ?? '',
+                'especificacoes' => \App\Support\PericiaEspecificacoes::normalizar($reparo['especificacoes'] ?? null)
+                    ?? $atual['especificacoes'] ?? null,
                 'fotos' => $atual['fotos'] ?? [],
             ]);
         }, $reparos);

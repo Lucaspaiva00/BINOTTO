@@ -383,6 +383,15 @@ class TecnicoPericiaController extends Controller
 
             $reparosNecessariosJson = json_decode($request->input('reparos_necessarios', '[]'), true);
             $reparosNecessarios = $this->normalizeReparos($reparosNecessariosJson);
+            foreach ($reparosNecessarios as &$reparo) {
+                if ($reparo['especificacoes'] === null) {
+                    $peca = $reparo['peca'];
+                    $atual = collect($pericia->reparos_necessarios ?? [])->firstWhere('peca', $peca);
+                    $reparo['especificacoes'] = $atual['especificacoes'] ?? null;
+                }
+            }
+            unset($reparo);
+
 
             foreach ($reparosNecessarios as &$reparo) {
                 $peca = $reparo['peca'];
@@ -539,6 +548,7 @@ class TecnicoPericiaController extends Controller
                 'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? null,
                 'coeficiente' => $reparo['coeficiente'] ?? 0,
                 'observacoes' => $reparo['observacoes'] ?? '',
+                'especificacoes' => \App\Support\PericiaEspecificacoes::normalizar($reparo['especificacoes'] ?? null),
                 'fotos' => [],
             ];
         }, $reparos);
