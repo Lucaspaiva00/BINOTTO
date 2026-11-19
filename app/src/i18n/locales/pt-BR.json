@@ -1,4 +1,6 @@
 {
+  "inspectionSummary": { "piece": "Peça", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Amassados" },
+  "inspectionActions": { "save": "Salvar perícia", "pdf": "Gerar PDF", "start": "Iniciar carro" },
   "accountEntry": {
     "choose": "Escolha seu perfil",
     "admin": "Administrativo",
@@ -1106,6 +1108,7 @@
     "inspectionPdfButton": "PDF da Perícia"
   },
   "inspectionStatus": {
+    "search": "Buscar",
     "all": "Todas",
     "open": "Aberta",
     "inProgress": "Em Execução",

@@ -45,9 +45,10 @@ type Props = {
   technicians?: UserSelectionItem[];
   onClose: () => void;
   onEdit: () => void;
+  actions?: ReactNode;
 };
 
-export function FinanceRecordDetails({ kind, record, workshops, technicians = [], onClose, onEdit }: Props) {
+export function FinanceRecordDetails({ kind, record, workshops, technicians = [], onClose, onEdit, actions }: Props) {
   const payable = record && "amountDue" in record ? record : null;
   const receivable = record && "serviceAmount" in record ? record : null;
   const workshop = record?.workshop || shopName(workshops, record?.workshopId);
@@ -128,7 +129,7 @@ export function FinanceRecordDetails({ kind, record, workshops, technicians = []
         </Section>
         {record.notes && <Section title="Observações"><Field label="Observações">{record.notes}</Field></Section>}
       </>}
-      <DialogFooter><Button variant="outline" onClick={onClose}>Fechar</Button>
+      <DialogFooter>{actions}<Button variant="outline" onClick={onClose}>Fechar</Button>
         <Button onClick={onEdit}><Pencil className="mr-2 h-4 w-4" />Editar</Button></DialogFooter>
     </DialogContent>
   </Dialog>;

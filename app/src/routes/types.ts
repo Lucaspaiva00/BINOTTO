@@ -34,6 +34,7 @@ export type TechnicianStackParamList = {
   } | undefined;
   NewInspection: {
     serviceId?: number;
+    mode?: "start";
   } | undefined;
   InspectionDetail: {
     inspectionId: number;

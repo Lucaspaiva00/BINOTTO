@@ -14,6 +14,7 @@ use App\Models\Oficina;
 use App\Models\Tecnico;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class UsuarioController extends Controller
@@ -55,6 +56,18 @@ class UsuarioController extends Controller
         }
 
         return response()->json(['data' => $itens]);
+    }
+
+    public function listPeritos(Request $request)
+    {
+        $search = trim((string) $request->input('busca', ''));
+        $peritos = DB::table('peritos')
+            ->select('id', 'nome')
+            ->when($search !== '', fn ($query) => $query->whereRaw('LOWER(nome) LIKE ?', ['%'.mb_strtolower($search).'%']))
+            ->orderBy('nome')
+            ->get();
+
+        return response()->json(['data' => $peritos]);
     }
 
     public function index(Request $request)

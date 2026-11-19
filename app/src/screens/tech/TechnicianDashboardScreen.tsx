@@ -218,7 +218,7 @@ export default function TechnicianDashboardScreen() {
 
   // navegações
   const handleOpenCreateService = async () => {
-    navigation.navigate("NewService");
+    navigation.navigate("NewInspection", { mode: "start" });
   };
 
   const handleChangeTab = async (value: "services" | "completed") => {

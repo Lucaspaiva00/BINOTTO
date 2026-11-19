@@ -70,8 +70,8 @@ export interface AdminServicePayload {
 export type UpdateServicePayload = Partial<AdminServicePayload>;
 
 export const serviceService = {
-  async list(params?: ListServicesParams): Promise<PaginatedResponse<Service>> {
-    const { data } = await api.get<PaginatedResponse<Service>>(BASE_URL, { params });
+  async list(params?: ListServicesParams): Promise<PaginatedResponse<Service> & { billedTotals?: Record<string, number> }> {
+    const { data } = await api.get<PaginatedResponse<Service> & { billedTotals?: Record<string, number> }>(BASE_URL, { params });
     return data;
   },
 

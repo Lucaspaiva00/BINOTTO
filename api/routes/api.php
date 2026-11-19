@@ -42,6 +42,7 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
 
         Route::prefix('usuarios')->group(function () {
             Route::get('/selecao', [AdminUsuarioController::class, 'listSelecao']);
+            Route::get('/peritos', [AdminUsuarioController::class, 'listPeritos']);
             Route::get('/', [AdminUsuarioController::class, 'index']);
             Route::post('/', [AdminUsuarioController::class, 'store']);
             Route::get('/{id}', [AdminUsuarioController::class, 'show']);

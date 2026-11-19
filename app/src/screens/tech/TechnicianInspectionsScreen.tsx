@@ -288,16 +288,13 @@ export default function TechnicianInspectionsScreen() {
                 label={t("common.inspectionStatus.open")}
                 value="aberta"
               />
-              <FilterStatusButton
-                label={t("common.inspectionStatus.inProgress")}
-                value="em_execucao"
-              />
+
               <FilterStatusButton
                 label={t("common.inspectionStatus.closed")}
                 value="concluida"
               />
               <FilterStatusButton
-                label={t("technicianInspectionsScreen.custom")}
+                label={t("inspectionStatus.search")}
                 value="custom"
               />
             </View>

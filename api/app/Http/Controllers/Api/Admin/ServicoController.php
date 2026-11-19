@@ -94,27 +94,32 @@ class ServicoController extends Controller
                 $vehicle->whereRaw("REPLACE(UPPER($field), ' ', '') LIKE ?", [$term]));
         }
 
+        $billedTotals = [];
+        $matchingIds = [];
+        foreach ((clone $query)->select('id', 'moeda', 'valor_total', 'precos_detalhados')->lazyById() as $servico) {
+            $calculados = ServicoPrecos::calcularSeguro($servico->precos_detalhados ?? []);
+            $total = round(($calculados['carro']['oficina'] ?? (float) $servico->valor_total)
+                + ($calculados['desmontagem']['oficina'] ?? 0), 2);
+            if ($preco && ($total < ($preco['preco_minimo'] ?? 0) || $total > ($preco['preco_maximo'] ?? INF))) {
+                continue;
+            }
+            if ($preco) {
+                $matchingIds[] = $servico->id;
+            }
+            $currency = $servico->moeda ?: 'EUR';
+            $billedTotals[$currency] = ($billedTotals[$currency] ?? 0) + (int) round($total * 100);
+        }
         if ($preco) {
-            $minimo = $preco['preco_minimo'] ?? 0;
-            $maximo = $preco['preco_maximo'] ?? INF;
-            // Reutiliza o cálculo exibido na listagem, inclusive percentuais e serviços legados.
-            $ids = (clone $query)->select('id', 'valor_total', 'precos_detalhados')->lazyById()
-                ->filter(function (Servico $servico) use ($minimo, $maximo) {
-                    $calculados = ServicoPrecos::calcularSeguro($servico->precos_detalhados ?? []);
-                    $reparacao = $calculados['carro']['oficina'];
-                    $total = $reparacao === null ? (float) $servico->valor_total
-                        : $reparacao + ($calculados['desmontagem']['oficina'] ?? 0);
-                    $total = round($total, 2);
-                    return $total >= $minimo && $total <= $maximo;
-                })->pluck('id')->all();
-            $query->whereIntegerInRaw('id', $ids);
+            $query->whereIntegerInRaw('id', $matchingIds);
         }
 
         $servicos = $query->with(['oficina', 'tecnico', 'primeiroVeiculo', 'criadoPor.oficina', 'criadoPor.tecnico'])
             ->orderByDesc('created_at')
             ->paginate($request->integer('per_page', 20));
 
-        return ServicoResource::collection($servicos);
+        return ServicoResource::collection($servicos)->additional([
+            'billedTotals' => (object) array_map(fn (int $cents) => $cents / 100, $billedTotals),
+        ]);
     }
 
     public function show(int $id)

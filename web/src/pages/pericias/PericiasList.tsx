@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Plus, ScanSearch, Pencil, Download, MoreHorizontal, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -16,8 +15,7 @@ import { periciaService } from "@/services/periciaService";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateTime } from "@/utils/date";
-import { PERICIA_STATUS_CLASS, PERICIA_STATUS_LABEL } from "@/utils/periciaStatus";
-import type { Pericia, PericiaStatus } from "@/types/pericia";
+import type { Pericia } from "@/types/pericia";
 
 const PER_PAGE = 20;
 
@@ -103,16 +101,12 @@ export default function PericiasList() {
     workshop: textFilter("Oficina", "oficina"),
     plate: textFilter("Placa", "placa"),
     inspector: "Perito", city: "Cidade", country: "País", brand: "Marca", chassis: "Chassi",
-    technicianPrice: "Preço técnico", disassembly: "Desmontagem", notes: "Observação",
+    disassembly: "Desmontagem", notes: "Observação",
     model: textFilter("Modelo", "modelo"),
     value: filter("Valor", ["valor_min", "valor_max"], <>
       <Input type="number" min="0" step="0.01" name="valor_min" aria-label="Valor mínimo" defaultValue={filters.valor_min} />
       <Input type="number" min="0" step="0.01" name="valor_max" aria-label="Valor máximo" defaultValue={filters.valor_max} />
     </>),
-    status: filter("Status", ["status"], <select name="status" aria-label="Status" defaultValue={filters.status ?? ""} className="w-full rounded border bg-background p-2">
-      <option value="">Todos os status</option>
-      {(Object.keys(PERICIA_STATUS_LABEL) as PericiaStatus[]).map(status => <option key={status} value={status}>{PERICIA_STATUS_LABEL[status]}</option>)}
-    </select>),
   };
 
   return (
@@ -125,7 +119,7 @@ export default function PericiasList() {
         <Table className="min-w-[1000px]">
           <TableHeader>
             <TableRow>
-              {columns.map(id => <TableHead key={id}>{headers[id]}</TableHead>)}
+              {columns.map(id => <TableHead key={id} className="min-w-24">{headers[id]}</TableHead>)}
               <TableHead className="text-right">Menu</TableHead>
             </TableRow>
           </TableHeader>
@@ -136,7 +130,7 @@ export default function PericiasList() {
               <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
             ) : pericias.map((p) => (
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
-                {columns.map(id => <TableCell key={id} className="whitespace-nowrap">{{
+                {columns.map(id => <TableCell key={id} className="min-w-24"><span className="block max-w-48 truncate">{{
                   date: formatDateTime(p.createdAt),
                   workshop: p.workshop || "—",
                   inspector: p.inspectorName || p.technician || "—",
@@ -144,14 +138,12 @@ export default function PericiasList() {
                   country: p.country || "—",
                   brand: p.brand || "—",
                   chassis: p.chassis || "—",
-                  technicianPrice: p.technicianSuggestedValue == null ? "—" : formatCurrency(p.technicianSuggestedValue),
                   disassembly: p.disassemblyValue == null ? "—" : formatCurrency(p.disassemblyValue),
-                  notes: <span className="block max-w-48 truncate" title={p.notes ?? undefined}>{p.notes || "—"}</span>,
+                  notes: p.notes || "—",
                   plate: p.licensePlate || "—",
                   model: p.model || "—",
                   value: formatCurrency(displayValue(p)),
-                  status: p.status ? <Badge variant="outline" className={PERICIA_STATUS_CLASS[p.status]}>{PERICIA_STATUS_LABEL[p.status]}</Badge> : "—",
-                }[id]}</TableCell>)}
+                }[id]}</span></TableCell>)}
                 <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                   <div className="relative inline-block text-left" onMouseEnter={() => setOpenActionsId(p.id)} onMouseLeave={() => setOpenActionsId(null)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpenActionsId(null); }}>
                     <Button size="icon" variant="ghost" aria-label="Menu da perícia" aria-expanded={openActionsId === p.id} onClick={() => setOpenActionsId(p.id)}>

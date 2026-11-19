@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   View,
+  Alert,
   Text,
   StyleSheet,
   TouchableOpacity,
@@ -21,11 +22,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { colors } from "@/theme/colors";
 
+import { Buffer } from "buffer";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import * as ImagePicker from "expo-image-picker";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AppHeader from "@/components/common/AppHeader";
+import InspectionSummary from "@/components/common/InspectionSummary";
 import CarDiagram from "@/components/common/CarDiagram";
 import {
   CAR_PARTS,
@@ -46,9 +51,7 @@ import { Select } from "@/components/common/Select";
 import WorkshopService from "@/services/WorkshopService";
 import TechnicianInspectionService from "@/services/TechnicianInspectionService";
 import { CustomSwitch } from "@/components/common/CustomSwitch";
-import { Camera, Eye, EyeOff, MessageSquare } from "lucide-react-native";
 import PermissionController from "@/controllers/permission.controller";
-import { GLOBAL } from "@/constants/global";
 import { optimizeImage } from "@/utils/images";
 import TechnicianManagementService from "@/services/TechnicianManagementService";
 
@@ -82,13 +85,12 @@ type TechnicianPhotoLabels = Record<StandardPhotoType, string>;
 type InspectionPhotoLabels = Record<InspectionPhotoType, string>;
 type PhotoType = StandardPhotoType | InspectionPhotoType;
 
-const storage = GLOBAL.storage;
-
 export default function TechnicianNewInspectionScreen() {
   const navigation = useNavigation<any>();
   const { locale } = useLanguage();
   const { t } = useTranslation();
   const route = useRoute<any>();
+  const startMode = route.params?.mode === "start";
 
   // states
   const [workshops, setWorkshops] = useState<any>(null);
@@ -99,7 +101,7 @@ export default function TechnicianNewInspectionScreen() {
     placa: "",
     chassi: "",
     marcaModelo: "",
-    inserirValor: false,
+    inserirValor: true,
     moeda: "EUR",
     precoTotal: "0",
     valorPericia: "0",
@@ -158,22 +160,7 @@ export default function TechnicianNewInspectionScreen() {
       value: workshop.id,
     })) ?? [];
 
-  const changedParts = useMemo(() => {
-    return Object.entries(partsState)
-      .filter(([, part]) => part.tipoReparo !== "SEM_DANO")
-      .map(([partId, part]) => {
-        const partInfo = CAR_PARTS.find((p) => p.id === partId);
 
-        return {
-          id: partId,
-          nome: t(partInfo?.labelKey ?? partId),
-          procedimento: t(`repairTypes.${part.tipoReparo}`),
-          color: REPAIR_COLORS[part.tipoReparo],
-          hasComment: !!part.observacoes?.trim(),
-          hasPhotos: (part.fotos?.length ?? 0) > 0,
-        };
-      });
-  }, [partsState, t]);
 
   const photoLabels = [
     t("technicianNewInspectionScreen.photosLabels.document"),
@@ -372,7 +359,7 @@ export default function TechnicianNewInspectionScreen() {
       chassi: "",
       marcaModelo: "",
       periciaCompleta: false,
-      inserirValor: false,
+      inserirValor: true,
       precoSugerido: "0",
       valorPericia: "0",
     });
@@ -435,7 +422,7 @@ export default function TechnicianNewInspectionScreen() {
     }
   };
 
-  const handleCreateInspection = async () => {
+  const handleCreateInspection = async (generatePdf = false) => {
     try {
       setError(null);
 
@@ -459,13 +446,28 @@ export default function TechnicianNewInspectionScreen() {
 
       const payload = buildFormData();
 
-      if (periciaCompleta) {
-          await TechnicianInspectionService.createCompleteInspection(payload);
-      } else {
-          await TechnicianInspectionService.createBasicInspection(payload);
+      const created = periciaCompleta
+        ? await TechnicianInspectionService.createCompleteInspection(payload)
+        : await TechnicianInspectionService.createBasicInspection(payload);
+      if (!generatePdf) {
+        navigation.navigate("Inspections");
+        return;
       }
 
-      navigation.navigate("Inspections");
+      const inspectionId = Number(created.data.id);
+      try {
+        if (!(await Sharing.isAvailableAsync())) throw new Error("PDF sharing is unavailable");
+        const pdf = await TechnicianInspectionService.getInspectionPdf(inspectionId);
+        const fileUri = `${FileSystem.cacheDirectory}pericia-${inspectionId}.pdf`;
+        await FileSystem.writeAsStringAsync(fileUri, Buffer.from(pdf).toString("base64"), {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        await Sharing.shareAsync(fileUri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+      } catch {
+        Alert.alert(t("technicianInspectionDetailsScreen.pdfGenerateError"));
+      } finally {
+        navigation.navigate("InspectionDetail", { inspectionId });
+      }
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
@@ -727,12 +729,9 @@ export default function TechnicianNewInspectionScreen() {
 
             <View style={styles.diagramWrap}>
               <View style={styles.carFrame}>
-                <View style={[styles.wheel, styles.wheelFrontLeft]} />
-                <View style={[styles.wheel, styles.wheelFrontRight]} />
-                <View style={[styles.wheel, styles.wheelRearLeft]} />
-                <View style={[styles.wheel, styles.wheelRearRight]} />
 
                 <CarDiagram
+                  separated
                   partsState={partsState}
                   selectedPartId={selectedPartId}
                   setSelectedPartId={(id) => {
@@ -773,129 +772,42 @@ export default function TechnicianNewInspectionScreen() {
           </View>
 
           {/* RESUMO DAS ALTERAÇÕES */}
-          {changedParts.length > 0 && (
-            <View>
-              <Text style={styles.summaryTitle}>
-                {t("technicianNewServiceScreen.changeSummary")}
-              </Text>
-
-              {changedParts.map((item) => (
-                <View key={item.id} style={styles.summaryRow}>
-                  <View
-                    style={[
-                      styles.procedureDot,
-                      { backgroundColor: item.color },
-                    ]}
-                  />
-
-                  <Text style={styles.summaryText}>{item.nome}</Text>
-
-                  <Text style={styles.separator}>—</Text>
-
-                  <Text style={styles.procedureText}>{item.procedimento}</Text>
-
-                  {item.hasComment && (
-                    <MessageSquare size={12} color={colors.textMuted} />
-                  )}
-
-                  {item.hasPhotos && (
-                    <Camera size={12} color={colors.textMuted} />
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
+          <InspectionSummary parts={partsState} onSelectPart={openPartModal} />
 
           <View style={styles.surfaceSection}>
-            <View style={{ ...styles.switchRow, marginBottom: 16 }}>
-              <Text style={styles.switchLabel}>
-                {t("technicianNewServiceScreen.inspectionValueLabel")}
-              </Text>
-              
-              <CustomSwitch
-                value={inspectionData.inserirValor}
-                onValueChange={(value) => {
-                  setInspectionData((prev: any) => ({
-                    ...prev,
-                    inserirValor: value,
-                  }));
-                }}
-                activeColor={colors.primary}
-                inactiveColor={colors.border}
-              />
-            </View>
-
-            {inspectionData.inserirValor ? (
-              <Input
-                keyboardType="numeric"
-                value={formatCurrencyInput(
-                  inspectionData.periciaCompleta
-                    ? inspectionData.valorPericia
-                    : inspectionData.precoSugerido,
-                  locale,
-                )}
-                onChangeText={(text) => {
-                  const value = parseCurrencyInput(text);
-                  setInspectionData((prev: any) => ({
-                    ...prev,
-                    ...(prev.periciaCompleta
-                      ? { valorPericia: value }
-                      : { precoSugerido: value }),
-                  }));
-                }}
-                style={{ minHeight: 44, fontSize: 14 }}
-              />
-            ) : (
-              <Text style={[styles.description, { fontStyle: "italic" }]}>
-                {t("technicianNewServiceScreen.hiddenValue")}
-              </Text>
-            )}
+            <Text style={[styles.switchLabel, { marginBottom: 12 }]}>{t("accountEntry.manualPrice")}</Text>
+            <Input
+              keyboardType="decimal-pad"
+              value={formatCurrencyInput(
+                inspectionData.periciaCompleta ? inspectionData.valorPericia : inspectionData.precoSugerido,
+                locale,
+              )}
+              onChangeText={(text) => {
+                const value = parseCurrencyInput(text);
+                setInspectionData((prev: any) => ({
+                  ...prev,
+                  ...(prev.periciaCompleta ? { valorPericia: value } : { precoSugerido: value }),
+                }));
+              }}
+              style={{ minHeight: 44, fontSize: 14 }}
+            />
           </View>
 
           <View style={styles.submitActions}>
-            <TouchableOpacity
-              style={[
-                styles.saveInspectionButton,
-                isSubmitting && { opacity: 0.7 },
-              ]}
-              onPress={handleStartCar}
-              activeOpacity={0.8}
+            {!startMode && <TouchableOpacity
+              style={styles.saveInspectionButton}
+              onPress={() => void handleCreateInspection()}
               disabled={isSubmitting}
             >
-              {loadingStartCar ? (
-                <ActivityIndicator size="small" color={colors.black} />
-              ) : (
-                <Text style={styles.saveInspectionButtonText}>
-                    {
-                      inspectionData.periciaCompleta
-                      ? t("technicianNewServiceScreen.saveAndStartCar")
-                      : t("technicianNewServiceScreen.startCarButton") 
-                    }
-                </Text>
-              )}
+              <Text style={styles.saveInspectionButtonText}>{t("inspectionActions.save")}</Text>
+            </TouchableOpacity>}
+            <TouchableOpacity style={styles.saveInspectionButton} onPress={handleStartCar} disabled={isSubmitting}>
+              <Text style={styles.saveInspectionButtonText}>{t("inspectionActions.start")}</Text>
             </TouchableOpacity>
-          
-            <TouchableOpacity
-              style={[
-                styles.saveInspectionButton,
-                isSubmitting && { opacity: 0.7 },
-              ]}
-              onPress={handleCreateInspection}
-              activeOpacity={0.8}
-              disabled={isSubmitting}
-            >
-              {loadingCreateInspection ? (
-                <ActivityIndicator size="small" color={colors.black} />
-              ) : (
-                <Text style={styles.saveInspectionButtonText}>
-                    {
-                      inspectionData.periciaCompleta
-                      ? t("technicianNewInspectionScreen.actions.save")
-                      : t("common.save") 
-                    }
-                </Text>
-              )}
+            <TouchableOpacity style={styles.saveInspectionButton} onPress={() => void handleCreateInspection(true)} disabled={isSubmitting}>
+              <Text style={styles.saveInspectionButtonText}>{t("inspectionActions.pdf")}</Text>
             </TouchableOpacity>
+            {isSubmitting && <ActivityIndicator color={colors.primary} />}
           </View>
         </ScrollView>
 
@@ -1085,33 +997,10 @@ const styles = StyleSheet.create({
     position: "relative",
   },
 
-  wheel: {
-    position: "absolute",
-    width: 26,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: "#222A36",
-  },
 
-  wheelFrontLeft: {
-    left: 8,
-    top: 46,
-  },
 
-  wheelFrontRight: {
-    right: 8,
-    top: 46,
-  },
 
-  wheelRearLeft: {
-    left: 8,
-    top: 250,
-  },
 
-  wheelRearRight: {
-    right: 8,
-    top: 250,
-  },
 
   legendRow: {
     marginTop: 10,
@@ -1311,40 +1200,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
 
-  summaryTitle: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4,
-  },
 
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 4,
-  },
 
-  procedureDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-  },
 
-  summaryText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "600",
-  },
 
-  separator: {
-    color: colors.textMuted,
-  },
 
-  procedureText: {
-    color: colors.textMuted,
-    fontSize: 14,
-  },
 
   photoContainer: {
     width: "31%",

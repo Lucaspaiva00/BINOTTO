@@ -275,9 +275,9 @@ export default function WorkshopInspectionsScreen() {
             <View style={styles.filtersRow}>
               <FilterStatusButton label={t("inspectionStatus.all")} value="todas" />
               <FilterStatusButton label={t("common.inspectionStatus.open")} value="aberta" />
-              <FilterStatusButton label={t("common.inspectionStatus.inProgress")} value="em_execucao" />
+
               <FilterStatusButton label={t("common.inspectionStatus.closed")} value="concluida" />
-              <FilterStatusButton label={t("workshopInspectionsScreen.custom")} value="custom" />
+              <FilterStatusButton label={t("inspectionStatus.search")} value="custom" />
             </View>
           </ScrollView>
 

@@ -125,6 +125,7 @@ export default function ServicosList() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
+  const [billedTotals, setBilledTotals] = useState<Record<string, number> | null>(null);
   const [total, setTotal] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -158,8 +159,12 @@ export default function ServicosList() {
         setServices(response.data);
         setLastPage(response.meta.last_page);
         setTotal(response.meta.total);
+        setBilledTotals(response.billedTotals ?? null);
       } catch (error) {
-        if (!cancelled) toast.error(getApiErrorMessage(error));
+        if (!cancelled) {
+          setBilledTotals(null);
+          toast.error(getApiErrorMessage(error));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -348,6 +353,9 @@ export default function ServicosList() {
             </div>
           </div>
         )}
+        {!loading && billedTotals && <div className="border-t border-border px-4 py-3 text-sm font-semibold">
+          Total faturado: {Object.entries(billedTotals).map(([currency, amount]) => money(amount, currency)).join(" · ") || money(0, null)}
+        </div>}
       </div>
     </AppLayout>
   );

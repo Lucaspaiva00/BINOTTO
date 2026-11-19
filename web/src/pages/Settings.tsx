@@ -21,10 +21,11 @@ const sections = [
 
 type SectionId = (typeof sections)[number]["id"];
 
-function TableDisplaySettings<T extends string>({ storageKey, labels }: { storageKey: string; labels: Record<T, string> }) {
+function TableDisplaySettings<T extends string>({ storageKey, labels, group }: { storageKey: string; labels: Record<T, string>; group?: { parent: T; child: T } }) {
   const [visible, setVisible] = useState(() => getTableColumns(storageKey, labels));
   const [order, setOrder] = useState(() => [...visible, ...(Object.keys(labels) as T[]).filter(id => !visible.includes(id))]);
   const draggedColumn = useRef<T | null>(null);
+  const rows = order.filter(id => id !== group?.child);
   function persist(nextOrder: T[], nextVisible: T[]) {
     localStorage.setItem(storageKey, JSON.stringify(nextOrder.filter(id => nextVisible.includes(id))));
     setOrder(nextOrder);
@@ -32,16 +33,17 @@ function TableDisplaySettings<T extends string>({ storageKey, labels }: { storag
   }
 
   function move(id: T, target: number) {
-    if (target < 0 || target >= order.length) return;
-    const next = order.filter(column => column !== id);
+    if (target < 0 || target >= rows.length) return;
+    const next = rows.filter(column => column !== id);
     next.splice(target, 0, id);
+    if (group) next.splice(next.indexOf(group.parent) + 1, 0, group.child);
     persist(next, visible);
   }
 
   return <div className="space-y-3">
     <h2 className="font-semibold">Mostrador da tela principal</h2>
     <ul className="max-w-lg divide-y rounded-lg border">
-      {order.map((id, index) => <li key={id} className="flex items-center justify-between gap-2 px-3 py-1"
+      {rows.map((id, index) => <li key={id} className="flex items-center justify-between gap-2 px-3 py-1"
         onDragOver={event => event.preventDefault()}
         onDrop={event => {
           event.preventDefault();
@@ -53,6 +55,11 @@ function TableDisplaySettings<T extends string>({ storageKey, labels }: { storag
             persist(order, event.target.checked ? [...visible, id] : visible.filter(column => column !== id))} />
           {labels[id]}
         </label>
+        {group && id === group.parent && <label className="flex items-center gap-2">
+          <input type="checkbox" checked={visible.includes(group.child)} onChange={event =>
+            persist(order, event.target.checked ? [...visible, group.child] : visible.filter(column => column !== group.child))} />
+          {labels[group.child]}
+        </label>}
         <Button variant="ghost" size="icon" draggable className="cursor-grab" aria-label={`Reordenar ${labels[id]}`}
           onDragStart={event => { draggedColumn.current = id; event.dataTransfer.setData("text/plain", id); }}
           onDragEnd={() => { draggedColumn.current = null; }}
@@ -114,7 +121,7 @@ export default function Settings() {
         className="mt-5 min-h-[380px] rounded-xl border border-border bg-card p-5"
       >
         {activeSection === "financeiro" && <div className="grid gap-6 lg:grid-cols-2">
-          <section><h2 className="mb-3 text-lg font-semibold">Contas a receber</h2><TableDisplaySettings storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} /></section>
+          <section><h2 className="mb-3 text-lg font-semibold">Contas a receber</h2><TableDisplaySettings storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} group={{ parent: "value", child: "vat" }} /></section>
           <section><h2 className="mb-3 text-lg font-semibold">Contas a pagar</h2><TableDisplaySettings storageKey="binotto-payable-columns" labels={PAYABLE_COLUMNS} /></section>
         </div>}
         {activeSection === "pericias" && <TableDisplaySettings key="pericias" storageKey="binotto-pericia-columns" labels={PERICIA_COLUMNS} />}

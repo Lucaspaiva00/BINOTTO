@@ -15,7 +15,7 @@ import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { COMMON_COUNTRIES } from "@/constants/countries";
 import type { AppUser, UserType, UserStatus } from "@/types/user";
 
-type TypeFilter = "all" | UserType;
+type TypeFilter = "all" | "PERITO" | UserType;
 type StatusFilter = "all" | UserStatus;
 
 const PER_PAGE = 20;
@@ -28,6 +28,7 @@ export default function UsersList() {
   const [city, setCity] = useState("");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [inspectors, setInspectors] = useState<{ id: number; nome: string }[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastPage, setLastPage] = useState(1);
@@ -39,7 +40,12 @@ export default function UsersList() {
     async function loadUsers() {
       setLoading(true);
       try {
-        const response = await userService.list({
+        if (type === "PERITO") {
+          const data = await userService.listInspectors(query.trim());
+          if (!cancelled) { setInspectors(data); setUsers([]); setTotal(data.length); setLastPage(1); }
+          return;
+        }
+        const [response, matchingInspectors] = await Promise.all([userService.list({
           page,
           per_page: PER_PAGE,
           perfil: type === "all" ? undefined : type,
@@ -47,11 +53,13 @@ export default function UsersList() {
           pais: country === "all" ? undefined : country,
           cidade: city.trim() || undefined,
           busca: query.trim() || undefined,
-        });
+        }), type === "all" && status === "all" && country === "all" && !city.trim()
+          ? userService.listInspectors(query.trim()) : Promise.resolve([])]);
         if (cancelled) return;
         setUsers(response.data);
+        setInspectors(matchingInspectors);
         setLastPage(response.meta.last_page);
-        setTotal(response.meta.total);
+        setTotal(response.meta.total + matchingInspectors.length);
       } catch (error) {
         if (!cancelled) toast.error(getApiErrorMessage(error));
       } finally {
@@ -59,7 +67,7 @@ export default function UsersList() {
       }
     }
 
-    loadUsers();
+    void loadUsers();
     return () => {
       cancelled = true;
     };
@@ -88,6 +96,7 @@ export default function UsersList() {
           <TabsList className="h-9 text-sm">
             <TabsTrigger value="TECNICO">Técnico</TabsTrigger>
             <TabsTrigger value="OFICINA">Cliente</TabsTrigger>
+            <TabsTrigger value="PERITO">Perito</TabsTrigger>
             <TabsTrigger value="all">Todos</TabsTrigger>
           </TabsList>
         </Tabs>
@@ -112,10 +121,10 @@ export default function UsersList() {
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={8} className="text-center py-10"><Spinner className="w-6 h-6 mx-auto" /></TableCell></TableRow>
-            ) : users.length === 0 ? (
+            ) : users.length === 0 && inspectors.length === 0 ? (
               <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">Nenhum usuário encontrado.</TableCell></TableRow>
             ) : (
-              users.map((u) => (
+              <> {users.map((u) => (
                 <TableRow key={u.id} onClick={() => navigate(`/usuarios/${u.id}`)} className="cursor-pointer hover:bg-accent/50">
                   <TableCell>
                     <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-muted-foreground">
@@ -136,7 +145,14 @@ export default function UsersList() {
                   </TableCell>
                   <TableCell><span className="text-sm font-medium">{u.profileCompletionPercent != null ? `${u.profileCompletionPercent}%` : "—"}</span></TableCell>
                 </TableRow>
-              ))
+              ))}
+                {(type === "PERITO" || page === 1) && inspectors.map(inspector => <TableRow key={`inspector-${inspector.id}`}>
+                  <TableCell><UserRound className="size-4" /></TableCell>
+                  <TableCell>—</TableCell>
+                  <TableCell className="font-medium">{inspector.nome} <Badge variant="outline">Perito</Badge></TableCell>
+                  <TableCell colSpan={5}>—</TableCell>
+                </TableRow>)}
+              </>
             )}
           </TableBody>
         </Table>

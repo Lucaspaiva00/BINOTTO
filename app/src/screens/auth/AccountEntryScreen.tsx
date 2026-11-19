@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { ScrollView, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,9 +11,8 @@ type AccessProps = NativeStackScreenProps<PublicStackParamList, "ProfileAccess">
 
 export function AccountEntryScreen({ navigation }: EntryProps): JSX.Element {
   const { t } = useTranslation();
-  const [gradient, setGradient] = useState(false);
   const profiles = ["admin", "technician", "dismantler", "workshop"] as const;
-  const tones = gradient ? [colors.primary, "#FFE26B", "#FFEB92", "#FFF2BC"] : ["#FFE88D", colors.primary, "#FFE88D", colors.primary];
+  const tones = [colors.primary, "#FFE26B", "#FFEB92", "#FFF2BC"];
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
@@ -25,9 +24,6 @@ export function AccountEntryScreen({ navigation }: EntryProps): JSX.Element {
             <Text style={styles.primaryText}>{t(`accountEntry.${profile}`)}</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity accessibilityRole="button" style={styles.back} onPress={() => setGradient(current => !current)}>
-          <Text style={styles.optionText}>{gradient ? "Ver modelo com dois tons" : "Ver modelo em degradê"}</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

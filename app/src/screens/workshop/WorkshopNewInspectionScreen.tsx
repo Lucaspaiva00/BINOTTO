@@ -1,4 +1,7 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+import SecureStorageService from "@/services/SecureStorageService";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
   ImageBackground,
   KeyboardAvoidingView,
   Platform,
@@ -28,6 +32,7 @@ import TechnicianInspectionService from "@/services/TechnicianInspectionService"
 import { Input } from "@/components/common/Input";
 import { formatCurrencyInput, parseCurrencyInput } from "@/utils/currency";
 import { CustomSwitch } from "@/components/common/CustomSwitch";
+import InspectionSummary from "@/components/common/InspectionSummary";
 import CarDiagram from "@/components/common/CarDiagram";
 import LegendDot from "@/components/common/LegendDot";
 import { REPAIR_COLORS } from "@/theme/repairColors";
@@ -38,7 +43,7 @@ import {
 } from "@/utils/carParts";
 import { PartInspection, Photo, RepairType } from "@/types/carParts";
 import InspectionModal from "@/components/common/InspectionModal";
-import { AlertCircle, Camera, MessageSquare } from "lucide-react-native";
+import { AlertCircle } from "lucide-react-native";
 import { GLOBAL } from "@/constants/global";
 import ModalList from "@/components/common/ModalList";
 import { formatDate } from "@/utils/date";
@@ -140,21 +145,7 @@ export default function WorkshopNewInspectionScreen() {
 
   const isSubmitting = loadingSaveInspection;
 
-  const changedParts = useMemo(() => {
-    return Object.entries(partsState)
-      .filter(([, part]) => part.tipoReparo !== "SEM_DANO")
-      .map(([partId, part]) => {
-        const partInfo = CAR_PARTS.find((p) => p.id === partId);
-        return {
-          id: partId,
-          nome: t(partInfo?.labelKey ?? partId),
-          procedimento: t(`repairTypes.${part.tipoReparo}`),
-          color: REPAIR_COLORS[part.tipoReparo],
-          hasComment: !!part.observacoes?.trim(),
-          hasPhotos: (part.fotos?.length ?? 0) > 0,
-        };
-      });
-  }, [partsState, t]);
+
 
   const handleOpenImage = (photo: Photo) => {
     if (!photo) return;
@@ -411,7 +402,7 @@ export default function WorkshopNewInspectionScreen() {
     return formData;
   };
 
-  const handleCreateInspection = async () => {
+  const handleCreateInspection = async (generatePdf = false) => {
     try {
       setError(null);
       if (
@@ -424,19 +415,34 @@ export default function WorkshopNewInspectionScreen() {
       }
       setLoadingSaveInspection(true);
       const payload = buildFormData();
+      let inspectionId = editingInspectionId;
       if (isEditing && editingInspectionId) {
         await WorkshopManagementService.updateInspection(editingInspectionId, payload);
       } else {
-        const periciaCompleta = inspectionData.periciaCompleta;
-        if (periciaCompleta) {
-          await WorkshopManagementService.createCompleteInspection(payload);
-        } else {
-          await WorkshopManagementService.createBasicInspection(payload);
-        }
+        const created = inspectionData.periciaCompleta
+          ? await WorkshopManagementService.createCompleteInspection(payload)
+          : await WorkshopManagementService.createBasicInspection(payload);
+        inspectionId = created.data.id;
       }
-      // Return to the inspections list; its focus handler reloads the saved record.
-      // Do not call goBack after navigating: that would immediately undo navigation.
-      navigation.navigate("Inspections");
+      if (!generatePdf || !inspectionId) {
+        navigation.navigate("Inspections");
+        return;
+      }
+
+      try {
+        if (!(await Sharing.isAvailableAsync())) throw new Error("PDF sharing is unavailable");
+        const token = await SecureStorageService.getToken();
+        const url = `${GLOBAL.baseURL}/oficina/pericias/${inspectionId}/pdf`;
+        const file = await FileSystem.downloadAsync(url, `${FileSystem.cacheDirectory}pericia-${inspectionId}.pdf`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (file.status !== 200) throw new Error("Could not download inspection PDF");
+        await Sharing.shareAsync(file.uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+      } catch {
+        Alert.alert(t("workshopInspectionDetailsScreen.pdfGenerateError"));
+      } finally {
+        navigation.navigate("InspectionDetails", { inspectionId });
+      }
     } catch (error: any) {
       const message =
         error?.response?.data?.message ||
@@ -678,11 +684,8 @@ export default function WorkshopNewInspectionScreen() {
             )}
             <View style={styles.diagramWrap}>
               <View style={styles.carFrame}>
-                <View style={[styles.wheel, styles.wheelFrontLeft]} />
-                <View style={[styles.wheel, styles.wheelFrontRight]} />
-                <View style={[styles.wheel, styles.wheelRearLeft]} />
-                <View style={[styles.wheel, styles.wheelRearRight]} />
                 <CarDiagram
+                  separated
                   partsState={partsState}
                   selectedPartId={selectedPartId}
                   setSelectedPartId={(id) => {
@@ -703,21 +706,7 @@ export default function WorkshopNewInspectionScreen() {
             </View>
           </View>
 
-          {changedParts.length > 0 && (
-            <View>
-              <Text style={styles.summaryTitle}>{t("technicianNewServiceScreen.changeSummary")}</Text>
-              {changedParts.map((item) => (
-                <View key={item.id} style={styles.summaryRow}>
-                  <View style={[styles.procedureDot, { backgroundColor: item.color }]} />
-                  <Text style={styles.summaryText}>{item.nome}</Text>
-                  <Text style={styles.separator}>—</Text>
-                  <Text style={styles.procedureText}>{item.procedimento}</Text>
-                  {item.hasComment && <MessageSquare size={12} color={colors.textMuted} />}
-                  {item.hasPhotos && <Camera size={12} color={colors.textMuted} />}
-                </View>
-              ))}
-            </View>
-          )}
+          <InspectionSummary parts={partsState} onSelectPart={openPartModal} />
 
           <View style={styles.surfaceSection}>
             <Text style={[styles.switchLabel, { marginBottom: 12 }]}>{t("accountEntry.manualPrice")}</Text>
@@ -743,15 +732,22 @@ export default function WorkshopNewInspectionScreen() {
 
           <TouchableOpacity
             style={[styles.buttonSubmit, isSubmitting && styles.buttonSubmitDisabled]}
-            onPress={handleCreateInspection}
+            onPress={() => void handleCreateInspection()}
             activeOpacity={0.8}
             disabled={isSubmitting}
           >
             {loadingSaveInspection ? (
               <ActivityIndicator size="small" color={colors.black} />
             ) : (
-              <Text style={styles.buttonSubmitText}>{t("common.save")}</Text>
+              <Text style={styles.buttonSubmitText}>{t("inspectionActions.save")}</Text>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.buttonSubmit, isSubmitting && styles.buttonSubmitDisabled]}
+            onPress={() => void handleCreateInspection(true)}
+            disabled={isSubmitting || !canEdit}
+          >
+            <Text style={styles.buttonSubmitText}>{t("inspectionActions.pdf")}</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -841,18 +837,7 @@ const styles = StyleSheet.create({
   carMapSubtitle: { color: colors.textMuted, marginBottom: 10, fontSize: 12 },
   diagramWrap: { height: 400, position: "relative", overflow: "hidden" },
   carFrame: { width: 300, height: "100%", alignSelf: "center", position: "relative" },
-  wheel: { position: "absolute", width: 26, height: 42, borderRadius: 14, backgroundColor: "#222A36" },
-  wheelFrontLeft: { left: 8, top: 46 },
-  wheelFrontRight: { right: 8, top: 46 },
-  wheelRearLeft: { left: 8, top: 250 },
-  wheelRearRight: { right: 8, top: 250 },
   legendRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 10 },
-  summaryTitle: { color: colors.white, fontSize: 16, fontWeight: "700", marginBottom: 4 },
-  summaryRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 4 },
-  procedureDot: { width: 10, height: 10, borderRadius: 999 },
-  summaryText: { color: colors.text, fontSize: 14, fontWeight: "600" },
-  separator: { color: colors.textMuted },
-  procedureText: { color: colors.textMuted, fontSize: 14 },
   inspectionsSection: { padding: 16, gap: 16, backgroundColor: "#1A1222", borderRadius: 16, borderWidth: 1, borderColor: "#522C77" },
   inspectionsQuestionText: { color: colors.white },
   useInspectionsButton: { flex: 1, paddingVertical: 8, borderRadius: 12, alignItems: "center", backgroundColor: colors.primary },

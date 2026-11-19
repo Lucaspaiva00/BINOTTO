@@ -156,6 +156,14 @@ class PericiaController extends Controller
                 'valor_pericia' => $carValue,
             ]);
 
+            $manualInspector = trim((string) ($data['perito_nome'] ?? ''));
+            if (empty($data['tecnico_id']) && $manualInspector !== '') {
+                DB::table('peritos')->insertOrIgnore([
+                    'nome' => $manualInspector,
+                    'nome_normalizado' => mb_strtolower($manualInspector),
+                ]);
+            }
+
             $attachments = $this->periciaStorageService->persistCreateAttachments(
                 $request,
                 $pericia->id,

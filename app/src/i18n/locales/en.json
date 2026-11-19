@@ -1,4 +1,7 @@
 {
+  "inspectionSummary": { "piece": "Part", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Dents" },
+  "inspectionActions": { "save": "Save inspection", "pdf": "Generate PDF", "start": "Start car" },
+  "inspectionStatus": { "search": "Search", "all": "All" },
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",

@@ -148,7 +148,13 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         <div className="min-w-0 space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
         {inspector ? <div className="min-w-0 space-y-2">
           <Label htmlFor="inspection-name">Perito</Label>
-          <Input id="inspection-name" value={inspector.name} onChange={event => inspector.onChange(event.target.value)} required />
+          <SearchableSelect value={value.technicianId} placeholder="Selecione um técnico ou informe o nome"
+            options={[{ value: "", label: "Preencher nome manualmente" }, ...technicians.map(technician => ({ value: String(technician.id), label: technician.name }))]}
+            onChange={id => {
+              onChange("technicianId", id);
+              inspector.onChange(technicians.find(technician => String(technician.id) === id)?.name ?? "");
+            }} />
+          {!value.technicianId && <Input id="inspection-name" value={inspector.name} onChange={event => inspector.onChange(event.target.value)} required />}
           {errors.inspector && <p className="text-xs text-destructive">{errors.inspector}</p>}
         </div> : <>
         <div className="min-w-0 space-y-2"><Label>Técnico</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.technicianId || (value.manualTechnicianName ? "manual" : "")} onChange={v => onChange("technicianId", v)} placeholder="Sem técnico" options={[{ value: "", label: "Sem técnico" }, ...(value.manualTechnicianName ? [{ value: "manual", label: value.manualTechnicianName, disabled: true }] : []), ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>

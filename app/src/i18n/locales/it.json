@@ -1,4 +1,6 @@
 {
+  "inspectionSummary": { "piece": "Pezzo", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Ammaccature" },
+  "inspectionActions": { "save": "Salva perizia", "pdf": "Genera PDF", "start": "Avvia veicolo" },
   "accountEntry": {
     "choose": "Scegli il tuo profilo",
     "admin": "Amministrativo",
@@ -1104,6 +1106,7 @@
     "inspectionPdfButton": "PDF della Perizia"
   },
   "inspectionStatus": {
+    "search": "Cerca",
     "all": "Tutte",
     "open": "Aperta",
     "inProgress": "In corso",

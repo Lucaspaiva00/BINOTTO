@@ -332,10 +332,8 @@ export function LoginScreen({ navigation, route }: Props): JSX.Element {
             disabled={isSubmitting}
           />
 
-          {canRegister && <Pressable style={styles.privacyButton} onPress={() =>
-            profile === "technician" ? navigation.navigate("RegisterTechnician") : navigation.navigate("RegisterWorkshop")}>
-            <Text style={styles.forgotText}>{t("accountEntry.register")}</Text>
-          </Pressable>}
+          {canRegister && <PrimaryButton title={t("accountEntry.register")} onPress={() =>
+            profile === "technician" ? navigation.navigate("RegisterTechnician") : navigation.navigate("RegisterWorkshop")} />}
           <Pressable style={styles.privacyButton} onPress={() => navigation.goBack()}>
             <Text style={styles.forgotText}>{t("accountEntry.back")}</Text>
           </Pressable>

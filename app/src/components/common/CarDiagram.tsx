@@ -12,6 +12,7 @@ type Props = {
   setSelectedPartId: (id: string) => void;
   canEdit?: boolean;
   allowUndamagedParts?: boolean;
+  separated?: boolean;
 };
 
 function getPartColor(item?: PartInspection): string {
@@ -51,6 +52,7 @@ export default function CarDiagram({
   setSelectedPartId,
   canEdit = true,
   allowUndamagedParts = true,
+  separated = false,
 }: Props) {
   const { t } = useTranslation();
 
@@ -64,9 +66,19 @@ export default function CarDiagram({
 
         if (!part) return null;
 
+        const side = layout.id.endsWith("_esq") ? "left" : layout.id.endsWith("_dir") ? "right" : null;
+        const roof = layout.id === "teto";
+        const bounds = separated
+          ? { left: side === "left" ? 15 : side === "right" ? 205 : roof ? 112 : 99,
+              top: roof ? 138 : layout.y, width: side ? 80 : roof ? 76 : 102, height: roof ? 112 : layout.h }
+          : { left: layout.x, top: layout.y, width: layout.w, height: layout.h };
+
         return (
           <Pressable
             key={layout.id}
+            accessibilityRole="button"
+            accessibilityLabel={t(part.labelKey)}
+            accessibilityState={{ selected, disabled: !canEdit || !canOpenPart }}
             onPress={() => {
               if (canEdit && canOpenPart) {
                 setSelectedPartId(layout.id);
@@ -80,10 +92,7 @@ export default function CarDiagram({
                 borderTopRightRadius: layout.radius?.tr ?? styles.part.borderRadius,
                 borderBottomLeftRadius: layout.radius?.bl ?? styles.part.borderRadius,
                 borderBottomRightRadius: layout.radius?.br ?? styles.part.borderRadius,
-                left: layout.x,
-                top: layout.y,
-                width: layout.w,
-                height: layout.h,
+                ...bounds,
                 backgroundColor: getPartColor(state),
                  },
               selected && styles.selected,

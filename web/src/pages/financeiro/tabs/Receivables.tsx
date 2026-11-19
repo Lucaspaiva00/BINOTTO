@@ -5,7 +5,7 @@ import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, FileText, MessageCircle, Mail, Minus } from "lucide-react";
+import { Plus, Trash2, MessageCircle, Mail, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -46,10 +46,9 @@ function dot(color: "green" | "yellow" | "red", title: string) {
 }
 
 const invoiceColumnWidth = "w-[100px] min-w-[100px] max-w-[100px] truncate";
-const receivedColumnWidth = "w-[200px] min-w-[200px] max-w-[200px] truncate";
+const invoiceStatusColumnWidth = "w-[50px] min-w-[50px] max-w-[50px] truncate px-0!";
 
-function invoiceCells(record: Receivable) {
-  const hasInvoice = Boolean(record.invoiceNumber || record.invoiceAttachment || record.invoice || ["emitida", "enviada", "paga"].includes(record.invoiceStatus ?? ""));
+function invoiceCells(record: Receivable, onOpen: () => void) {
   const installments = record.installments ?? [];
   const receivedAmount = installments.reduce((sum, part) => sum + Number(part.valor_pago ?? 0), 0);
   const received = ["recebido", "pago"].includes(record.status) || record.invoiceStatus === "paga"
@@ -58,16 +57,21 @@ function invoiceCells(record: Receivable) {
   const channels = record.invoiceChannels ?? [];
   const payment = record.technicianPayment;
   return <>
-    <TableCell className={`border-l text-center ${invoiceColumnWidth}`} title={hasInvoice ? "Fatura emitida" : "Sem fatura"}>{hasInvoice
-      ? <FileText className="mx-auto size-4 text-emerald-500" aria-label="Fatura emitida" /> : dash}</TableCell>
-    <TableCell className="text-center" title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
+    <TableCell className={`border-l text-center ${invoiceColumnWidth}`}>
+      {record.invoiceNumber ? record.invoiceAttachment
+        ? <InvoiceAttachment kind="receber" id={record.id} attached label={record.invoiceNumber} />
+        : <Button variant="link" size="sm" className="max-w-full px-0" title={record.invoiceNumber}
+            onClick={onOpen}><span className="truncate">{record.invoiceNumber}</span></Button>
+        : dash}
+    </TableCell>
+    <TableCell className={`text-center ${invoiceStatusColumnWidth}`} title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
       {channels.length ? <span className="inline-flex gap-1">
         {channels.includes("whatsapp") && <MessageCircle className="size-4 text-emerald-500" aria-label="WhatsApp" />}
         {channels.includes("email") && <Mail className="size-4 text-sky-500" aria-label="E-mail" />}
       </span> : dash}
     </TableCell>
-    <TableCell className={`text-center ${receivedColumnWidth}`}>{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
-    <TableCell className="text-center">{!(received || partial) || !payment ? dash : payment === "total"
+    <TableCell className={`text-center ${invoiceStatusColumnWidth}`}>{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
+    <TableCell className={`text-center ${invoiceStatusColumnWidth}`}>{!(received || partial) || !payment ? dash : payment === "total"
       ? dot("green", "Técnicos pagos integralmente") : payment === "parcial"
       ? dot("yellow", "Pagamento parcial aos técnicos") : dot("red", "Pagamento aos técnicos pendente")}</TableCell>
   </>;
@@ -231,7 +235,12 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export function Receivables() {
-  const [columns] = useState(() => getTableColumns("binotto-finance-columns", FINANCE_COLUMNS));
+  const [columns] = useState(() => {
+    const saved = getTableColumns("binotto-finance-columns", FINANCE_COLUMNS);
+    if (!saved.includes("value") || !saved.includes("vat")) return saved;
+    const columns = saved.filter(id => id !== "vat");
+    return columns.flatMap(id => id === "value" ? [id, "vat" as const] : [id]);
+  });
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
@@ -360,6 +369,7 @@ export function Receivables() {
     try {
       const { message } = await receivableService.remove(id, deleteService);
       toast.success(message);
+      setViewing(null);
       setReloadToken((n) => n + 1);
     } catch (error) {
       toast.error(getApiErrorMessage(error));
@@ -426,7 +436,7 @@ export function Receivables() {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-        <Table className="min-w-max [&_td]:px-2 [&_th]:px-2 [&_tr>:nth-last-child(2)]:sticky [&_tr>:nth-last-child(2)]:right-12 [&_tr>:nth-last-child(4)]:sticky [&_tr>:nth-last-child(4)]:right-44 [&_tr>:nth-last-child(-n+5)]:bg-card [&_tr>:nth-last-child(-n+5)]:border-l">
+        <Table className="min-w-max [&_td]:px-2 [&_th]:px-2">
           <TableHeader>
             <TableRow>
                 {columns.map(id => <TableHead key={id} className="max-w-40 truncate">{ {
@@ -434,12 +444,15 @@ export function Receivables() {
                 <DateInput name="servico_de" aria-label="De" defaultValue={filters.servico_de} />
                 <DateInput name="servico_ate" aria-label="Até" defaultValue={filters.servico_ate} />
               </>),
-                  number: textFilter("Número", "numero_fatura"),
                   city: textFilter("Cidade", "cidade"),
                   country: textFilter("País", "pais"),
                   vat: filter("IVA", ["iva"], <Input type="number" min="0" step="0.01" name="iva" aria-label="IVA" defaultValue={filters.iva} />),
                   accounting: textFilter("Contabilidade", "contabilidade"),
-                  workshop: filter("Oficina / Cliente", ["oficina_id", "origem"], <>
+                  total: "Valor total",
+                  model: "Modelo",
+                  plate: "Placa",
+                  chassis: "Chassi",
+                  workshop: filter("Cliente", ["oficina_id", "origem"], <>
                 <select className="w-full rounded border bg-background p-2" name="oficina_id" defaultValue={filters.oficina_id ?? ""} aria-label="Oficina">
                   <option value="">Todas as oficinas</option>
                   {workshops.map(workshop => <option key={workshop.id} value={workshop.id}>{workshop.name}</option>)}
@@ -453,23 +466,22 @@ export function Receivables() {
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
               </>),
                 }[id]}</TableHead>)}
-              <TableHead className={`border-l text-center ${invoiceColumnWidth}`}>Fatura</TableHead>
-              <TableHead className="text-center">Enviada</TableHead>
-              <TableHead className={`text-center ${receivedColumnWidth}`}>Recebida</TableHead>
-              <TableHead className="text-center">Paga</TableHead>
-              <TableHead className="text-right sticky right-0 bg-card z-10 border-l border-border">Ações</TableHead>
+              <TableHead className={`border-l text-center ${invoiceColumnWidth}`}>{textFilter("Fatura", "numero_fatura")}</TableHead>
+              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Enviada">Enviada</TableHead>
+              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Recebida">Recebida</TableHead>
+              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Paga">Paga</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 5} className="text-center py-10">
+                <TableCell colSpan={columns.length + 4} className="text-center py-10">
                   <Spinner className="w-6 h-6 mx-auto" />
                 </TableCell>
               </TableRow>
             ) : items.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 5} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={columns.length + 4} className="text-center py-10 text-muted-foreground">
                   Nenhum lançamento.
                 </TableCell>
               </TableRow>
@@ -479,42 +491,20 @@ export function Receivables() {
                 {columns.map(id => {
                   const value = {
                   date: formatDate(r.serviceDate ?? r.issueDate ?? r.launchDate ?? r.dueDate),
-                  number: r.invoiceNumber || "—",
                   city: r.city || "—",
                   country: r.country || "—",
                   vat: r.vat == null ? "—" : formatCurrency(r.vat),
                   accounting: r.accounting || "—",
                   workshop: r.origin === "avulsa" ? (r.client ?? "—") : ((r.workshop || shopName(workshops, r.workshopId)).replace(/\s+carro[cç]eria\b/gi, "")),
                   value: formatCurrency(r.serviceAmount),
+                  total: formatCurrency(Number(r.serviceAmount) + Number(r.vat ?? 0)),
+                  model: r.vehicleModel || "—",
+                  plate: r.plate || "—",
+                  chassis: r.chassis || "—",
                 }[id];
                   return <TableCell key={id}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
                 })}
-                  {invoiceCells(r)}
-                  <TableCell className="text-right sticky right-0 bg-card z-10 border-l border-border">
-                    <div className="flex gap-1 justify-end">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="sm" variant="ghost" aria-label="Excluir lançamento" onClick={(e) => e.stopPropagation()}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Escolha o que deseja excluir. A exclusão é definitiva. O serviço só pode ser excluído se não houver outras movimentações financeiras ou perícias vinculadas.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); void remove(r.id); }}>Excluir lançamento</AlertDialogAction>
-                            {r.serviceId && <AlertDialogAction className="bg-destructive text-destructive-foreground"
-                              onClick={(e) => { e.stopPropagation(); void remove(r.id, true); }}>Excluir lançamento e serviço</AlertDialogAction>}
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </TableCell>
+                  {invoiceCells(r, () => setViewing(r))}
                 </TableRow>
               ))
             )}
@@ -543,7 +533,29 @@ export function Receivables() {
       </div>
 
       <FinanceRecordDetails kind="receber" record={viewing} workshops={workshops}
-        onClose={() => setViewing(null)} onEdit={() => { if (viewing) { openEdit(viewing); setViewing(null); } }} />
+        actions={viewing && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="outline" aria-label="Excluir lançamento">
+                <Trash2 className="mr-2 w-4 h-4 text-destructive" />Excluir
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Escolha o que deseja excluir. A exclusão é definitiva. O serviço só pode ser excluído se não houver outras movimentações financeiras ou perícias vinculadas.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void remove(viewing.id)}>Excluir lançamento</AlertDialogAction>
+                {viewing.serviceId && <AlertDialogAction className="bg-destructive text-destructive-foreground"
+                  onClick={() => void remove(viewing.id, true)}>Excluir lançamento e serviço</AlertDialogAction>}
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )} onClose={() => setViewing(null)} onEdit={() => { if (viewing) { openEdit(viewing); setViewing(null); } }} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

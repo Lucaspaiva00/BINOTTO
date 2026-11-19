@@ -52,6 +52,7 @@ export default function Dashboard() {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const monthlyTotals = Array<number>(12).fill(0);
     const yearTotals = new Map<number, number>();
     let month = 0;
     let week = 0;
@@ -64,10 +65,13 @@ export default function Dashboard() {
       const amount = Number(item.serviceAmount) || 0;
       const y = issued.getFullYear();
       yearTotals.set(y, (yearTotals.get(y) || 0) + amount);
-      if (y === now.getFullYear() && issued.getMonth() === now.getMonth()) month += amount;
+      if (y === now.getFullYear()) {
+        monthlyTotals[issued.getMonth()] += amount;
+        if (issued.getMonth() === now.getMonth()) month += amount;
+      }
       if (issued >= weekStart) week += amount;
     }
-    return { month, week, yearTotals };
+    return { month, week, yearTotals, monthlyTotals };
   }, [entries]);
 
   const years = [year - 2, year - 1, year];
@@ -77,7 +81,8 @@ export default function Dashboard() {
     <AppLayout title="Dashboard" subtitle="Faturamento real da plataforma">
       {error && <p role="alert" className="mb-4 text-sm text-destructive">Não foi possível consultar o faturamento. Nenhum valor estimado foi exibido.</p>}
       {incomplete && <p role="alert" className="mb-4 text-sm text-amber-600">Existem lançamentos adicionais. Os valores semanal, mensal e os anos anteriores podem estar incompletos.</p>}
-      <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-card p-5">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+      <div className="w-full space-y-4 rounded-2xl border border-border bg-card p-5">
         {[
           { label: `Faturamento ${year}`, value: billing?.billedAmount, icon: Wallet },
           { label: `Faturamento ${new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(new Date())}`, value: stats.month, icon: CalendarRange },
@@ -90,6 +95,25 @@ export default function Dashboard() {
             <p className={`mt-3 font-semibold tracking-tight tabular-nums ${index === 0 ? "text-4xl md:text-5xl" : index === 1 ? "text-3xl md:text-4xl" : "text-xl md:text-2xl"}`}>{loading || error ? "—" : formatCurrency(value ?? 0)}</p>
           </div>
         ))}
+      </div>
+      <section className="min-w-0 rounded-2xl border border-border bg-card p-5">
+        <h2 className="font-semibold">Faturamento mensal de {year}</h2>
+        <div className="mt-4 overflow-x-auto">
+          <div className="grid min-w-[30rem] grid-cols-12 gap-2">
+            {stats.monthlyTotals.map((amount, index) => {
+              const month = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(year, index, 1));
+              const value = loading || error ? "—" : formatCurrency(amount);
+              const height = loading || error ? 0 : Math.max(0, amount / Math.max(1, ...stats.monthlyTotals) * 100);
+              return <div key={index} title={`${month} ${value}`} aria-label={`${month} ${value}`} className="text-center text-xs">
+                <div className="flex h-32 items-end overflow-hidden rounded bg-muted/40">
+                  <div className="w-full rounded-t bg-[hsl(var(--app-accent))]" style={{ height: `${height}%` }} />
+                </div>
+                <span className="mt-1 block">{month}</span>
+              </div>;
+            })}
+          </div>
+        </div>
+      </section>
       </div>
       <section className="mt-5 rounded-2xl border border-border bg-card p-5">
         <h2 className="flex items-center gap-2 font-semibold"><TrendingUp className="h-5 w-5" /> Comparativo de faturamento anual</h2>
