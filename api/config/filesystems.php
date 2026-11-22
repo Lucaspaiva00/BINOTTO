@@ -1,5 +1,11 @@
 <?php
 
+$publicUrl = env('APP_URL', 'http://localhost');
+$renderUrl = env('RENDER_EXTERNAL_URL');
+if ($renderUrl && in_array(parse_url($publicUrl, PHP_URL_HOST), ['localhost', '127.0.0.1', null], true)) {
+    $publicUrl = $renderUrl;
+}
+
 return [
 
     /*
@@ -41,7 +47,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL').'/storage',
+            'url' => rtrim($publicUrl, '/').'/storage',
             'visibility' => 'public',
             'throw' => false,
             'report' => false,
