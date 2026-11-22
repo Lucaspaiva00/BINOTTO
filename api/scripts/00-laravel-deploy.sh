@@ -19,10 +19,11 @@ if [ -n "${PUBLIC_UPLOADS_PATH:-}" ]; then
         fi
     elif [ -d storage/app/public ]; then
         # Do not silently hide existing files with a mount/symlink.
-        if [ -n "$(ls -A storage/app/public 2>/dev/null)" ]; then
+        if [ -n "$(find storage/app/public -mindepth 1 -maxdepth 1 ! -name .gitignore -print -quit)" ]; then
             echo "Refusing to replace non-empty storage/app/public; migrate existing uploads first" >&2
             exit 1
         fi
+        rm -f storage/app/public/.gitignore
         rmdir storage/app/public
     elif [ -e storage/app/public ]; then
         echo "Unexpected file at storage/app/public" >&2
