@@ -236,12 +236,10 @@ const FIELD_MAP: Record<string, string> = {
 };
 
 export function Receivables() {
-  const [columns] = useState(() => {
-    const saved = getTableColumns("binotto-finance-columns", FINANCE_COLUMNS);
-    if (!saved.includes("value") || !saved.includes("vat")) return saved;
-    const columns = saved.filter(id => id !== "vat");
-    return columns.flatMap(id => id === "value" ? [id, "vat" as const] : [id]);
-  });
+  const [visibleColumns] = useState(() => getTableColumns("binotto-finance-columns", FINANCE_COLUMNS));
+  const showValue = visibleColumns.includes("value");
+  const showVat = visibleColumns.includes("vat");
+  const columns = visibleColumns.filter(id => id !== "vat" || !showValue);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
@@ -440,7 +438,7 @@ export function Receivables() {
         <Table className="min-w-max [&_td]:px-2 [&_th]:px-2">
           <TableHeader>
             <TableRow>
-                {columns.map(id => <TableHead key={id} className="max-w-40 truncate">{ {
+                {columns.map(id => <TableHead key={id} className={id === "value" && showVat ? undefined : "max-w-40 truncate"}>{ {
                   date: filter("Data", ["servico_de", "servico_ate"], <>
                 <DateInput name="servico_de" aria-label="De" defaultValue={filters.servico_de} />
                 <DateInput name="servico_ate" aria-label="Até" defaultValue={filters.servico_ate} />
@@ -462,9 +460,11 @@ export function Receivables() {
                   <option value="">Todas as origens</option><option value="aplicativo">Aplicativo</option><option value="avulsa">Avulsa</option>
                 </select>
               </>),
-                  value: filter("Valor a receber", ["valor_de", "valor_ate"], <>
+                  value: filter(showVat ? "Valor a receber / IVA" : "Valor a receber",
+                    showVat ? ["valor_de", "valor_ate", "iva"] : ["valor_de", "valor_ate"], <>
                 <Input name="valor_de" aria-label="Valor mínimo" type="number" min="0" step="0.01" defaultValue={filters.valor_de} />
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
+                {showVat && <Input name="iva" aria-label="IVA" placeholder="IVA" type="number" min="0" step="0.01" defaultValue={filters.iva} />}
               </>),
                 }[id]}</TableHead>)}
               <TableHead className={`border-l text-center ${frozenInvoiceColumn} ${invoiceColumnWidth}`}>{textFilter("Fatura", "numero_fatura")}</TableHead>
@@ -503,6 +503,13 @@ export function Receivables() {
                   plate: r.plate || "—",
                   chassis: r.chassis || "—",
                 }[id];
+                  if (id === "value" && showVat) {
+                    const vat = r.vat == null ? "—" : formatCurrency(r.vat);
+                    return <TableCell key={id}>
+                      <span className="block tabular-nums">{value}</span>
+                      <span className="block text-xs text-muted-foreground tabular-nums">IVA: {vat}</span>
+                    </TableCell>;
+                  }
                   return <TableCell key={id}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
                 })}
                   {invoiceCells(r, () => setViewing(r))}
