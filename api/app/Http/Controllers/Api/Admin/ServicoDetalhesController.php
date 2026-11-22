@@ -17,6 +17,7 @@ use App\Support\ServicoFinanceiro;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Support\ServicoFotosVeiculo;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -33,7 +34,6 @@ class ServicoDetalhesController extends Controller
         'lateral_esq', 'coluna_esq', 'tampa_inferior', 'tampa_superior', 'lateral_dir',
         'porta_traseira_dir', 'porta_dianteira_dir', 'paralama_dianteiro_dir', 'coluna_dir', 'teto',
     ];
-    private const FOTOS_VEICULO = ['frente_motorista', 'traseira_carona', 'placa', 'chassi', 'marca', 'modelo'];
     private const PRECO_KEYS = ['oficina_desmontagem', 'oficina_carro', 'tecnico_desmontagem', 'tecnico_carro'];
     private const SUGESTAO_KEYS = ['tecnico_sugestao_carro', 'tecnico_sugestao_desmontagem'];
 
@@ -110,11 +110,11 @@ class ServicoDetalhesController extends Controller
         } catch (\InvalidArgumentException $e) {
             throw ValidationException::withMessages(['precos_detalhados' => [$e->getMessage()]]);
         }
-        if (array_diff(array_keys($fotosExistentes), self::FOTOS_VEICULO)) {
+        if (array_diff(array_keys($fotosExistentes), ServicoFotosVeiculo::CAMPOS)) {
             throw ValidationException::withMessages(['fotos_veiculo_existentes' => ['Tipo de fotografia desconhecido.']]);
         }
         foreach (array_keys($request->file('fotos_veiculo', [])) as $key) {
-            if (! in_array($key, self::FOTOS_VEICULO, true)) {
+            if (! in_array($key, ServicoFotosVeiculo::CAMPOS, true)) {
                 throw ValidationException::withMessages(['fotos_veiculo' => ['Tipo de fotografia desconhecido.']]);
             }
         }
@@ -160,20 +160,22 @@ class ServicoDetalhesController extends Controller
                 }
                 $veiculo = $servico->primeiroVeiculo ?: $servico->veiculos()->create(['preco_total' => 0, 'reparos_execucao' => []]);
                 $anteriores = $veiculo->fotos_veiculo ?? [];
-                $fotos = [];
-                foreach (self::FOTOS_VEICULO as $key) {
+                $fotosPericia = ServicoFotosVeiculo::daPericia($servico->load('pericias'));
+                $fotos = $anteriores;
+                foreach (ServicoFotosVeiculo::CAMPOS as $key) {
                     $path = $fotosExistentes[$key] ?? null;
-                    $known = $anteriores[$key] ?? null;
-                    if ($path !== null && $path !== $known && $path !== Storage::disk('public')->url((string) $known)) {
+                    $known = array_key_exists($key, $anteriores) ? $anteriores[$key] : ($fotosPericia[$key] ?? null);
+                    if ($path !== null && (! $known || ($path !== $known && $path !== Storage::disk('public')->url($known)))) {
                         throw ValidationException::withMessages(['fotos_veiculo_existentes' => ['A foto informada não pertence ao serviço.']]);
                     }
-                    if ($path && $known) $fotos[$key] = $known;
+                    $owned = $anteriores[$key] ?? null;
                     if ($request->hasFile("fotos_veiculo.{$key}")) {
-                        if ($known) $pathsRemovidos[] = $known;
+                        if ($owned && $owned !== ($fotosPericia[$key] ?? null)) $pathsRemovidos[] = $owned;
                         $fotos[$key] = $request->file("fotos_veiculo.{$key}")->store("servicos/{$servico->id}/veiculo", 'public');
                         $pathsCriados[] = $fotos[$key];
-                    } elseif ($known && ! isset($fotos[$key])) {
-                        $pathsRemovidos[] = $known;
+                    } elseif (array_key_exists($key, $fotosExistentes) && $path === null && $known) {
+                        if ($owned && $owned !== ($fotosPericia[$key] ?? null)) $pathsRemovidos[] = $owned;
+                        $fotos[$key] = null;
                     }
                 }
                 $existing = collect($veiculo->reparos_execucao ?? [])->keyBy('peca');

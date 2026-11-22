@@ -43,6 +43,7 @@ class AdminServiceImprovementsTest extends TestCase
         (require database_path('migrations/2026_11_09_235000_add_especificacoes_pecas_to_servico_veiculos.php'))->up();
         Schema::create('pericias', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('servico_id')->nullable(); $t->string('status');
+            $t->json('fotos')->nullable(); $t->json('fotos_pericia_completa')->nullable();
             $t->timestamp('concluida_em')->nullable(); $t->timestamps();
         });
         Schema::create('servico_logs', function (Blueprint $t) {
@@ -95,6 +96,36 @@ class AdminServiceImprovementsTest extends TestCase
                 ['peca' => 'teto', 'tipoReparo' => 'SEM_DANO', 'avaliada' => true, 'amassadosAte2' => 0, 'amassadosAte5' => 0, 'amassadosAcima5' => 0, 'fotos' => []],
             ]),
         ], $overrides);
+    }
+
+    public function test_service_details_display_and_preserve_photos_from_the_mobile_inspection(): void
+    {
+        $service = $this->service();
+        $disk = \Illuminate\Support\Facades\Storage::fake('public');
+        $rear = 'pericias/1/fotos/rear.jpg';
+        $front = 'servicos/'.$service->id.'/veiculo/front.jpg';
+        $disk->put($rear, 'app photo');
+        $disk->put($front, 'web photo');
+        $service->veiculos()->create(['fotos_veiculo' => ['frente_motorista' => $front], 'preco_total' => 0]);
+        DB::table('pericias')->insert([
+            'servico_id' => $service->id,
+            'status' => 'aberta',
+            'fotos' => json_encode(['diagonalRearPassenger' => $rear, 'diagonalFrontDriver' => 'pericias/1/fotos/front.jpg']),
+        ]);
+
+        $url = "/api/admin/servicos/{$service->id}/detalhes";
+        $this->postJson($url, $this->payload())->assertOk()
+            ->assertJsonPath('data.vehiclePhotos.frente_motorista', $disk->url($front))
+            ->assertJsonPath('data.vehiclePhotos.traseira_carona', $disk->url($rear));
+
+        $this->postJson($url, $this->payload([
+            'fotos_veiculo_existentes' => json_encode(['traseira_carona' => $disk->url($rear)]),
+        ]))->assertOk()->assertJsonPath('data.vehiclePhotos.traseira_carona', $disk->url($rear));
+
+        $this->postJson($url, $this->payload([
+            'fotos_veiculo_existentes' => json_encode(['traseira_carona' => null]),
+        ]))->assertOk()->assertJsonMissingPath('data.vehiclePhotos.traseira_carona');
+        $disk->assertExists($rear);
     }
 
     public function test_saves_date_manual_technician_prices_and_distinct_assessment_states(): void

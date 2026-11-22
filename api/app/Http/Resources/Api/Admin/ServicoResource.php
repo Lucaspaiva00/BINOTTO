@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
 use App\Support\ServicoPrecos;
+use App\Support\ServicoFotosVeiculo;
 
 class ServicoResource extends JsonResource
 {
@@ -30,7 +31,9 @@ class ServicoResource extends JsonResource
             'model' => $this->primeiroVeiculo?->marca_modelo ?? $this->modelo,
             'brand' => $this->primeiroVeiculo?->marca,
             'vehicleModel' => $this->primeiroVeiculo?->modelo,
-            'vehiclePhotos' => collect($this->primeiroVeiculo?->fotos_veiculo ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all(),
+            'vehiclePhotos' => collect(array_replace(ServicoFotosVeiculo::daPericia($this->resource), $this->primeiroVeiculo?->fotos_veiculo ?? []))
+                ->filter(fn ($path) => is_string($path) && $path !== '')
+                ->map(fn ($path) => Storage::disk('public')->url($path))->all(),
             'inspectionType' => $this->pericia_completa ? 'completa' : 'simples',
             'detailedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::normalizar($this->precos_detalhados),
             'calculatedPrices' => $this->precos_detalhados === null ? null : ServicoPrecos::calcularSeguro($this->precos_detalhados),
