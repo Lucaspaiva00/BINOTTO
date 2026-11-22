@@ -156,7 +156,7 @@ export default function TechnicianNewInspectionScreen() {
 
   const workshopOptions =
     workshops?.map((workshop: any) => ({
-      label: workshop.nome_fantasia ?? workshop.razao_social,
+      label: workshop.nome_fantasia?.trim() || workshop.razao_social,
       value: workshop.id,
     })) ?? [];
 
@@ -531,7 +531,7 @@ export default function TechnicianNewInspectionScreen() {
 
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           {/* FORM */}
           <View style={styles.section}>
             <Select

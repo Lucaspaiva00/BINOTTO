@@ -19,6 +19,7 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
   const [query, setQuery] = useState("");
   const [selectedLabel, setSelectedLabel] = useState("");
   const [highlight, setHighlight] = useState(-1);
+  const container = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const listId = useId();
@@ -44,6 +45,15 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
     setHighlight(-1);
   }
 
+  useEffect(() => {
+    if (!open) return;
+    function closeOutside(event: PointerEvent) {
+      if (event.target instanceof Node && !container.current?.contains(event.target)) close();
+    }
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
+
   function select(option: SearchableOption) {
     setSelectedLabel(option.label);
     onChange(option.value);
@@ -52,8 +62,8 @@ export function SearchableSelect({ value, onChange, options, placeholder = "Sele
   }
 
   return (
-    <div className={cn("relative", className)} onMouseLeave={close} onBlur={event => {
-      if (!event.currentTarget.contains(event.relatedTarget)) close();
+    <div ref={container} className={cn("relative", className)} onBlur={event => {
+      if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) close();
     }} onKeyDownCapture={event => {
       if (event.key === "Escape" && open) {
         event.preventDefault();

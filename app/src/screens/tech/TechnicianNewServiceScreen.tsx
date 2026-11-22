@@ -164,7 +164,7 @@ export default function TechnicianNewServiceScreen() {
 
   const workshopOptions =
     workshops?.map((workshop: any) => ({
-      label: workshop.nome_fantasia ?? workshop.razao_social,
+      label: workshop.nome_fantasia?.trim() || workshop.razao_social,
       value: workshop.id,
     })) ?? [];
 
@@ -694,7 +694,7 @@ export default function TechnicianNewServiceScreen() {
           </View>
         )}
 
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           <View style={styles.section}>
             <Select
               label={t("technicianNewServiceScreen.workshopLabel")}
