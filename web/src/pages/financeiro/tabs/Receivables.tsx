@@ -45,7 +45,8 @@ function dot(color: "green" | "yellow" | "red", title: string) {
   return <span title={title} role="img" aria-label={title} className={`mx-auto block size-3 rounded-full ${backgrounds[color]}`} />;
 }
 
-const invoiceColumnWidth = "w-[100px] min-w-[100px] max-w-[100px] truncate";
+const frozenInvoiceColumn = "sticky z-10 bg-card";
+const invoiceColumnWidth = "right-[150px] w-[100px] min-w-[100px] max-w-[100px] truncate";
 const invoiceStatusColumnWidth = "w-[50px] min-w-[50px] max-w-[50px] truncate px-0!";
 
 function invoiceCells(record: Receivable, onOpen: () => void) {
@@ -57,21 +58,21 @@ function invoiceCells(record: Receivable, onOpen: () => void) {
   const channels = record.invoiceChannels ?? [];
   const payment = record.technicianPayment;
   return <>
-    <TableCell className={`border-l text-center ${invoiceColumnWidth}`}>
+    <TableCell className={`border-l text-center ${frozenInvoiceColumn} ${invoiceColumnWidth}`}>
       {record.invoiceNumber ? record.invoiceAttachment
         ? <InvoiceAttachment kind="receber" id={record.id} attached label={record.invoiceNumber} />
         : <Button variant="link" size="sm" className="max-w-full px-0" title={record.invoiceNumber}
             onClick={onOpen}><span className="truncate">{record.invoiceNumber}</span></Button>
         : dash}
     </TableCell>
-    <TableCell className={`text-center ${invoiceStatusColumnWidth}`} title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
+    <TableCell className={`text-center right-[100px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`} title={channels.length ? "Canais de envio" : "Canal de envio não registrado"}>
       {channels.length ? <span className="inline-flex gap-1">
         {channels.includes("whatsapp") && <MessageCircle className="size-4 text-emerald-500" aria-label="WhatsApp" />}
         {channels.includes("email") && <Mail className="size-4 text-sky-500" aria-label="E-mail" />}
       </span> : dash}
     </TableCell>
-    <TableCell className={`text-center ${invoiceStatusColumnWidth}`}>{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
-    <TableCell className={`text-center ${invoiceStatusColumnWidth}`}>{!(received || partial) || !payment ? dash : payment === "total"
+    <TableCell className={`text-center right-[50px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`}>{received ? dot("green", "Recebimento total") : partial ? dot("yellow", "Recebimento parcial") : dash}</TableCell>
+    <TableCell className={`text-center right-[0px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`}>{!(received || partial) || !payment ? dash : payment === "total"
       ? dot("green", "Técnicos pagos integralmente") : payment === "parcial"
       ? dot("yellow", "Pagamento parcial aos técnicos") : dot("red", "Pagamento aos técnicos pendente")}</TableCell>
   </>;
@@ -466,10 +467,10 @@ export function Receivables() {
                 <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
               </>),
                 }[id]}</TableHead>)}
-              <TableHead className={`border-l text-center ${invoiceColumnWidth}`}>{textFilter("Fatura", "numero_fatura")}</TableHead>
-              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Enviada">Enviada</TableHead>
-              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Recebida">Recebida</TableHead>
-              <TableHead className={`text-center text-xs ${invoiceStatusColumnWidth}`} title="Paga">Paga</TableHead>
+              <TableHead className={`border-l text-center ${frozenInvoiceColumn} ${invoiceColumnWidth}`}>{textFilter("Fatura", "numero_fatura")}</TableHead>
+              <TableHead className={`text-center text-xs right-[100px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`} title="Enviada">Enviada</TableHead>
+              <TableHead className={`text-center text-xs right-[50px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`} title="Recebida">Recebida</TableHead>
+              <TableHead className={`text-center text-xs right-[0px] ${frozenInvoiceColumn} ${invoiceStatusColumnWidth}`} title="Paga">Paga</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
