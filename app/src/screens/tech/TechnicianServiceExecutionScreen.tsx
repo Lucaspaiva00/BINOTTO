@@ -1,3 +1,4 @@
+import { Input } from "@/components/common/Input";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
@@ -41,7 +42,7 @@ import { getStatusLabelKey } from "@/utils/status";
 import { formatDate } from "@/utils/date";
 import ImageViewerModal from "@/components/common/ImageViewerModal";
 import { GLOBAL } from "@/constants/global";
-import LegendDot from "@/components/common/LegendDot";
+import { InspectionLegend } from "@/components/common/InspectionLegend";
 import { colorStatus } from "@/services/ColorStatusService";
 import {
   Calendar,
@@ -71,6 +72,7 @@ export default function TechnicianServiceExecutionScreen() {
 
   // states
   const [service, setService] = useState<any>(null);
+  const [observations, setObservations] = useState("");
   const [partsState, setPartsState] = useState(() => createInitialPartsState());
   const [partsStateInspection, setPartsStateInspection] = useState(() => createInitialPartsState());
   const [selectedPartIdInspection, setSelectedPartIdInspection] = useState<string | null>(null);
@@ -192,6 +194,7 @@ export default function TechnicianServiceExecutionScreen() {
     const formData = new FormData();
 
     formData.append("finalizar", finalizar ? "1" : "0");
+    formData.append("observacoes", observations.trim());
 
     // Informações do reparo
     const reparosExecucao = Object.entries(partsState).map(
@@ -199,6 +202,10 @@ export default function TechnicianServiceExecutionScreen() {
         peca: partId,
         tipoReparo: part.tipoReparo,
         quantidadeAmassados: part.quantidadeAmassados,
+        quantidadeImpactosMenor25: part.quantidadeImpactosMenor25,
+        quantidadeImpactosMaior25: part.quantidadeImpactosMaior25,
+        avaliada: part.avaliada,
+        especificacoes: part.especificacoes,
         tamanhoAmassado: part.tamanhoAmassado,
         coeficiente: part.coeficiente,
         observacoes: part.observacoes,
@@ -289,12 +296,15 @@ export default function TechnicianServiceExecutionScreen() {
       const res = await TechnicianManagementService.getServiceById(serviceId);
 
       setService(res.data);
-      setPartsState(
-        normalizeReparos(res.data.primeiro_veiculo?.reparos_execucao ?? [])
-      );
-      setPartsStateInspection(
-        normalizeReparos(res.data.pericia_em_execucao?.reparos_necessarios ?? [])
-      )
+      setObservations(res.data.observacoes ?? "");
+      const baseline = res.data.pericia_em_execucao?.reparos_necessarios ?? res.data.pericia?.reparos_necessarios ?? [];
+      const execution = res.data.primeiro_veiculo?.reparos_execucao ?? [];
+      const repairs = new Map<string, unknown>();
+      for (const part of [...baseline.map((item: Record<string, unknown>) => ({ ...item, fotos: [] })), ...execution]) {
+        if (part?.peca) repairs.set(part.peca, part);
+      }
+      setPartsState(normalizeReparos([...repairs.values()]));
+      setPartsStateInspection(normalizeReparos(baseline));
     } catch (err) {
       setError(t("technicianServiceExecutionScreen.loadingServiceError"));
     } finally {
@@ -458,12 +468,9 @@ export default function TechnicianServiceExecutionScreen() {
               <View style={styles.carMapCard}>
                 <View style={styles.diagramWrap}>
                   <View style={styles.carFrame}>
-                    <View style={[styles.wheel, styles.wheelFrontLeft]} />
-                    <View style={[styles.wheel, styles.wheelFrontRight]} />
-                    <View style={[styles.wheel, styles.wheelRearLeft]} />
-                    <View style={[styles.wheel, styles.wheelRearRight]} />
 
                     <CarDiagram
+                  separated
                       partsState={partsStateInspection}
                       selectedPartId={selectedPartIdInspection}
                       setSelectedPartId={(id) => {
@@ -475,32 +482,7 @@ export default function TechnicianServiceExecutionScreen() {
                   </View>
                 </View>
 
-                <View style={styles.legendRow}>
-                  <LegendDot
-                    color={REPAIR_COLORS.PDR}
-                    label={t("repairTypes.PDR")}
-                  />
-                  <LegendDot
-                    color={REPAIR_COLORS.PINTURA}
-                    label={t("repairTypes.PINTURA")}
-                  />
-                  <LegendDot
-                    color={REPAIR_COLORS.TROCA}
-                    label={t("repairTypes.TROCA")}
-                  />
-                  <LegendDot
-                    color={REPAIR_COLORS.ALUMINIO_PDR}
-                    label={t("repairTypes.ALUMINIO_PDR")}
-                  />
-                  <LegendDot
-                    color={REPAIR_COLORS.ALUMINIO_PINTURA}
-                    label={t("repairTypes.ALUMINIO_PINTURA")}
-                  />
-                  <LegendDot
-                    color={REPAIR_COLORS.SEM_DANO}
-                    label={t("repairTypes.SEM_DANO")}
-                  />
-                </View>
+                <InspectionLegend />
               </View>
             )}
 
@@ -509,12 +491,9 @@ export default function TechnicianServiceExecutionScreen() {
           <View style={styles.carMapCard}>
             <View style={styles.diagramWrap}>
               <View style={styles.carFrame}>
-                <View style={[styles.wheel, styles.wheelFrontLeft]} />
-                <View style={[styles.wheel, styles.wheelFrontRight]} />
-                <View style={[styles.wheel, styles.wheelRearLeft]} />
-                <View style={[styles.wheel, styles.wheelRearRight]} />
 
                 <CarDiagram
+                  separated
                   partsState={partsState}
                   selectedPartId={selectedPartId}
                   setSelectedPartId={(id) => {
@@ -546,32 +525,7 @@ export default function TechnicianServiceExecutionScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.legendRow}>
-              <LegendDot
-                color={REPAIR_COLORS.PDR}
-                label={t("repairTypes.PDR")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.PINTURA}
-                label={t("repairTypes.PINTURA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.TROCA}
-                label={t("repairTypes.TROCA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.ALUMINIO_PDR}
-                label={t("repairTypes.ALUMINIO_PDR")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.ALUMINIO_PINTURA}
-                label={t("repairTypes.ALUMINIO_PINTURA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.SEM_DANO}
-                label={t("repairTypes.SEM_DANO")}
-              />
-            </View>
+            <InspectionLegend />
           </View>
 
           {/* RESUMO DAS ALTERAÇÕES */}
@@ -675,6 +629,9 @@ export default function TechnicianServiceExecutionScreen() {
             />
           )}
 
+          <Input label={t("vehicleReference.observations")} value={observations} onChangeText={setObservations}
+            maxLength={2000} multiline />
+
           <View style={styles.submitActions}>
             <TouchableOpacity
               disabled={submittingType !== null}
@@ -714,6 +671,7 @@ export default function TechnicianServiceExecutionScreen() {
 
         {modalPartVisible && editingPartId && (
           <InspectionModal
+            specifications
             visible={modalPartVisible}
             partName={
               editingPartId

@@ -1,3 +1,5 @@
+import { api } from "@/services/api/client";
+
 export const SERVICE_COLUMNS = {
   date: "Data", workshop: "Oficina", technician: "Técnico", city: "Cidade", country: "País",
   billed: "Preço faturado", status: "Status", brand: "Marca", model: "Modelo", plate: "Placa",
@@ -8,7 +10,6 @@ export type ServiceColumn = keyof typeof SERVICE_COLUMNS;
 export type ColumnPreference = { id: ServiceColumn; visible: boolean };
 export type VehicleReference = "placa" | "chassi" | "ambos";
 const COLUMN_KEY = "binotto-service-columns";
-const REFERENCE_KEY = "binotto-service-reference";
 const ids = Object.keys(SERVICE_COLUMNS) as ServiceColumn[];
 
 export function getServiceColumns(): ColumnPreference[] {
@@ -33,13 +34,13 @@ export function saveServiceColumns(columns: ColumnPreference[]) {
   localStorage.setItem(COLUMN_KEY, JSON.stringify(columns));
 }
 
-export function getVehicleReference(): VehicleReference {
-  const saved = localStorage.getItem(REFERENCE_KEY);
-  return saved === "placa" || saved === "chassi" || saved === "ambos" ? saved : "placa";
+export async function getVehicleReference(): Promise<VehicleReference> {
+  const { data } = await api.get<{ data: VehicleReference }>("/configuracoes/referencia-veiculo");
+  return data.data;
 }
 
-export function saveVehicleReference(reference: VehicleReference) {
-  localStorage.setItem(REFERENCE_KEY, reference);
+export async function saveVehicleReference(reference: VehicleReference) {
+  return api.put("/configuracoes/referencia-veiculo", { referencia: reference });
 }
 
 export function normalizeVehicleReference(value: string): string {

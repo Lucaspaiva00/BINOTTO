@@ -108,6 +108,8 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
             Route::patch('/{id}/recusar', [ServicoDetalhesController::class, 'recusar']);
         });
 
+        Route::get('configuracoes/referencia-veiculo', [\App\Http\Controllers\Api\Admin\ReferenciaVeiculoController::class, 'show']);
+        Route::put('configuracoes/referencia-veiculo', [\App\Http\Controllers\Api\Admin\ReferenciaVeiculoController::class, 'update']);
         Route::get('configuracoes/pericias', [ConfiguracaoPericiaController::class, 'show']);
         Route::put('configuracoes/pericias', [ConfiguracaoPericiaController::class, 'update']);
         Route::post('pericias/reconhecer', [ReconhecimentoVeiculoController::class, 'recognize'])->middleware('throttle:15,1');
@@ -201,6 +203,7 @@ Route::prefix('mobile')->middleware(['locale'])->group(function () {
         });
 
         Route::middleware(['permission:tecnico'])->prefix('tecnico')->group(function () {
+            Route::get('/configuracoes/referencia-veiculo', [\App\Http\Controllers\Api\Admin\ReferenciaVeiculoController::class, 'show']);
             Route::prefix('perfil')->group(function () {
                 Route::get('/', [TecnicoPerfilController::class, 'index']);
                 Route::get('/{id}', [TecnicoPerfilController::class, 'show']);

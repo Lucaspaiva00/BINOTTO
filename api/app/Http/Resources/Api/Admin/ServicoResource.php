@@ -12,6 +12,13 @@ class ServicoResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $veiculo = $this->primeiroVeiculo;
+        $pericia = $this->relationLoaded('pericias')
+            ? ($this->pericias->where('status.value', 'em_execucao')->sortByDesc('id')->first()
+                ?? $this->pericias->sortByDesc('id')->first()) : null;
+        $reparos = collect($pericia?->reparos_necessarios ?? [])->map(fn ($part) => array_replace($part, ['fotos' => []]))->keyBy('peca')
+            ->replace(collect($veiculo?->reparos_execucao ?? [])->keyBy('peca')->all())->values();
+
         return [
             'id' => $this->id,
             'status' => $this->status?->value,
@@ -40,8 +47,8 @@ class ServicoResource extends JsonResource
             'calculatedTotals' => $this->precos_detalhados === null ? null : ServicoPrecos::somarCalculados(ServicoPrecos::calcularSeguro($this->precos_detalhados)),
             'canAdminAccept' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
             'canAdminRefuse' => in_array($this->status?->value, ['aguardando', 'em_breve', 'aguardando_aprovacao'], true) && $this->tecnico_id !== null,
-            'vehicleRepairs' => collect($this->primeiroVeiculo?->reparos_execucao ?? [])->map(function ($repair) {
-                $repair['especificacoes'] = $this->primeiroVeiculo->especificacoes_pecas[$repair['peca'] ?? ''] ?? null;
+            'vehicleRepairs' => $reparos->map(function ($repair) use ($veiculo) {
+                $repair['especificacoes'] = array_replace($veiculo?->especificacoes_pecas[$repair['peca'] ?? ''] ?? [], $repair['especificacoes'] ?? []) ?: null;
                 $repair['fotos'] = collect($repair['fotos'] ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all();
                 return $repair;
             })->all(),

@@ -525,12 +525,13 @@ export default function TechnicianNewServiceScreen() {
         return;
       }
 
+      const reference = await TechnicianManagementService.getVehicleReference();
       if (
-        !inspectionData.placa.trim() ||
-        !inspectionData.chassi.trim() ||
+        (reference !== "chassi" && !inspectionData.placa.trim()) ||
+        (reference !== "placa" && !inspectionData.chassi.trim()) ||
         !inspectionData.marcaModelo.trim()
       ) {
-        setError(t("technicianNewServiceScreen.missingVehicleInfoError"));
+        setError(t(`vehicleReference.${reference}`));
         return;
       }
 

@@ -1,5 +1,6 @@
 {
-  "inspectionSummary": { "glue": "Cola", "aluminum": "Alumínio", "total": "Total da peça", "newPart": "Novo", "piece": "Peça", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Amassados" },
+  "vehicleReference": {"placa": "Informe a placa e o modelo.", "chassi": "Informe o chassi e o modelo.", "ambos": "Informe a placa, o chassi e o modelo.", "observations": "Observação"},
+  "inspectionSummary": { "camera": "Foto", "upload": "Carregar", "glue": "Cola", "aluminum": "Alumínio", "total": "Total da peça", "newPart": "Novo", "piece": "Peça", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Amassados" },
   "inspectionActions": { "save": "Salvar perícia", "pdf": "Gerar PDF", "start": "Iniciar carro" },
   "accountEntry": {
     "choose": "Escolha seu perfil",

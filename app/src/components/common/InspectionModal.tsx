@@ -118,30 +118,22 @@ export default function InspectionModal({
   };
 
 
-  const takePhoto = async () => {
-     PermissionController.checkCameraPermission(navigation,async ()=>{
-    if ((local.fotos?.length ?? 0) >= 2) return;
-
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-    });
-
+  const photoLimit = specifications ? 3 : 2;
+  const addPhoto = async (source: "camera" | "library") => {
+    if ((local.fotos?.length ?? 0) >= photoLimit) return;
+    const result = await (source === "camera"
+      ? ImagePicker.launchCameraAsync({ quality: 0.8 })
+      : ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 }));
     if (result.canceled) return;
 
-    const optimizedAsset = await optimizeImage(result.assets[0]);
-
-    setLocal((prev) => ({
+    const asset = await optimizeImage(result.assets[0]);
+    setLocal(prev => prev.fotos.length >= photoLimit ? prev : {
       ...prev,
-      fotos: [
-        ...(prev.fotos ?? []),
-        {
-          type: "new",
-          asset: optimizedAsset,
-        },
-      ],
-    }));
-  });
+      fotos: [...prev.fotos, { type: "new", asset }],
+    });
   };
+
+  const takePhoto = () => PermissionController.checkCameraPermission(navigation, () => addPhoto("camera"));
 
   const removePhoto = (index: number) => {
     const photo = local.fotos?.[index];
@@ -436,12 +428,19 @@ export default function InspectionModal({
 
             <View>
               <Text style={styles.sectionTitle}>
-                {t("inspectionModal.photos")} ({local.fotos?.length}/2)
+                {t("inspectionModal.photos")} ({local.fotos?.length}/{photoLimit})
               </Text>
 
+              {specifications && <View style={styles.repairGrid}>
+                <Pressable accessibilityRole="button" style={styles.repairChip} onPress={takePhoto} disabled={photos.length >= photoLimit}>
+                  <Text style={styles.repairChipText}>{t("inspectionSummary.camera")}</Text>
+                </Pressable>
+                <Pressable accessibilityRole="button" style={styles.repairChip} onPress={() => void addPhoto("library")} disabled={photos.length >= photoLimit}>
+                  <Text style={styles.repairChipText}>{t("inspectionSummary.upload")}</Text>
+                </Pressable>
+              </View>}
               <View style={styles.grid}>
-                {Array.from({ length: Math.max(photos.length + 1, 2) })
-                  .slice(0, 2)
+                {Array.from({ length: photoLimit })
                   .map((_, index) => {
                     const photo = photos[index];
 

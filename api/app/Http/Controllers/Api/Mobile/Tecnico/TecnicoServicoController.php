@@ -205,6 +205,15 @@ class TecnicoServicoController extends Controller
 
             $servico->setRelation('pericia', $ultimaPericia);
 
+            if ($veiculo = $servico->primeiroVeiculo) {
+                $veiculo->reparos_execucao = collect($veiculo->reparos_execucao ?? [])->map(function (array $parte) use ($veiculo) {
+                    $especificacoes = $veiculo->especificacoes_pecas[$parte['peca'] ?? ''] ?? [];
+                    unset($especificacoes['total']);
+                    $parte['especificacoes'] = array_replace($especificacoes, $parte['especificacoes'] ?? []);
+                    return $parte;
+                })->all();
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => $servico,
@@ -527,8 +536,7 @@ class TecnicoServicoController extends Controller
         $data = $request->validate([
             'oficina_id' => ['required', 'exists:oficinas,id'],
             'servico_id' => ['nullable', 'exists:servicos,id'],
-            'placa' => ['required', 'string'],
-            'chassi' => ['required', 'string'],
+            ...\App\Support\ReferenciaVeiculo::regras(),
             'marca_modelo' => ['required', 'string', 'max:255'],
             'tipo' => ['required', 'string', 'in:simples,completa'],
             'preco_sugerido' => ['nullable', 'numeric', 'min:0'],
@@ -582,8 +590,8 @@ class TecnicoServicoController extends Controller
 
             $veiculo = ServicoVeiculo::create([
                 'servico_id' => $servico->id,
-                'placa' => $data['placa'],
-                'chassi' => $data['chassi'],
+                'placa' => $data['placa'] ?? null,
+                'chassi' => $data['chassi'] ?? null,
                 'marca_modelo' => $data['marca_modelo'],
             ]);
 
@@ -664,8 +672,8 @@ class TecnicoServicoController extends Controller
                 }
 
                 $pericia->update([
-                    'placa' => $data['placa'],
-                    'chassi' => $data['chassi'],
+                    'placa' => $data['placa'] ?? null,
+                    'chassi' => $data['chassi'] ?? null,
                     'marca_modelo' => $data['marca_modelo'],
                     'tipo' => $data['tipo'],
                     'status' => PericiaStatusEnum::EM_EXECUCAO->value,
@@ -680,8 +688,8 @@ class TecnicoServicoController extends Controller
                     'tecnico_id' => $tecnico->id,
                     'oficina_id' => $oficina->id,
                     'servico_id' => $servico->id,
-                    'placa' => $data['placa'],
-                    'chassi' => $data['chassi'],
+                    'placa' => $data['placa'] ?? null,
+                    'chassi' => $data['chassi'] ?? null,
                     'marca_modelo' => $data['marca_modelo'],
                     'tipo' => $data['tipo'],
                     'status' => PericiaStatusEnum::EM_EXECUCAO->value,
@@ -742,8 +750,8 @@ class TecnicoServicoController extends Controller
                 'tipo' => ServicoLogTipoEnum::SERVICO_INICIADO,
                 'descricao' => 'Carro iniciado',
                 'payload' => [
-                    'placa' => $data['placa'],
-                    'chassi' => $data['chassi'],
+                    'placa' => $data['placa'] ?? null,
+                    'chassi' => $data['chassi'] ?? null,
                     'marca_modelo' => $data['marca_modelo'],
                     'tipo_pericia' => $data['tipo'],
                     'preco_sugerido' => $data['preco_sugerido'] ?? null,
@@ -913,6 +921,7 @@ class TecnicoServicoController extends Controller
 
     public function saveExecution(Request $request, int $id)
     {
+        $notas = $request->validate(['observacoes' => ['sometimes', 'nullable', 'string', 'max:2000']]);
         $uploadedFotosReparosPaths = [];
 
         try {
@@ -939,7 +948,10 @@ class TecnicoServicoController extends Controller
             $fotosReparos = $this->salvarFotosReparos($request->file('fotos_reparo', []), $veiculo->id);
             $uploadedFotosReparosPaths = $fotosReparos;
             $reparosExecucaoJson = json_decode($request->input('reparos_execucao', '[]'), true);
-            $reparosAtuais = $veiculo->reparos_execucao ?? [];
+            $originais = $servico->periciaEmExecucao?->reparos_necessarios
+                ?? $servico->ultimaPericia?->reparos_necessarios ?? [];
+            $reparosAtuais = collect($originais)->map(fn ($parte) => array_replace($parte, ['fotos' => []]))->keyBy('peca')
+                ->replace(collect($veiculo->reparos_execucao ?? [])->keyBy('peca')->all())->values()->all();
             $reparos = $this->normalizeReparos($reparosExecucaoJson, $reparosAtuais);
             $fotosReparoRemover = json_decode($request->input('fotos_reparo_remover', '[]'), true);
             $remocoesPorPeca = [];
@@ -948,6 +960,7 @@ class TecnicoServicoController extends Controller
                 $remocoesPorPeca[$remocao['partId']][] = $remocao['path'];
             }
 
+            $fotosRemovidas = [];
             foreach ($reparos as &$reparo) {
                 $peca = $reparo['peca'];
 
@@ -957,6 +970,12 @@ class TecnicoServicoController extends Controller
                 );
 
                 if (isset($remocoesPorPeca[$peca])) {
+                    foreach (array_intersect($fotos, $remocoesPorPeca[$peca]) as $path) {
+                        if (str_starts_with($path, "veiculos/{$veiculo->id}/reparos/{$peca}/")
+                            || str_starts_with($path, "servicos/{$servico->id}/pecas/{$peca}/")) {
+                            $fotosRemovidas[] = $path;
+                        }
+                    }
                     $fotos = array_diff(
                         $fotos,
                         $remocoesPorPeca[$peca]
@@ -970,6 +989,10 @@ class TecnicoServicoController extends Controller
                 'reparos_execucao' => $reparos,
                 'finalizado_em' => $request->boolean('finalizar') ? now() : null,
             ]);
+
+            if (array_key_exists('observacoes', $notas)) {
+                $servico->update(['observacoes' => $notas['observacoes']]);
+            }
 
             if ($request->boolean('finalizar')) {
                 if ($servico->periciaEmExecucao) {
@@ -991,12 +1014,8 @@ class TecnicoServicoController extends Controller
                 ]);
             }
 
-            // Lógica de remoção de fotos
-            if (! empty($fotosReparoRemover)) {
-                $this->removerFotosReparos($fotosReparoRemover);
-            }
-
             DB::commit();
+            $this->removerFotos($fotosRemovidas);
 
             return response()->json([
                 'success' => true,
@@ -1179,6 +1198,7 @@ class TecnicoServicoController extends Controller
                 'quantidadeAmassados' => $reparo['quantidadeAmassados'] ?? $atual['quantidadeAmassados'] ?? 0,
                 'quantidadeImpactosMaior25' => $reparo['quantidadeImpactosMaior25'] ?? $atual['quantidadeImpactosMaior25'] ?? 0,
                 'quantidadeImpactosMenor25' => $reparo['quantidadeImpactosMenor25'] ?? $atual['quantidadeImpactosMenor25'] ?? 0,
+                'avaliada' => $reparo['avaliada'] ?? $atual['avaliada'] ?? true,
                 'tamanhoAmassado' => $reparo['tamanhoAmassado'] ?? $atual['tamanhoAmassado'] ?? null,
                 'coeficiente' => $reparo['coeficiente'] ?? $atual['coeficiente'] ?? 0,
                 'observacoes' => $reparo['observacoes'] ?? $atual['observacoes'] ?? '',

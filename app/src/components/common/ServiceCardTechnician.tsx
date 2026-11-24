@@ -94,18 +94,11 @@ export default function ServiceCardTechnician({
 
         {inExecution && (
           <View style={styles.contextRow}>
-            {inExecution && (
-              <>
-                <Car size={16} color="#aaa" strokeWidth={2} />
-                <Text style={styles.contextText}>
-                  {
-                    service.primeiro_veiculo?.placa ? 
-                    service.primeiro_veiculo.placa : 
-                    "--"
-                  }
-                </Text>
-              </>
-            )}
+            <Car size={16} color="#aaa" strokeWidth={2} />
+            <Text style={[styles.contextText, { flexShrink: 1 }]} numberOfLines={1}>
+              {[service.primeiro_veiculo?.modelo || service.primeiro_veiculo?.marca_modelo || service.modelo || "—",
+                service.primeiro_veiculo?.placa || "—"].join(" / ")}
+            </Text>
           </View>
         )}
 

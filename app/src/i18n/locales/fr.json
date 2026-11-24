@@ -1,5 +1,6 @@
 {
-  "inspectionSummary": { "glue": "Colle", "aluminum": "Aluminium", "total": "Total de la pièce", "newPart": "Neuf", "piece": "Pièce", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Bosses" },
+  "vehicleReference": {"placa": "Saisissez la plaque et le modèle.", "chassi": "Saisissez le VIN et le modèle.", "ambos": "Saisissez la plaque, le VIN et le modèle.", "observations": "Observations"},
+  "inspectionSummary": { "camera": "Photo", "upload": "Importer", "glue": "Colle", "aluminum": "Aluminium", "total": "Total de la pièce", "newPart": "Neuf", "piece": "Pièce", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Bosses" },
   "inspectionActions": { "save": "Enregistrer l’expertise", "pdf": "Générer le PDF", "start": "Démarrer le véhicule" },
   "accountEntry": {
     "choose": "Choisissez votre profil",

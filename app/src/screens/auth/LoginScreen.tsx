@@ -332,8 +332,10 @@ export function LoginScreen({ navigation, route }: Props): JSX.Element {
             disabled={isSubmitting}
           />
 
-          {canRegister && <PrimaryButton title={t("accountEntry.register")} onPress={() =>
-            profile === "technician" ? navigation.navigate("RegisterTechnician") : navigation.navigate("RegisterWorkshop")} />}
+          {canRegister && <Pressable accessibilityRole="button" style={styles.registerButton} onPress={() =>
+            profile === "technician" ? navigation.navigate("RegisterTechnician") : navigation.navigate("RegisterWorkshop")}>
+            <Text style={styles.registerButtonText}>{t("accountEntry.register")}</Text>
+          </Pressable>}
           <Pressable style={styles.privacyButton} onPress={() => navigation.goBack()}>
             <Text style={styles.forgotText}>{t("accountEntry.back")}</Text>
           </Pressable>
@@ -401,6 +403,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
   },
+  registerButton: {
+    borderWidth: 1, borderColor: colors.primary, borderRadius: 12,
+    paddingVertical: 12, alignItems: "center", backgroundColor: "#211B0A",
+  },
+  registerButtonText: { color: colors.primary, fontWeight: "600" },
   privacyButton: {
     alignItems: "center",
     marginTop: 12,

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { PartInspection } from "@/types/carParts";
 import { CAR_PART_LAYOUTS, CAR_PARTS } from "@/utils/carParts";
+import { InspectionCarDiagram } from "./InspectionCarDiagram";
 import { REPAIR_COLORS } from "@/theme/repairColors";
 
 type Props = {
@@ -55,6 +56,10 @@ export default function CarDiagram({
   separated = false,
 }: Props) {
   const { t } = useTranslation();
+  if (separated) {
+    return <InspectionCarDiagram parts={partsState} selected={selectedPartId}
+      onSelect={canEdit ? setSelectedPartId : undefined} allowUndamaged={allowUndamagedParts} />;
+  }
 
   return (
     <View style={styles.wrap}>
@@ -65,13 +70,6 @@ export default function CarDiagram({
         const canOpenPart = allowUndamagedParts || (state && state.tipoReparo !== "SEM_DANO");
 
         if (!part) return null;
-
-        const side = layout.id.endsWith("_esq") ? "left" : layout.id.endsWith("_dir") ? "right" : null;
-        const roof = layout.id === "teto";
-        const bounds = separated
-          ? { left: side === "left" ? 15 : side === "right" ? 205 : roof ? 112 : 99,
-              top: roof ? 138 : layout.y, width: side ? 80 : roof ? 76 : 102, height: roof ? 112 : layout.h }
-          : { left: layout.x, top: layout.y, width: layout.w, height: layout.h };
 
         return (
           <Pressable
@@ -92,7 +90,7 @@ export default function CarDiagram({
                 borderTopRightRadius: layout.radius?.tr ?? styles.part.borderRadius,
                 borderBottomLeftRadius: layout.radius?.bl ?? styles.part.borderRadius,
                 borderBottomRightRadius: layout.radius?.br ?? styles.part.borderRadius,
-                ...bounds,
+                left: layout.x, top: layout.y, width: layout.w, height: layout.h,
                 backgroundColor: getPartColor(state),
                  },
               selected && styles.selected,

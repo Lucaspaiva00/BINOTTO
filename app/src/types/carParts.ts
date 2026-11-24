@@ -36,6 +36,8 @@ export type PartSpecification = {
   amassadosMenor25?: number | null;
   amassados25a50?: number | null;
   amassadosMaior50?: number | null;
+  percentual?: number | null;
+  ut?: number | null;
   cola?: boolean;
   aluminio?: boolean;
   total?: number | null;

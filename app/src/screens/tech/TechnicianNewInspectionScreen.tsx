@@ -38,7 +38,6 @@ import {
   normalizeReparos,
 } from "@/utils/carParts";
 import { PartInspection, Photo, RepairType } from "@/types/carParts";
-import { REPAIR_COLORS } from "@/theme/repairColors";
 import InspectionModal from "@/components/common/InspectionModal";
 import { InspectionData } from "@/types/inspection";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -46,7 +45,7 @@ import { Input } from "@/components/common/Input";
 import { formatCurrencyInput, parseCurrencyInput } from "@/utils/currency";
 import ImageViewerModal from "@/components/common/ImageViewerModal";
 import InfiniteImageCarousel from "@/components/common/InfiniteImageCarousel";
-import LegendDot from "@/components/common/LegendDot";
+import { InspectionLegend } from "@/components/common/InspectionLegend";
 import { Select } from "@/components/common/Select";
 import WorkshopService from "@/services/WorkshopService";
 import TechnicianInspectionService from "@/services/TechnicianInspectionService";
@@ -396,12 +395,13 @@ export default function TechnicianNewInspectionScreen() {
         return;
       }
 
+      const reference = await TechnicianManagementService.getVehicleReference();
       if (
-        !inspectionData.placa.trim() ||
-        !inspectionData.chassi.trim() ||
+        (reference !== "chassi" && !inspectionData.placa.trim()) ||
+        (reference !== "placa" && !inspectionData.chassi.trim()) ||
         !inspectionData.marcaModelo.trim()
       ) {
-        setError(t("technicianNewServiceScreen.missingVehicleInfoError"));
+        setError(t(`vehicleReference.${reference}`));
         return;
       }
 
@@ -432,12 +432,13 @@ export default function TechnicianNewInspectionScreen() {
         return;
       }
 
+      const reference = await TechnicianManagementService.getVehicleReference();
       if (
-        !inspectionData.placa.trim() ||
-        !inspectionData.chassi.trim() ||
+        (reference !== "chassi" && !inspectionData.placa.trim()) ||
+        (reference !== "placa" && !inspectionData.chassi.trim()) ||
         !inspectionData.marcaModelo.trim()
       ) {
-        setError(t("technicianNewServiceScreen.missingVehicleInfoError"));
+        setError(t(`vehicleReference.${reference}`));
         return;
       }
 
@@ -744,33 +745,7 @@ export default function TechnicianNewInspectionScreen() {
               </View>
             </View>
 
-            <View style={styles.legendRow}>
-              <LegendDot color="#FBBF24" label={t("inspectionSummary.glue")} />
-              <LegendDot
-                color={REPAIR_COLORS.PDR}
-                label={t("repairTypes.PDR")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.PINTURA}
-                label={t("repairTypes.PINTURA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.TROCA}
-                label={t("repairTypes.TROCA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.ALUMINIO_PDR}
-                label={t("repairTypes.ALUMINIO_PDR")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.ALUMINIO_PINTURA}
-                label={t("repairTypes.ALUMINIO_PINTURA")}
-              />
-              <LegendDot
-                color={REPAIR_COLORS.SEM_DANO}
-                label={t("repairTypes.SEM_DANO")}
-              />
-            </View>
+            <InspectionLegend />
           </View>
 
           {/* RESUMO DAS ALTERAÇÕES */}

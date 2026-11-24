@@ -2,6 +2,14 @@ import { api } from "./Api";
 import SecureStorageService from "./SecureStorageService";
 
 const TechnicianManagementService = {
+  async getVehicleReference(): Promise<"placa" | "chassi" | "ambos"> {
+    const token = await SecureStorageService.getToken();
+    const { data } = await api.get<{ data: "placa" | "chassi" | "ambos" }>("/tecnico/configuracoes/referencia-veiculo", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return data.data;
+  },
+
   async getServiceById(id: number) {
     try {
       const token = await SecureStorageService.getToken();

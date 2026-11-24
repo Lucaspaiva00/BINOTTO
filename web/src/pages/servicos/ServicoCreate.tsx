@@ -68,7 +68,8 @@ export default function ServicoCreate({ inspection = false }: { inspection?: boo
     if (!totals) { toast.error("Revise os percentuais e a base de cálculo dos preços."); return; }
     const price = totals.carro.oficina;
     const compensation = totals.carro.tecnico;
-    const reference = getVehicleReference();
+    const reference = inspection ? "ambos" : await getVehicleReference().catch(() => null);
+    if (!reference) { toast.error("Não foi possível consultar a referência do carro."); return; }
     if ((inspection || reference !== "chassi") && !normalizeVehicleReference(form.plate)) next.plate = "Informe a placa.";
     if ((inspection || reference !== "placa") && !normalizeVehicleReference(form.chassis)) next.chassis = "Informe o chassi.";
     if (!form.serviceDate) next.serviceDate = "Informe a data do serviço.";

@@ -187,6 +187,9 @@ class ServicoDetalhesController extends Controller
                         $especificacoes[$key] = array_replace($especificacoes[$key] ?? [], $repair['especificacoes']);
                     }
                     $old = $existing->get($key, []);
+                    if (isset($repair['especificacoes'], $old['especificacoes'])) {
+                        $old['especificacoes'] = array_replace($old['especificacoes'], $repair['especificacoes']);
+                    }
                     $known = $old['fotos'] ?? [];
                     $keep = [];
                     foreach ($repair['fotos'] ?? [] as $path) {

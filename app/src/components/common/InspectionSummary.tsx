@@ -12,7 +12,10 @@ type Props = {
 
 export default function InspectionSummary({ parts, onSelectPart }: Props) {
   const { t } = useTranslation();
-  const rows = CAR_PARTS.filter(({ id }) => parts[id] && (parts[id].tipoReparo !== "SEM_DANO" || parts[id].especificacoes));
+  const order = ["capo", "paralama_dianteiro_esq", "porta_dianteira_esq", "porta_traseira_esq", "lateral_esq", "coluna_esq",
+    "tampa_superior", "tampa_inferior", "lateral_dir", "porta_traseira_dir", "porta_dianteira_dir", "paralama_dianteiro_dir", "coluna_dir", "teto"];
+  const labels = new Map(CAR_PARTS.map(({ id, labelKey }) => [id, labelKey]));
+  const rows = order.filter(id => parts[id]);
   if (!rows.length) return null;
 
   return <View style={styles.panel}>
@@ -27,12 +30,15 @@ export default function InspectionSummary({ parts, onSelectPart }: Props) {
           <Text style={styles.metric}>&gt;50 mm</Text>
           <Text style={styles.metric}>{t("inspectionSummary.glue")}</Text>
           <Text style={styles.metric}>{t("inspectionSummary.aluminum")}</Text>
+          <Text style={styles.metric}>{t("repairTypes.PINTURA")}</Text>
+          <Text style={styles.metric}>%</Text>
+          <Text style={styles.metric}>UT</Text>
           <Text style={styles.metric}>{t("inspectionSummary.total")}</Text>
           <Text style={styles.metric}>{t("inspectionModal.photos")}</Text>
         </View>
-        {rows.map(({ id, labelKey }) => {
+        {rows.map(id => {
           const part = parts[id];
-          const label = t(labelKey);
+          const label = t(labels.get(id) ?? id);
           return <View key={id} style={styles.row}>
             <Pressable accessibilityRole="button" accessibilityLabel={label}
               disabled={!onSelectPart} style={styles.piece} onPress={() => onSelectPart?.(id)}>
@@ -47,6 +53,9 @@ export default function InspectionSummary({ parts, onSelectPart }: Props) {
             <Text style={styles.metric}>{part.especificacoes?.amassadosMaior50 ?? "—"}</Text>
             <Text style={styles.metric}>{part.especificacoes?.cola ? "✓" : "—"}</Text>
             <Text style={styles.metric}>{(part.especificacoes?.aluminio ?? part.tipoReparo.startsWith("ALUMINIO_")) ? "✓" : "—"}</Text>
+            <Text style={styles.metric}>{["PINTURA", "ALUMINIO_PINTURA"].includes(part.tipoReparo) ? "✓" : "—"}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.percentual == null ? "—" : `${part.especificacoes.percentual}%`}</Text>
+            <Text style={styles.metric}>{part.especificacoes?.ut ?? "—"}</Text>
             <Text style={styles.metric}>{part.tipoReparo === "TROCA" ? t("inspectionSummary.newPart") : part.especificacoes?.total ?? "—"}</Text>
             <Text style={styles.metric}>{part.fotos?.length ?? 0}</Text>
           </View>;

@@ -34,8 +34,7 @@ import { formatCurrencyInput, parseCurrencyInput } from "@/utils/currency";
 import { CustomSwitch } from "@/components/common/CustomSwitch";
 import InspectionSummary from "@/components/common/InspectionSummary";
 import CarDiagram from "@/components/common/CarDiagram";
-import LegendDot from "@/components/common/LegendDot";
-import { REPAIR_COLORS } from "@/theme/repairColors";
+import { InspectionLegend } from "@/components/common/InspectionLegend";
 import {
   CAR_PARTS,
   createInitialPartsState,
@@ -697,15 +696,7 @@ export default function WorkshopNewInspectionScreen() {
                 />
               </View>
             </View>
-            <View style={styles.legendRow}>
-              <LegendDot color="#FBBF24" label={t("inspectionSummary.glue")} />
-              <LegendDot color={REPAIR_COLORS.PDR} label={t("repairTypes.PDR")} />
-              <LegendDot color={REPAIR_COLORS.PINTURA} label={t("repairTypes.PINTURA")} />
-              <LegendDot color={REPAIR_COLORS.TROCA} label={t("repairTypes.TROCA")} />
-              <LegendDot color={REPAIR_COLORS.ALUMINIO_PDR} label={t("repairTypes.ALUMINIO_PDR")} />
-              <LegendDot color={REPAIR_COLORS.ALUMINIO_PINTURA} label={t("repairTypes.ALUMINIO_PINTURA")} />
-              <LegendDot color={REPAIR_COLORS.SEM_DANO} label={t("repairTypes.SEM_DANO")} />
-            </View>
+            <InspectionLegend />
           </View>
 
           <InspectionSummary parts={partsState} onSelectPart={openPartModal} />

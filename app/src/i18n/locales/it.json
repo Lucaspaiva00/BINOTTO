@@ -1,5 +1,6 @@
 {
-  "inspectionSummary": { "glue": "Colla", "aluminum": "Alluminio", "total": "Totale del pezzo", "newPart": "Nuovo", "piece": "Pezzo", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Ammaccature" },
+  "vehicleReference": {"placa": "Inserisci targa e modello.", "chassi": "Inserisci telaio e modello.", "ambos": "Inserisci targa, telaio e modello.", "observations": "Note"},
+  "inspectionSummary": { "camera": "Foto", "upload": "Carica", "glue": "Colla", "aluminum": "Alluminio", "total": "Totale del pezzo", "newPart": "Nuovo", "piece": "Pezzo", "smallImpacts": "<25 mm", "largeImpacts": ">25 mm", "dents": "Ammaccature" },
   "inspectionActions": { "save": "Salva perizia", "pdf": "Genera PDF", "start": "Avvia veicolo" },
   "accountEntry": {
     "choose": "Scegli il tuo profilo",

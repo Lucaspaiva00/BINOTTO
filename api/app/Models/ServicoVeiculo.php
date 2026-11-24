@@ -42,7 +42,7 @@ class ServicoVeiculo extends Model
 
     public function getFotosVeiculoUrlsAttribute(): array
     {
-        return collect($this->fotos_veiculo ?? [])->map(fn ($path) => Storage::disk('public')->url($path))->all();
+        return collect($this->fotos_veiculo ?? [])->filter(fn ($path) => is_string($path) && $path !== '')->map(fn ($path) => Storage::disk('public')->url($path))->all();
     }
 
     public function getReparosExecucaoUrlsAttribute(): array

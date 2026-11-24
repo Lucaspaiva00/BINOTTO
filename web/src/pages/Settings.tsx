@@ -1,8 +1,9 @@
+import { toast } from "sonner";
 import { FINANCE_COLUMNS, PAYABLE_COLUMNS, PERICIA_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
 import { GripVertical } from "lucide-react";
 import { getServiceColumns, getVehicleReference, saveServiceColumns, saveVehicleReference, SERVICE_COLUMNS, type ServiceColumn, type ColumnPreference } from "@/constants/servicePreferences";
 import { AdminHistory } from "./AdminHistory";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,11 @@ export default function Settings() {
 
   const [vehicleView, setVehicleView] = useState(getServiceVehicleView);
 
-  const [reference, setReference] = useState(getVehicleReference);
+  const [reference, setReference] = useState<"placa" | "chassi" | "ambos" | null>(null);
+  const [savingReference, setSavingReference] = useState(false);
+  useEffect(() => {
+    getVehicleReference().then(setReference).catch(() => toast.error("Não foi possível carregar a referência do carro."));
+  }, []);
   const [columns, setColumns] = useState(getServiceColumns);
   const dragged = useRef<ServiceColumn | null>(null);
 
@@ -144,11 +149,18 @@ export default function Settings() {
                 const selected = reference === key || reference === "ambos";
                 return <Button key={key} type="button" aria-pressed={selected}
                   variant={selected ? "default" : "outline"}
-                  disabled={reference === key}
-                  onClick={() => {
+                  disabled={!reference || savingReference || reference === key}
+                  onClick={async () => {
                     const next = reference === "ambos" ? (key === "placa" ? "chassi" : "placa") : "ambos";
-                    setReference(next);
-                    saveVehicleReference(next);
+                    setSavingReference(true);
+                    try {
+                      await saveVehicleReference(next);
+                      setReference(next);
+                    } catch {
+                      toast.error("Não foi possível salvar a referência do carro.");
+                    } finally {
+                      setSavingReference(false);
+                    }
                   }}>{label}</Button>;
               })}
             </div>

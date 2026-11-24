@@ -43,6 +43,7 @@
     "google-libphonenumber": "^3.2.44",
     "i18next": "^26.2.0",
     "lucide-react-native": "^1.17.0",
+    "react-native-svg": "15.15.5",
     "react": "19.1.0",
     "react-i18next": "^17.0.8",
     "react-native": "0.81.5",
