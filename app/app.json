@@ -3,7 +3,7 @@
     "name": "Binotto",
     "owner": "binotto-team",
     "slug": "binotto",
-    "version": "2.6",
+    "version": "2.8",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "icon": "./src/assets/icon.png",
@@ -25,7 +25,7 @@
         "NSUserNotificationsUsageDescription": "Permita notificações para receber atualizações importantes sobre o status das suas solicitações de serviços."
       },
       "appleTeamId": "H8Y8NDU7D5",
-      "buildNumber": "27"
+      "buildNumber": "29"
     },
     "android": {
       "package": "com.binotto.mobile",

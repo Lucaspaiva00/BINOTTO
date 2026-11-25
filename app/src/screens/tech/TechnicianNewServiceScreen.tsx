@@ -515,25 +515,35 @@ export default function TechnicianNewServiceScreen() {
     return formData;
   };
 
+  const validateVehicleAndWorkshop = async () => {
+    if (!selectedWorkshop) {
+      setError(t("technicianNewServiceScreen.missingWorkshopError"));
+      return false;
+    }
+
+    if (!inspectionData.marcaModelo.trim()) {
+      setError(t("technicianNewServiceScreen.missingVehicleInfoError"));
+      return false;
+    }
+
+    const reference = await TechnicianManagementService.getVehicleReference();
+    if (
+      (reference !== "chassi" && !inspectionData.placa.trim()) ||
+      (reference !== "placa" && !inspectionData.chassi.trim())
+    ) {
+      setError(t(`vehicleReference.${reference}`));
+      return false;
+    }
+
+    return true;
+  };
+
   // requests
   const handleStartCar = async () => {
     try {
       setError(null);
 
-      if (!selectedWorkshop) {
-        setError(t("technicianNewServiceScreen.missingWorkshopError"));
-        return;
-      }
-
-      const reference = await TechnicianManagementService.getVehicleReference();
-      if (
-        (reference !== "chassi" && !inspectionData.placa.trim()) ||
-        (reference !== "placa" && !inspectionData.chassi.trim()) ||
-        !inspectionData.marcaModelo.trim()
-      ) {
-        setError(t(`vehicleReference.${reference}`));
-        return;
-      }
+      if (!(await validateVehicleAndWorkshop())) return;
 
       setLoadingStartCar(true);
 
@@ -570,19 +580,7 @@ export default function TechnicianNewServiceScreen() {
     try {
       setError(null);
 
-      if (!selectedWorkshop) {
-        setError(t("technicianNewServiceScreen.missingWorkshopError"));
-        return;
-      }
-
-      if (
-        !inspectionData.placa.trim() ||
-        !inspectionData.chassi.trim() ||
-        !inspectionData.marcaModelo.trim()
-      ) {
-        setError(t("technicianNewServiceScreen.missingVehicleInfoError"));
-        return;
-      }
+      if (!(await validateVehicleAndWorkshop())) return;
 
       setLoadingSaveInspection(true);
 
