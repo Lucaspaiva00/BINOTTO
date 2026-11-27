@@ -56,9 +56,9 @@
 - `a5bdc69` — `fix(finance): calculate receivable summaries across filters`.
 - `e375858` — `feat(pericias): search and register inspectors`.
 - `2715d90` — `security(api): remove unused credentialed setup route`.
-- Os commits `e375858` e `2715d90` ainda aguardam sincronização com a branch remota.
+- As alterações de `e375858` e `2715d90` foram sincronizadas na branch remota como o commit de snapshot `52753afa433914a30bd3fb2f035edacf4fd7e226`.
 - `047e945`, `f009eb5`, `340ba66` e `93d9a8f` — commits locais de documentação do acompanhamento e checkpoints.
-- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada em 27/11/2026, baseada em `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`. O snapshot inicial foi `1d09c7547143307473dabbae5825a8266ce69dc0`; o follow-up remoto de Contas a Receber é `8c77f5e5046714e646c16f6f365d7bab98d79abe`. O push deste commit de peritos ainda está pendente.
+- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada em 27/11/2026, baseada em `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`. Os checkpoints remotos foram `1d09c7547143307473dabbae5825a8266ce69dc0`, `8c77f5e5046714e646c16f6f365d7bab98d79abe` e `52753afa433914a30bd3fb2f035edacf4fd7e226`; a branch contém as alterações registradas acima. Os commits locais de implementação não foram preservados individualmente no histórico remoto, pois a integração sincronizou snapshots Git.
 - O push via terminal não autenticou. Após autorização direta do usuário no chat, o estado final foi publicado usando a integração GitHub.
 - Não houve alteração em `main`, execução de migration ou deploy. A publicação permanece pendente dos testes da API e da conclusão do escopo restante.
 
