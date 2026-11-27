@@ -49,7 +49,8 @@
 - `a74e9a5` — `fix(finance): preserve service ledger state on reactivation`.
 - `3e3cfba` — `feat(finance): add column filters and dashboard totals`.
 - `706dad6` — `fix(ui): show filtered service totals and update labels`.
-- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada e conferida em 27/11/2026. O commit remoto de snapshot é `1d09c7547143307473dabbae5825a8266ce69dc0`, baseado no commit `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`; os quatro commits listados acima registram a sequência local de implementação.
+- `047e945` e `f009eb5` — commits locais de documentação do acompanhamento e do checkpoint remoto.
+- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada e conferida em 27/11/2026. O commit remoto de código é `1d09c7547143307473dabbae5825a8266ce69dc0`, baseado no commit `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`; o checkpoint remoto de documentação é `953cac1a5ba4313ee2a1f9aba206a832e3ffb2f3`.
 - O push via terminal não autenticou. Após autorização direta do usuário no chat, o estado final foi publicado usando a integração GitHub.
 - Não houve alteração em `main`, execução de migration ou deploy. A publicação permanece pendente dos testes da API e da conclusão do escopo restante.
 
