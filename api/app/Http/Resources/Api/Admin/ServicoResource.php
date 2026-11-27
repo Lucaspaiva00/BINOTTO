@@ -22,6 +22,7 @@ class ServicoResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status?->value,
+            'previousStatusBeforeCancellation' => $this->status_anterior_cancelamento,
             'statusLabel' => $this->status?->label(),
             'workshopId' => $this->oficina_id,
             'workshop' => $this->oficina?->nome_fantasia,

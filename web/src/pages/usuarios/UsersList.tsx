@@ -110,7 +110,7 @@ export default function UsersList() {
             <TableRow>
               <TableHead className="w-12" />
               <TableHead>ID</TableHead>
-              <TableHead>{filter("Nome / ID / documento", query, setQuery)}</TableHead>
+              <TableHead>{filter("Nome", query, setQuery)}</TableHead>
               <TableHead>{type === "TECNICO" ? "Apelido" : type === "OFICINA" ? "Responsável" : "Responsável / Apelido"}</TableHead>
               <TableHead>{filter("Cidade", city, setCity)}</TableHead>
               <TableHead>{filter("País", country, setCountry, COMMON_COUNTRIES.map(c => [c, c]))}</TableHead>

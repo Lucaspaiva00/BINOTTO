@@ -132,8 +132,16 @@ class ServicoDetalhesController extends Controller
                 if (! empty(array_key_exists('tecnico_id', $metadata) ? $metadata['tecnico_id'] : $servico->tecnico_id)) {
                     $metadata['tecnico_nome_manual'] = null;
                 }
-                if (($metadata['status'] ?? null) === 'finalizado' && $servico->status === ServicoStatusEnum::CANCELADO) {
-                    throw ValidationException::withMessages(['status' => ['Um serviço cancelado não pode ser finalizado.']]);
+                $nextStatus = $metadata['status'] ?? $servico->status?->value;
+                if ($nextStatus === ServicoStatusEnum::CANCELADO->value && $servico->status !== ServicoStatusEnum::CANCELADO) {
+                    $metadata['status_anterior_cancelamento'] = $servico->status?->value;
+                } elseif ($servico->status === ServicoStatusEnum::CANCELADO && $nextStatus !== ServicoStatusEnum::CANCELADO->value) {
+                    $finalStatuses = [ServicoStatusEnum::FINALIZADO->value, ServicoStatusEnum::CONCLUIDO->value];
+                    if (in_array($nextStatus, $finalStatuses, true)
+                        && ! in_array($servico->status_anterior_cancelamento, $finalStatuses, true)) {
+                        throw ValidationException::withMessages(['status' => ['Este serviço deve ser reaberto e concluído antes de ser finalizado novamente.']]);
+                    }
+                    $metadata['status_anterior_cancelamento'] = null;
                 }
                 $encerrado = in_array($servico->status, [ServicoStatusEnum::FINALIZADO, ServicoStatusEnum::CONCLUIDO], true);
                 $cancelandoFinalizado = $encerrado && ($metadata['status'] ?? null) === ServicoStatusEnum::CANCELADO->value;
@@ -250,9 +258,14 @@ class ServicoDetalhesController extends Controller
                         ? $precos['tecnico_carro']['valor'] : null,
                 ]));
                 if ($cancelandoFinalizado) {
-                    $financeiro = ['status' => FinanceiroStatusEnum::CANCELADO->value];
-                    ContaReceber::where('servico_id', $servico->id)->update($financeiro);
-                    ContaPagar::where('servico_id', $servico->id)->update($financeiro);
+                    foreach ([ContaReceber::class, ContaPagar::class] as $contaModel) {
+                        $contaModel::where('servico_id', $servico->id)
+                            ->where('status', '!=', FinanceiroStatusEnum::CANCELADO->value)
+                            ->update([
+                                'status_anterior_cancelamento' => DB::raw('status'),
+                                'status' => FinanceiroStatusEnum::CANCELADO->value,
+                            ]);
+                    }
                     $servico->pericias()->update(['status' => PericiaStatusEnum::ABERTA->value, 'concluida_em' => null]);
                 }
                 ServicoLog::create([

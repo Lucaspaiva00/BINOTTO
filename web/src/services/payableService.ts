@@ -12,13 +12,29 @@ export interface ListPayablesParams {
   busca?: string;
   tecnico_id?: number;
   oficina_id?: number;
+  numero_fatura?: string;
+  fatura?: string;
+  valor_de?: number;
+  valor_ate?: number;
+  iva?: number;
+  contabilidade?: string;
+  cidade?: string;
+  pais?: string;
   page?: number;
   per_page?: number;
 }
 
+export interface PayableSummary {
+  overdue: number;
+  next_month: number;
+  total_to_pay: number;
+}
+
+export type PayablesResponse = PaginatedResponse<Payable> & { summary: PayableSummary };
+
 export const payableService = {
-  async list(params?: ListPayablesParams): Promise<PaginatedResponse<Payable>> {
-    const { data } = await api.get<PaginatedResponse<Payable>>(BASE_URL, { params });
+  async list(params?: ListPayablesParams): Promise<PayablesResponse> {
+    const { data } = await api.get<PayablesResponse>(BASE_URL, { params });
     return data;
   },
 

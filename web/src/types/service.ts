@@ -50,6 +50,7 @@ export interface ServiceVehicleRepair {
 export interface Service {
   id: number;
   status: ServiceStatus | null;
+  previousStatusBeforeCancellation?: ServiceStatus | null;
   statusLabel: string | null;
   workshopId: number | null;
   workshop: string | null;

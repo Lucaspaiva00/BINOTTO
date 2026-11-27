@@ -30,6 +30,7 @@ class Servico extends Model
         'precos_detalhados',
         'pericia_completa',
         'status',
+        'status_anterior_cancelamento',
         'tecnico_label',
         'oficina_label',
         'avaliacao',

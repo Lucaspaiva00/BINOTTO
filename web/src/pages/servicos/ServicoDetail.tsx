@@ -44,9 +44,8 @@ function formFromService(service: Service): ServiceAdminFormState {
     plate: service.licensePlate ?? "",
     chassis: service.chassis ?? "",
     model: service.model ?? "",
-    // Serviços anteriores guardavam um único campo marca_modelo: preserve o texto ao editar.
-    brand: service.brand ?? (service.model?.split(" ")[0] ?? ""),
-    vehicleModel: service.vehicleModel ?? (service.brand ? "" : service.model?.split(" ").slice(1).join(" ") ?? ""),
+    brand: service.brand ?? "",
+    vehicleModel: service.vehicleModel ?? "",
     vehiclePhotos: { ...emptyVehiclePhotos(), ...service.vehiclePhotos },
     inspectionType: service.inspectionType ?? "simples",
     detailedPrices: pricesFromService(service),
@@ -76,7 +75,7 @@ export default function ServicoDetail() {
   const [editingPart, setEditingPart] = useState<PartInspection | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [editingFinalized, setEditingFinalized] = useState(false);
-  const [confirmation, setConfirmation] = useState<"edit" | "cancel" | null>(null);
+  const [confirmation, setConfirmation] = useState<"edit" | "cancel" | "reactivate" | null>(null);
   const { markDirty, markSaved, confirmDiscard } = useUnsavedChanges();
 
   useEffect(() => {
@@ -147,8 +146,8 @@ export default function ServicoDetail() {
     markDirty();
   }
 
-  async function persist(finalize = false, nextStatus?: Service["status"]): Promise<Service | null> {
-    if (!form || (!editingEnabled && !finalize)) return null;
+  async function persist(finalize = false, nextStatus?: Service["status"], force = false): Promise<Service | null> {
+    if (!form || (!editingEnabled && !finalize && !force)) return null;
     const next: Record<string, string> = {};
     const detailError = validateDetails(form, partsState);
     if (detailError) { toast.error(detailError); return null; }
@@ -213,6 +212,22 @@ export default function ServicoDetail() {
     catch (e) { toast.error(getApiErrorMessage(e)); } finally { setActionBusy(false); }
   }
 
+  async function reactivateService() {
+    if (saving || actionBusy || !service) return;
+    setActionBusy(true);
+    try {
+      const status = service.previousStatusBeforeCancellation ?? "aguardando";
+      const saved = await persist(false, status, true);
+      if (!saved) return;
+      setEditingFinalized(false);
+      toast.success("Serviço reativado. O financeiro foi restaurado sem duplicar os lançamentos.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
   if (loading) return <AppLayout title="Serviço"><div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div></AppLayout>;
   if (notFound || !service || !form) return <AppLayout title="Serviço" subtitle="Não encontrado"><Button variant="outline" onClick={() => navigate("/servicos")}><ArrowLeft className="w-4 h-4 mr-1" />Voltar</Button></AppLayout>;
 
@@ -221,13 +236,13 @@ export default function ServicoDetail() {
       <AlertDialog open={confirmation !== null} onOpenChange={(open) => { if (!open && !actionBusy) setConfirmation(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirmation === "cancel" ? "Cancelar este serviço?" : "Editar serviço encerrado?"}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmation === "cancel" ? (isFinalized ? "Os lançamentos financeiros vinculados serão cancelados e as perícias voltarão para Aberto." : "O serviço será marcado como Cancelado e deixará de estar em execução. Você poderá excluí-lo posteriormente, desde que não existam lançamentos financeiros vinculados.") : "Este serviço já foi encerrado. Alterações podem modificar informações registradas anteriormente. Deseja liberar a edição?"}</AlertDialogDescription>
+            <AlertDialogTitle>{confirmation === "cancel" ? "Cancelar este serviço?" : confirmation === "reactivate" ? "Reativar este serviço?" : "Editar serviço encerrado?"}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmation === "cancel" ? (isFinalized ? "Os lançamentos financeiros vinculados serão cancelados e as perícias voltarão para Aberto. Os dados de faturas e pagamentos serão preservados." : "O serviço será marcado como Cancelado e deixará de estar em execução. Você poderá excluí-lo posteriormente, desde que não existam lançamentos financeiros vinculados.") : confirmation === "reactivate" ? "O serviço voltará ao status anterior ao cancelamento. Os lançamentos financeiros vinculados serão reativados sem apagar faturas nem pagamentos registrados." : "Este serviço já foi encerrado. Alterações podem modificar informações registradas anteriormente. Deseja liberar a edição?"}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionBusy}>Voltar</AlertDialogCancel>
-            <AlertDialogAction disabled={actionBusy} className={confirmation === "cancel" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""} onClick={(event) => { event.preventDefault(); const choice = confirmation; setConfirmation(null); if (choice === "edit") setEditingFinalized(true); if (choice === "cancel") void transition("cancelado", true); }}>
-              {confirmation === "cancel" ? "Confirmar cancelamento" : "Liberar edição"}
+            <AlertDialogAction disabled={actionBusy} className={confirmation === "cancel" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""} onClick={(event) => { event.preventDefault(); const choice = confirmation; setConfirmation(null); if (choice === "edit") setEditingFinalized(true); if (choice === "cancel") void transition("cancelado", true); if (choice === "reactivate") void reactivateService(); }}>
+              {confirmation === "cancel" ? "Confirmar cancelamento" : confirmation === "reactivate" ? "Confirmar reativação" : "Liberar edição"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -237,7 +252,7 @@ export default function ServicoDetail() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={pdfPending}><FileText className="mr-2 size-4" />Gerar PDF</Button>
           {lockedByStatus && !editingFinalized
-            ? <Button onClick={requestEditFinalized} variant="outline"><Pencil className="w-4 h-4 mr-2" />Editar</Button>
+            ? <>{service.status === "cancelado" && <Button onClick={() => setConfirmation("reactivate")} disabled={actionBusy || saving}><CheckCircle2 className="w-4 h-4 mr-2" />Reativar serviço</Button>}<Button onClick={requestEditFinalized} variant="outline"><Pencil className="w-4 h-4 mr-2" />Editar</Button></>
             : <Button onClick={() => void save()} disabled={saving || actionBusy}><Save className="w-4 h-4 mr-2" />{saving ? "Salvando..." : "Salvar alterações"}</Button>}
         </div>
       </div>

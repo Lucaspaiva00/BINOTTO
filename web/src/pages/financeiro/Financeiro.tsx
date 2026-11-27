@@ -10,9 +10,11 @@ import { Receivables } from "./tabs/Receivables";
 import { Payables } from "./tabs/Payables";
 import { CashFlow } from "./tabs/CashFlow";
 import { Reports } from "./tabs/Reports";
+import { FINANCE_TABS, getFinanceTabs } from "@/constants/financeTabPreferences";
 
 export default function Financeiro() {
-  const [tab, setTab] = useState("receber");
+  const [tab, setTab] = useState<string>(() => getFinanceTabs()[0] ?? "receber");
+  const [tabOrder] = useState(getFinanceTabs);
   const [reportData, setReportData] = useState<{receivables: Receivable[]; payables: Payable[]; complete: boolean} | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   useEffect(() => {
@@ -52,10 +54,7 @@ export default function Financeiro() {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="overflow-x-auto mb-4">
           <TabsList>
-            <TabsTrigger value="receber">Contas a Receber</TabsTrigger>
-            <TabsTrigger value="pagar">Contas a Pagar</TabsTrigger>
-            <TabsTrigger value="fluxo">Fluxo de Caixa</TabsTrigger>
-            <TabsTrigger value="relatorios">Relatórios</TabsTrigger>
+            {tabOrder.map(id => <TabsTrigger key={id} value={id}>{FINANCE_TABS.find(item => item.id === id)?.label}</TabsTrigger>)}
           </TabsList>
         </div>
         <TabsContent value="receber"><Receivables /></TabsContent>

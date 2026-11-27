@@ -2,7 +2,7 @@ import { api } from "@/services/api/client";
 
 export const SERVICE_COLUMNS = {
   date: "Data", workshop: "Oficina", technician: "Técnico", city: "Cidade", country: "País",
-  billed: "Preço faturado", status: "Status", brand: "Marca", model: "Modelo", plate: "Placa",
+  billed: "Preço", status: "Status", brand: "Marca", model: "Modelo", plate: "Placa",
   chassis: "Chassi", technicianPrice: "Preço técnico", disassembly: "Desmontagem",
   technicianPercentage: "Porcentagem técnico", commission: "Comissão empresa", notes: "Observação",
 } as const;

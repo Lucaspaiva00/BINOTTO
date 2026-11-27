@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Admin\ContaPagarResource;
 use App\Models\ContaPagar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use App\Models\Servico;
 use App\Models\ContaReceber;
 
@@ -15,7 +16,7 @@ class ContaPagarController extends Controller
 {
     public function index(Request $request)
     {
-        $contasPagar = ContaPagar::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_pagar'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
+        $query = ContaPagar::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_pagar'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })
@@ -25,6 +26,22 @@ class ContaPagarController extends Controller
             ->when($request->input('tecnico_id'), function ($query, $tecnicoId) {
                 $query->where('tecnico_id', $tecnicoId);
             })
+            ->when($request->filled('numero_fatura'), function ($query) use ($request) {
+                $query->whereRaw('LOWER(numero_fatura) LIKE ?', ['%'.mb_strtolower((string) $request->input('numero_fatura')).'%']);
+            })
+            ->when($request->filled('fatura'), function ($query) use ($request) {
+                $term = '%'.mb_strtolower((string) $request->input('fatura')).'%';
+                $query->where(function ($inner) use ($term) {
+                    $inner->whereRaw('LOWER(fatura) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(numero_fatura) LIKE ?', [$term]);
+                });
+            })
+            ->when(is_numeric($request->input('iva')), fn ($query) => $query->where('iva', (float) $request->input('iva')))
+            ->when($request->filled('contabilidade'), fn ($query) => $query->whereRaw('LOWER(contabilidade) LIKE ?', ['%'.mb_strtolower((string) $request->input('contabilidade')).'%']))
+            ->when($request->filled('cidade'), fn ($query) => $query->whereHas('tecnico', fn ($tecnico) => $tecnico->whereRaw('LOWER(endereco_cidade) LIKE ?', ['%'.mb_strtolower((string) $request->input('cidade')).'%'])))
+            ->when($request->filled('pais'), fn ($query) => $query->whereHas('tecnico', fn ($tecnico) => $tecnico->whereRaw('LOWER(pais_atual) LIKE ?', ['%'.mb_strtolower((string) $request->input('pais')).'%'])))
+            ->when($request->filled('valor_de') && is_numeric($request->input('valor_de')), fn ($query) => $query->where('valor_a_pagar', '>=', (float) $request->input('valor_de')))
+            ->when($request->filled('valor_ate') && is_numeric($request->input('valor_ate')), fn ($query) => $query->where('valor_a_pagar', '<=', (float) $request->input('valor_ate')))
             ->when($request->input('oficina_id'), function ($query, $oficinaId) {
                 $query->where('oficina_id', $oficinaId);
             })
@@ -37,10 +54,27 @@ class ContaPagarController extends Controller
             ->when($request->input('data_ate'), function ($query, $dataAte) {
                 $query->whereDate('data_vencimento', '<=', $dataAte);
             })
-            ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 20));
+            ->orderByDesc('id');
 
-        return ContaPagarResource::collection($contasPagar);
+        $today = Carbon::today()->toDateString();
+        $nextMonthStart = Carbon::today()->startOfMonth()->addMonth()->toDateString();
+        $monthAfterNextStart = Carbon::today()->startOfMonth()->addMonths(2)->toDateString();
+        $summaryQuery = (clone $query)->reorder()->select(['status', 'valor_a_pagar', 'valor_pago', 'data_vencimento']);
+        $summaryRows = $summaryQuery->get();
+        $summary = ['overdue' => 0.0, 'next_month' => 0.0, 'total_to_pay' => 0.0];
+        foreach ($summaryRows as $row) {
+            $status = $row->status instanceof \BackedEnum ? $row->status->value : $row->status;
+            if ($status === 'cancelado') continue;
+            $outstanding = max(0, (float) $row->valor_a_pagar - (float) $row->valor_pago);
+            $summary['total_to_pay'] += $outstanding;
+            $dueDate = $row->data_vencimento?->toDateString() ?? (string) $row->data_vencimento;
+            if ($dueDate !== '' && $dueDate < $today) $summary['overdue'] += $outstanding;
+            if ($dueDate !== '' && $dueDate >= $nextMonthStart && $dueDate < $monthAfterNextStart) $summary['next_month'] += $outstanding;
+        }
+
+        $contasPagar = (clone $query)->paginate($request->integer('per_page', 20));
+
+        return ContaPagarResource::collection($contasPagar)->additional(['summary' => $summary]);
     }
 
     public function store(StoreUpdateContaPagarRequest $request)

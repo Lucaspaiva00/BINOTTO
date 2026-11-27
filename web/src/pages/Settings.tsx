@@ -8,6 +8,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 
 import { Button } from "@/components/ui/button";
 import { getServiceVehicleView, saveServiceVehicleView } from "@/constants/serviceVehicleView";
+import { FINANCE_TABS, getFinanceTabs, saveFinanceTabs, type FinanceTabId } from "@/constants/financeTabPreferences";
 
 const sections = [
   { id: "dashboard", label: "Dashboard" },
@@ -74,6 +75,37 @@ function TableDisplaySettings<T extends string>({ storageKey, labels, group }: {
   </div>;
 }
 
+function FinanceTabSettings() {
+  const [order, setOrder] = useState<FinanceTabId[]>(getFinanceTabs);
+  const dragged = useRef<FinanceTabId | null>(null);
+  function move(id: FinanceTabId, target: number) {
+    const from = order.indexOf(id);
+    if (from < 0 || target < 0 || target >= order.length || from === target) return;
+    const next = [...order];
+    next.splice(target, 0, ...next.splice(from, 1));
+    setOrder(next);
+    saveFinanceTabs(next);
+  }
+  return <section className="space-y-3 lg:col-span-2">
+    <h2 className="font-semibold">Ordem das abas do Financeiro</h2>
+    <ul className="max-w-lg divide-y rounded-lg border">
+      {order.map((id, index) => <li key={id} className="flex items-center justify-between gap-2 px-3 py-1"
+        onDragOver={event => event.preventDefault()}
+        onDrop={event => { event.preventDefault(); if (dragged.current) move(dragged.current, index); dragged.current = null; }}>
+        <span className="flex-1">{FINANCE_TABS.find(tab => tab.id === id)?.label}</span>
+        <Button variant="ghost" size="icon" draggable className="cursor-grab" aria-label={`Reordenar ${FINANCE_TABS.find(tab => tab.id === id)?.label}`}
+          onDragStart={event => { dragged.current = id; event.dataTransfer.setData("text/plain", id); }}
+          onDragEnd={() => { dragged.current = null; }}
+          onKeyDown={event => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            event.preventDefault();
+            move(id, index + (event.key === "ArrowUp" ? -1 : 1));
+          }}><GripVertical className="size-4" /></Button>
+      </li>)}
+    </ul>
+  </section>;
+}
+
 export default function Settings() {
   const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
 
@@ -128,6 +160,7 @@ export default function Settings() {
         {activeSection === "financeiro" && <div className="grid gap-6 lg:grid-cols-2">
           <section><h2 className="mb-3 text-lg font-semibold">Contas a receber</h2><TableDisplaySettings storageKey="binotto-finance-columns" labels={FINANCE_COLUMNS} group={{ parent: "value", child: "vat" }} /></section>
           <section><h2 className="mb-3 text-lg font-semibold">Contas a pagar</h2><TableDisplaySettings storageKey="binotto-payable-columns" labels={PAYABLE_COLUMNS} /></section>
+          <FinanceTabSettings />
         </div>}
         {activeSection === "pericias" && <TableDisplaySettings key="pericias" storageKey="binotto-pericia-columns" labels={PERICIA_COLUMNS} />}
         {activeSection === "historico" && <AdminHistory />}

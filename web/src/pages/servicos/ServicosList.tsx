@@ -230,7 +230,7 @@ export default function ServicosList() {
                 <Input name="pais" aria-label="País" list="filter-countries" placeholder="Selecione ou digite o país" defaultValue={filters.pais} />
                 <datalist id="filter-countries">{COMMON_COUNTRIES.map(code => <option key={code} value={code} />)}</datalist>
               </>),
-    billed: filterColumn("Preço faturado", ["preco_minimo", "preco_maximo"], <>
+    billed: filterColumn("Preço", ["preco_minimo", "preco_maximo"], <>
                 <div className="space-y-1"><Label htmlFor="filter-min">Preço mínimo</Label><Input id="filter-min" type="number" min="0" step="0.01" name="preco_minimo" defaultValue={filters.preco_minimo} /></div>
                 <div className="space-y-1"><Label htmlFor="filter-max">Preço máximo</Label><Input id="filter-max" type="number" min="0" step="0.01" name="preco_maximo" defaultValue={filters.preco_maximo} /></div>
               </>),
@@ -311,7 +311,7 @@ export default function ServicosList() {
             ) : (
               services.map((s) => (
                 <TableRow key={s.id} onClick={() => navigate(`/servicos/${s.id}`)} className="cursor-pointer hover:bg-accent/50">
-                  {columns.map(({ id }) => <TableCell key={id} className="whitespace-nowrap">{columnValue(s, id)}</TableCell>)}
+                  {columns.map(({ id }) => <TableCell key={id} className={`whitespace-nowrap ${["billed", "technicianPrice", "disassembly", "commission"].includes(id) ? "text-right tabular-nums" : ""}`}>{columnValue(s, id)}</TableCell>)}
                   <TableCell className="text-right" onClick={(event) => event.stopPropagation()}>
                     <ServiceActions
                       service={s}
@@ -325,6 +325,15 @@ export default function ServicosList() {
                 </TableRow>
               ))
             )}
+            {!loading && services.length > 0 && billedTotals && <TableRow aria-label="Total selecionado" className="border-t-2 bg-muted/40 font-semibold">
+              {columns.map(({ id }) => id === "billed"
+                ? <TableCell key={id} className="whitespace-nowrap text-right tabular-nums">
+                    <div>Total selecionado</div>
+                    <div>{Object.entries(billedTotals).map(([currency, amount]) => money(amount, currency)).join(" · ") || money(0, null)}</div>
+                  </TableCell>
+                : <TableCell key={id} />)}
+              <TableCell />
+            </TableRow>}
           </TableBody>
         </Table>
 
@@ -353,9 +362,6 @@ export default function ServicosList() {
             </div>
           </div>
         )}
-        {!loading && billedTotals && <div className="border-t border-border px-4 py-3 text-sm font-semibold">
-          Total faturado: {Object.entries(billedTotals).map(([currency, amount]) => money(amount, currency)).join(" · ") || money(0, null)}
-        </div>}
       </div>
     </AppLayout>
   );

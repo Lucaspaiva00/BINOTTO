@@ -87,6 +87,8 @@ export default function PericiasList() {
         else delete next[key];
       }
       if (next.data_inicial && next.data_final && next.data_inicial > next.data_final) return "Intervalo inválido.";
+      if (next.valor_min && next.valor_max && Number(next.valor_min) > Number(next.valor_max)) return "Preço máximo deve ser maior ou igual ao mínimo.";
+      if (next.desmontagem_min && next.desmontagem_max && Number(next.desmontagem_min) > Number(next.desmontagem_max)) return "Desmontagem máxima deve ser maior ou igual ao mínimo.";
       setFilters(next);
       setPage(1);
     }}>{fields}</ColumnFilter>;
@@ -99,9 +101,17 @@ export default function PericiasList() {
       <DateInput name="data_final" aria-label="Data final" defaultValue={filters.data_final} />
     </>),
     workshop: textFilter("Oficina", "oficina"),
+    inspector: textFilter("Perito", "perito"),
+    city: textFilter("Cidade", "cidade"),
+    country: textFilter("País", "pais"),
     plate: textFilter("Placa", "placa"),
-    inspector: "Perito", city: "Cidade", country: "País", brand: "Marca", chassis: "Chassi",
-    disassembly: "Desmontagem", notes: "Observação",
+    brand: textFilter("Marca", "marca"),
+    chassis: textFilter("Chassi", "chassi"),
+    disassembly: filter("Desmontagem", ["desmontagem_min", "desmontagem_max"], <>
+      <Input type="number" min="0" step="0.01" name="desmontagem_min" aria-label="Desmontagem mínima" defaultValue={filters.desmontagem_min} />
+      <Input type="number" min="0" step="0.01" name="desmontagem_max" aria-label="Desmontagem máxima" defaultValue={filters.desmontagem_max} />
+    </>),
+    notes: textFilter("Observação", "observacao"),
     model: textFilter("Modelo", "modelo"),
     value: filter("Valor", ["valor_min", "valor_max"], <>
       <Input type="number" min="0" step="0.01" name="valor_min" aria-label="Valor mínimo" defaultValue={filters.valor_min} />
@@ -130,7 +140,7 @@ export default function PericiasList() {
               <TableRow><TableCell colSpan={columns.length + 1} className="text-center py-10 text-muted-foreground"><ScanSearch className="w-8 h-8 mx-auto mb-2 opacity-60" />Nenhuma perícia encontrada.</TableCell></TableRow>
             ) : pericias.map((p) => (
               <TableRow key={p.id} onClick={() => navigate(`/pericias/${p.id}`)} className="cursor-pointer hover:bg-accent/50">
-                {columns.map(id => <TableCell key={id} className="min-w-24"><span className="block max-w-48 truncate">{{
+                {columns.map(id => <TableCell key={id} className={`min-w-24 ${id === "value" || id === "disassembly" ? "text-right tabular-nums" : ""}`}><span className="block max-w-48 truncate">{{
                   date: formatDateTime(p.createdAt),
                   workshop: p.workshop || "—",
                   inspector: p.inspectorName || p.technician || "—",

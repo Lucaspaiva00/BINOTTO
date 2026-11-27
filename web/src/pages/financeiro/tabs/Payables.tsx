@@ -1,9 +1,11 @@
 import { PAYABLE_COLUMNS, getTableColumns } from "@/constants/tablePreferences";
+import { ColumnFilter } from "@/components/ui/column-filter";
+import type { ReactNode } from "react";
 import { InvoiceAttachment } from "./InvoiceAttachment";
 import { FinanceRecordDetails } from "./FinanceRecordDetails";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Search } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
@@ -31,7 +33,7 @@ import type { Payable, FinanceOrigin, FinanceStatus } from "@/types/finance";
 import type { UserSelectionItem } from "@/types/user";
 import { PAYABLE_CATEGORIES, PAYMENT_METHODS } from "@/constants/finance";
 import { formatCurrency } from "@/utils/currency";
-import { endOfMonth, formatDate, startOfMonth } from "@/utils/date";
+import { formatDate } from "@/utils/date";
 import { getApiErrorMessage } from "@/utils/getApiErrorMessage";
 import { getApiValidationErrors } from "@/utils/getApiValidationErrors";
 import { emptyForm, toForm, toPayload, type PayableForm } from "./payableForm";
@@ -62,17 +64,11 @@ const FIELD_MAP: Record<string, string> = {
 
 export function Payables() {
   const [columns] = useState(() => getTableColumns("binotto-payable-columns", PAYABLE_COLUMNS));
-  const [from, setFrom] = useState(startOfMonth());
-  const [to, setTo] = useState(endOfMonth());
-  const [techFilter, setTechFilter] = useState("all");
-  const [shopFilter, setShopFilter] = useState("all");
-  const [originFilter, setOriginFilter] = useState<"all" | FinanceOrigin>("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | FinanceStatus>("all");
-  const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [filters, setFilters] = useState<Record<string, string>>({});
   const [page, setPage] = useState(1);
 
   const [items, setItems] = useState<Payable[]>([]);
+  const [summary, setSummary] = useState({ overdue: 0, next_month: 0, total_to_pay: 0 });
   const [loading, setLoading] = useState(true);
   const [lastPage, setLastPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
@@ -85,15 +81,6 @@ export function Payables() {
   const [editing, setEditing] = useState<PayableForm | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setDebouncedQuery(query);
-      setPage(1);
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [query]);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,18 +117,20 @@ export function Payables() {
         const response = await payableService.list({
           page,
           per_page: PAGE_SIZE,
-          data_de: from || undefined,
-          data_ate: to || undefined,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          origem: originFilter === "all" ? undefined : originFilter,
-          busca: debouncedQuery.trim() || undefined,
-          tecnico_id: techFilter === "all" ? undefined : Number(techFilter),
-          oficina_id: shopFilter === "all" ? undefined : Number(shopFilter),
+          ...filters,
+          status: filters.status as FinanceStatus | undefined,
+          origem: filters.origem as FinanceOrigin | undefined,
+          tecnico_id: filters.tecnico_id ? Number(filters.tecnico_id) : undefined,
+          oficina_id: filters.oficina_id ? Number(filters.oficina_id) : undefined,
+          valor_de: filters.valor_de !== undefined && filters.valor_de !== "" ? Number(filters.valor_de) : undefined,
+          valor_ate: filters.valor_ate !== undefined && filters.valor_ate !== "" ? Number(filters.valor_ate) : undefined,
+          iva: filters.iva !== undefined && filters.iva !== "" ? Number(filters.iva) : undefined,
         });
         if (cancelled) return;
 
         setItems(response.data);
         setLastPage(response.meta.last_page);
+        setSummary(response.summary);
       } catch (error) {
         if (!cancelled) toast.error(getApiErrorMessage(error));
       } finally {
@@ -154,7 +143,7 @@ export function Payables() {
     return () => {
       cancelled = true;
     };
-  }, [page, from, to, originFilter, statusFilter, techFilter, shopFilter, debouncedQuery, reloadToken]);
+  }, [page, filters, reloadToken]);
 
   function openNew() {
     setErrors({});
@@ -214,155 +203,74 @@ export function Payables() {
     }
   }
 
-  // Totais calculados
-  const totalToPay = items
-    .filter((p) => p.status === "pendente" || p.status === "em_aberto" || p.status === "vencido")
-    .reduce((acc, p) => acc + p.amountDue, 0);
-  const totalPaid = items
-    .filter((p) => p.status === "confirmado" || p.status === "pago")
-    .reduce((acc, p) => acc + p.amountDue, 0);
+  function filterColumn(label: string, keys: string[], children: ReactNode) {
+    return <ColumnFilter label={label} active={keys.some(key => Boolean(filters[key]))} onApply={data => {
+      const next = { ...filters };
+      for (const key of keys) {
+        const value = String(data?.get(key) ?? "").trim();
+        if (value) next[key] = value;
+        else delete next[key];
+      }
+      if (next.data_de && next.data_ate && next.data_de > next.data_ate) return "A data final não pode ser anterior à inicial.";
+      if (next.valor_de && next.valor_ate && Number(next.valor_de) > Number(next.valor_ate)) return "O valor máximo deve ser maior ou igual ao mínimo.";
+      setPage(1);
+      setFilters(next);
+    }}>{children}</ColumnFilter>;
+  }
+
+  function textFilter(label: string, key: string) {
+    return filterColumn(label, [key], <Input name={key} aria-label={label} defaultValue={filters[key]} />);
+  }
+
+  const headers: Record<keyof typeof PAYABLE_COLUMNS, ReactNode> = {
+    date: filterColumn("Data", ["data_de", "data_ate"], <div className="space-y-2">
+      <DateInput name="data_de" aria-label="Data inicial" defaultValue={filters.data_de} />
+      <DateInput name="data_ate" aria-label="Data final" defaultValue={filters.data_ate} />
+    </div>),
+    number: textFilter("Número", "numero_fatura"),
+    workshop: filterColumn("Técnico", ["tecnico_id"], <select name="tecnico_id" aria-label="Técnico" defaultValue={filters.tecnico_id ?? ""} className="w-full rounded border bg-background p-2">
+      <option value="">Todos</option>{technicians.map(tech => <option key={tech.id} value={tech.id}>{tech.name}</option>)}
+    </select>),
+    city: textFilter("Cidade", "cidade"),
+    country: textFilter("País", "pais"),
+    value: filterColumn("Valor", ["valor_de", "valor_ate"], <div className="space-y-2">
+      <Input name="valor_de" aria-label="Valor mínimo" type="number" min="0" step="0.01" defaultValue={filters.valor_de} />
+      <Input name="valor_ate" aria-label="Valor máximo" type="number" min="0" step="0.01" defaultValue={filters.valor_ate} />
+    </div>),
+    vat: filterColumn("IVA", ["iva"], <Input name="iva" aria-label="IVA" type="number" min="0" step="0.01" defaultValue={filters.iva} />),
+    accounting: textFilter("Contabilidade", "contabilidade"),
+  };
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <p className="text-xs text-muted-foreground">Indicadores calculados sobre todos os lançamentos que correspondem aos filtros ativos.</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <p className="text-xs text-muted-foreground">Atrasados a pagar</p>
+          <p className="text-2xl font-semibold mt-1 text-red-600">{formatCurrency(summary.overdue)}</p>
+        </div>
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <p className="text-xs text-muted-foreground">A pagar no próximo mês</p>
+          <p className="text-2xl font-semibold mt-1 text-amber-600">{formatCurrency(summary.next_month)}</p>
+        </div>
         <div className="bg-card border border-border rounded-2xl p-5">
           <p className="text-xs text-muted-foreground">Total a pagar</p>
-          <p className="text-2xl font-semibold mt-1 text-amber-600">{formatCurrency(totalToPay)}</p>
-        </div>
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs text-muted-foreground">Total pago</p>
-          <p className="text-2xl font-semibold mt-1 text-emerald-600">{formatCurrency(totalPaid)}</p>
+          <p className="text-2xl font-semibold mt-1 text-amber-600">{formatCurrency(summary.total_to_pay)}</p>
         </div>
       </div>
-
-      <div className="bg-card border border-border rounded-2xl p-4 flex flex-wrap gap-3 items-end">
-        <div className="space-y-1">
-          <Label className="text-xs">De</Label>
-          <DateInput
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPage(1);
-            }}
-            className="w-[150px]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Até</Label>
-          <DateInput
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(1);
-            }}
-            className="w-[150px]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Tipo</Label>
-          <Select
-            value={originFilter}
-            onValueChange={(v) => {
-              setOriginFilter(v as "all" | FinanceOrigin);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="aplicativo">Aplicativo</SelectItem>
-              <SelectItem value="avulsa">Avulsa</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Técnico</Label>
-          <Select
-            value={techFilter}
-            onValueChange={(v) => {
-              setTechFilter(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {technicians.map((t) => (
-                <SelectItem key={t.id} value={String(t.id)}>
-                  {t.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Oficina</Label>
-          <Select
-            value={shopFilter}
-            onValueChange={(v) => {
-              setShopFilter(v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas</SelectItem>
-              {workshops.map((w) => (
-                <SelectItem key={w.id} value={String(w.id)}>
-                  {w.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs">Status</Label>
-          <Select
-            value={statusFilter}
-            onValueChange={(v) => {
-              setStatusFilter(v as "all" | FinanceStatus);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[150px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              <SelectItem value="pendente">Pendente</SelectItem>
-              <SelectItem value="confirmado">Confirmado</SelectItem>
-              <SelectItem value="em_aberto">Em aberto</SelectItem>
-              <SelectItem value="pago">Pago</SelectItem>
-              <SelectItem value="vencido">Vencido</SelectItem>
-              <SelectItem value="cancelado">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[200px] space-y-1">
-          <Label className="text-xs">Buscar</Label>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} className="pl-9" placeholder="Descrição" />
-          </div>
-        </div>
-        <Button onClick={openNew}>
-          <Plus className="w-4 h-4 mr-1" /> Novo lançamento
-        </Button>
+      <div className="flex justify-end">
+        <Button onClick={openNew}><Plus className="w-4 h-4 mr-1" /> Novo lançamento</Button>
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-x-auto">
         <Table className="min-w-max">
           <TableHeader>
             <TableRow>
-              {columns.map(id => <TableHead key={id}>{PAYABLE_COLUMNS[id]}</TableHead>)}
-              <TableHead className="sticky right-36 min-w-24 border-l bg-card px-2">Fatura</TableHead>
-              <TableHead className="sticky right-10 min-w-26 border-l bg-card px-2">Paga</TableHead>
+              {columns.map(id => <TableHead key={id}>{headers[id]}</TableHead>)}
+              <TableHead className="sticky right-36 min-w-24 border-l bg-card px-2">{filterColumn("Fatura", ["fatura"], <Input name="fatura" aria-label="Fatura" defaultValue={filters.fatura} />)}</TableHead>
+              <TableHead className="sticky right-10 min-w-26 border-l bg-card px-2">{filterColumn("Status", ["status"], <select name="status" aria-label="Status" defaultValue={filters.status ?? ""} className="w-full rounded border bg-background p-2">
+                <option value="">Todos</option><option value="pendente">Pendente</option><option value="confirmado">Confirmado</option><option value="em_aberto">Em aberto</option><option value="pago">Pago</option><option value="vencido">Vencido</option><option value="cancelado">Cancelado</option>
+              </select>)}</TableHead>
               <TableHead className="text-right sticky right-0 w-10 min-w-10 bg-card z-10 border-l border-border px-0">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -393,7 +301,7 @@ export function Payables() {
                       vat: p.vat == null ? null : formatCurrency(p.vat),
                       accounting: p.accounting,
                     }[id] || "—";
-                    return <TableCell key={id}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
+                    return <TableCell key={id} className={id === "value" || id === "vat" ? "text-right tabular-nums" : ""}><span className="block max-w-40 truncate" title={value}>{value}</span></TableCell>;
                   })}
                   <TableCell className="sticky right-36 min-w-24 border-l bg-card px-2">
                     <span className="block max-w-20 truncate" title={p.invoiceNumber ?? undefined}>{p.invoiceNumber || (p.invoice ? "Cadastrada" : "—")}</span>

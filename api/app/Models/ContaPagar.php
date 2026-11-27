@@ -36,6 +36,7 @@ class ContaPagar extends Model
         'data_lancamento',
         'data_vencimento',
         'status',
+        'status_anterior_cancelamento',
     ];
 
     protected $hidden = ['fatura_conteudo'];

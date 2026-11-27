@@ -31,6 +31,7 @@ class ContaReceber extends Model
         'contabilidade',
         'numero_fatura',
         'status_fatura',
+        'status_anterior_cancelamento',
         'parcelas',
         'data_emissao',
         'data_recebimento',

@@ -57,6 +57,10 @@ class ContaReceberController extends Controller
                         ->orWhereRaw("REPLACE(UPPER(chassi), ' ', '') LIKE ?", [$ref]);
                 }));
             })
+            ->when($request->filled('placa'), fn ($query) => $query->whereHas('servico.primeiroVeiculo', fn ($vehicle) =>
+                $vehicle->whereRaw('UPPER(placa) LIKE ?', ['%'.strtoupper((string) $request->input('placa')).'%'])))
+            ->when($request->filled('chassi'), fn ($query) => $query->whereHas('servico.primeiroVeiculo', fn ($vehicle) =>
+                $vehicle->whereRaw('UPPER(chassi) LIKE ?', ['%'.strtoupper((string) $request->input('chassi')).'%'])))
             ->when($request->filled('tecnico'), function ($query) use ($request) {
                 $name = '%'.strtolower((string) $request->input('tecnico')).'%';
                 $query->where(function ($inner) use ($name) {
@@ -66,6 +70,8 @@ class ContaReceberController extends Controller
             })
             ->when($request->filled('valor_de') && is_numeric($request->input('valor_de')), fn ($query) => $query->where('valor_servico', '>=', (float) $request->input('valor_de')))
             ->when($request->filled('valor_ate') && is_numeric($request->input('valor_ate')), fn ($query) => $query->where('valor_servico', '<=', (float) $request->input('valor_ate')))
+            ->when($request->filled('total_de') && is_numeric($request->input('total_de')), fn ($query) => $query->whereRaw('(valor_servico + COALESCE(iva, 0)) >= ?', [(float) $request->input('total_de')]))
+            ->when($request->filled('total_ate') && is_numeric($request->input('total_ate')), fn ($query) => $query->whereRaw('(valor_servico + COALESCE(iva, 0)) <= ?', [(float) $request->input('total_ate')]))
             ->when($request->input('status'), function ($query, $status) {
                 $query->where('status', $status);
             })

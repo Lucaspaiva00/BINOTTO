@@ -25,6 +25,7 @@ class AdminServiceImprovementsTest extends TestCase
         Schema::create('servicos', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('oficina_id')->nullable(); $t->unsignedBigInteger('tecnico_id')->nullable();
             $t->unsignedBigInteger('criado_por_usuario_id')->nullable(); $t->string('status');
+            $t->string('status_anterior_cancelamento')->nullable();
             $t->string('quantidade_tipo')->nullable(); $t->integer('quantidade')->nullable(); $t->string('moeda')->nullable();
             $t->date('data_inicio')->nullable(); $t->date('data_fim')->nullable();
             $t->decimal('valor_total', 12, 2)->default(0); $t->decimal('preco_tecnico', 12, 2)->nullable();
@@ -59,6 +60,7 @@ class AdminServiceImprovementsTest extends TestCase
             $t->string('descricao')->nullable(); $t->decimal('valor_servico', 12, 2)->default(0); $t->decimal('valor_plataforma', 12, 2)->nullable();
             $t->string('quem_pagou')->nullable(); $t->string('cliente')->nullable(); $t->string('categoria')->nullable(); $t->string('forma_pagamento')->nullable();
             $t->string('fatura')->nullable(); $t->string('numero_fatura')->nullable(); $t->string('status_fatura')->nullable();
+            $t->string('status_anterior_cancelamento')->nullable();
             $t->date('data_emissao')->nullable(); $t->date('data_recebimento')->nullable(); $t->text('observacoes')->nullable();
             $t->date('data_lancamento')->nullable(); $t->date('data_vencimento')->nullable(); $t->string('status')->default('pendente'); $t->timestamps();
         });
@@ -67,6 +69,7 @@ class AdminServiceImprovementsTest extends TestCase
             $t->unsignedBigInteger('oficina_id')->nullable(); $t->unsignedBigInteger('tecnico_id')->nullable(); $t->string('origem')->default('aplicativo');
             $t->string('descricao')->nullable(); $t->string('fornecedor')->nullable(); $t->string('categoria')->nullable(); $t->string('forma_pagamento')->nullable();
             $t->string('fatura')->nullable(); $t->string('numero_fatura')->nullable();
+            $t->string('status_anterior_cancelamento')->nullable();
             $t->decimal('valor_a_pagar', 12, 2)->default(0); $t->decimal('valor_pago', 12, 2)->default(0); $t->string('comissao')->nullable();
             $t->date('data_emissao')->nullable(); $t->date('data_pagamento')->nullable(); $t->text('observacoes')->nullable();
             $t->date('data_lancamento')->nullable(); $t->date('data_vencimento')->nullable(); $t->string('status')->default('pendente'); $t->timestamps();
@@ -359,6 +362,48 @@ class AdminServiceImprovementsTest extends TestCase
         $this->assertDatabaseHas('pericias', ['id' => 1, 'status' => 'aberta', 'concluida_em' => null]);
         \App\Models\Pericia::findOrFail(1)->update(['status' => \App\Enums\PericiaStatusEnum::CONCLUIDA]);
         $this->assertSame(ServicoStatusEnum::CANCELADO, $s->fresh()->status);
+    }
+
+    public function test_cancelling_and_reactivating_a_service_preserves_financial_status_without_duplicates(): void
+    {
+        $s = $this->service(['tecnico_id' => 2]);
+        $payload = $this->payload(['status' => 'finalizado', 'tecnico_id' => 2, 'tecnico_nome_manual' => null]);
+
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+        $receber = \App\Models\ContaReceber::where('servico_id', $s->id)->firstOrFail();
+        $pagar = \App\Models\ContaPagar::where('servico_id', $s->id)->firstOrFail();
+        $receber->update(['status' => 'recebido', 'status_fatura' => 'paga', 'numero_fatura' => 'OF-1000']);
+        $pagar->update(['status' => 'pago', 'valor_pago' => 330]);
+
+        $payload['status'] = 'cancelado';
+        $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+        $this->assertDatabaseHas('contas_receber', [
+            'servico_id' => $s->id, 'status' => 'cancelado', 'status_anterior_cancelamento' => 'recebido',
+            'numero_fatura' => 'OF-1000', 'status_fatura' => 'paga',
+        ]);
+        $this->assertDatabaseHas('contas_pagar', [
+            'servico_id' => $s->id, 'status' => 'cancelado', 'status_anterior_cancelamento' => 'pago', 'valor_pago' => 330,
+        ]);
+
+        foreach ([1, 2] as $cycle) {
+            $payload['status'] = 'finalizado';
+            $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+
+            $this->assertDatabaseCount('contas_receber', 1);
+            $this->assertDatabaseCount('contas_pagar', 1);
+            $this->assertDatabaseHas('contas_receber', [
+                'servico_id' => $s->id, 'status' => 'recebido', 'status_anterior_cancelamento' => null,
+                'numero_fatura' => 'OF-1000', 'status_fatura' => 'paga',
+            ]);
+            $this->assertDatabaseHas('contas_pagar', [
+                'servico_id' => $s->id, 'status' => 'pago', 'status_anterior_cancelamento' => null, 'valor_pago' => 330,
+            ]);
+
+            if ($cycle === 1) {
+                $payload['status'] = 'cancelado';
+                $this->postJson("/api/admin/servicos/{$s->id}/detalhes", $payload)->assertOk();
+            }
+        }
     }
 
     public function test_invalid_photo_rolls_back_service_and_vehicle_before_finalization(): void

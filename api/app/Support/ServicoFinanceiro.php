@@ -68,6 +68,11 @@ final class ServicoFinanceiro
             'data_vencimento' => $receber->data_vencimento ?: $data,
         ]);
         if (! $receber->exists) $receber->status = FinanceiroStatusEnum::PENDENTE;
+        elseif ($receber->status === FinanceiroStatusEnum::CANCELADO) {
+            $receber->status = FinanceiroStatusEnum::tryFrom((string) $receber->status_anterior_cancelamento)
+                ?? self::statusReceberReativado($receber);
+            $receber->status_anterior_cancelamento = null;
+        }
         $receber->save();
 
         $pagar = ContaPagar::firstOrNew([
@@ -88,7 +93,35 @@ final class ServicoFinanceiro
             'data_vencimento' => $pagar->data_vencimento ?: $data,
         ]);
         if (! $pagar->exists) $pagar->status = FinanceiroStatusEnum::PENDENTE;
+        elseif ($pagar->status === FinanceiroStatusEnum::CANCELADO) {
+            $pagar->status = FinanceiroStatusEnum::tryFrom((string) $pagar->status_anterior_cancelamento)
+                ?? self::statusPagarReativado($pagar);
+            $pagar->status_anterior_cancelamento = null;
+        }
         $pagar->save();
+    }
+
+    private static function statusReceberReativado(ContaReceber $conta): FinanceiroStatusEnum
+    {
+        $parcelas = is_array($conta->parcelas) ? $conta->parcelas : [];
+        $recebido = array_sum(array_map(fn ($parcela) => (float) ($parcela['valor_pago'] ?? 0), $parcelas));
+        $total = (float) $conta->valor_servico;
+
+        if ($conta->status_fatura === 'paga' || ($total > 0 && $recebido >= $total)) {
+            return FinanceiroStatusEnum::RECEBIDO;
+        }
+
+        return $recebido > 0 ? FinanceiroStatusEnum::CONFIRMADO : FinanceiroStatusEnum::PENDENTE;
+    }
+
+    private static function statusPagarReativado(ContaPagar $conta): FinanceiroStatusEnum
+    {
+        $pago = (float) $conta->valor_pago;
+        $total = (float) $conta->valor_a_pagar;
+
+        if ($total > 0 && $pago >= $total) return FinanceiroStatusEnum::PAGO;
+
+        return $pago > 0 ? FinanceiroStatusEnum::CONFIRMADO : FinanceiroStatusEnum::PENDENTE;
     }
 
     private static function descricaoComissao(array $precos, string $moeda): ?string

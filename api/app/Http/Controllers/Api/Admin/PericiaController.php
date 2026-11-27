@@ -63,8 +63,26 @@ class PericiaController extends Controller
             ->when($request->filled('data_final'), fn ($query) => $query->whereDate('created_at', '<=', $request->data_final))
             ->when($request->filled('oficina'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
                 $oficina->whereRaw('LOWER(nome_fantasia) LIKE ?', ['%'.mb_strtolower($request->oficina).'%'])))
+            ->when($request->filled('perito'), fn ($query) => $query->where(function ($inner) use ($request) {
+                $term = '%'.mb_strtolower((string) $request->input('perito')).'%';
+                $inner->whereRaw('LOWER(perito_nome) LIKE ?', [$term])
+                    ->orWhereHas('tecnico', fn ($tecnico) => $tecnico->whereRaw('LOWER(nome_completo) LIKE ?', [$term]));
+            }))
+            ->when($request->filled('cidade'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
+                $oficina->whereRaw('LOWER(cidade) LIKE ?', ['%'.mb_strtolower((string) $request->input('cidade')).'%'])))
+            ->when($request->filled('pais'), fn ($query) => $query->whereHas('oficina', fn ($oficina) =>
+                $oficina->whereRaw('LOWER(pais) LIKE ?', ['%'.mb_strtolower((string) $request->input('pais')).'%'])))
             ->when($request->filled('placa'), fn ($query) => $query->whereRaw('UPPER(placa) LIKE ?', ['%'.strtoupper($request->placa).'%']))
-            ->when($request->filled('modelo'), fn ($query) => $query->whereRaw('LOWER(marca_modelo) LIKE ?', ['%'.mb_strtolower($request->modelo).'%']))
+            ->when($request->filled('chassi'), fn ($query) => $query->whereRaw('UPPER(chassi) LIKE ?', ['%'.strtoupper((string) $request->input('chassi')).'%']))
+            ->when($request->filled('marca'), fn ($query) => $query->whereRaw('LOWER(marca) LIKE ?', ['%'.mb_strtolower((string) $request->input('marca')).'%']))
+            ->when($request->filled('modelo'), fn ($query) => $query->where(function ($inner) use ($request) {
+                $term = '%'.mb_strtolower((string) $request->input('modelo')).'%';
+                $inner->whereRaw('LOWER(modelo) LIKE ?', [$term])->orWhereRaw('LOWER(marca_modelo) LIKE ?', [$term]);
+            }))
+            ->when($request->filled('observacao'), fn ($query) => $query->whereHas('servico', fn ($servico) =>
+                $servico->whereRaw('LOWER(observacoes) LIKE ?', ['%'.mb_strtolower((string) $request->input('observacao')).'%'])))
+            ->when(is_numeric($request->input('desmontagem_min')), fn ($query) => $query->where('valor_desmontagem', '>=', (float) $request->input('desmontagem_min')))
+            ->when(is_numeric($request->input('desmontagem_max')), fn ($query) => $query->where('valor_desmontagem', '<=', (float) $request->input('desmontagem_max')))
             ->when(is_numeric($request->valor_min), fn ($query) => $query->whereRaw('COALESCE(valor_pericia, preco_sugerido) >= ?', [(float) $request->valor_min]))
             ->when(is_numeric($request->valor_max), fn ($query) => $query->whereRaw('COALESCE(valor_pericia, preco_sugerido) <= ?', [(float) $request->valor_max]))
             ->when($request->filled('busca'), function ($query) use ($request) {
