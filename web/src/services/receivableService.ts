@@ -22,9 +22,17 @@ export interface ListReceivablesParams {
   per_page?: number;
 }
 
+export interface ReceivableSummary {
+  balance: number;
+  overdue: number;
+  open_invoices: number;
+}
+
+export type ReceivablesResponse = PaginatedResponse<Receivable> & { summary: ReceivableSummary };
+
 export const receivableService = {
-  async list(params?: ListReceivablesParams): Promise<PaginatedResponse<Receivable>> {
-    const { data } = await api.get<PaginatedResponse<Receivable>>(BASE_URL, { params });
+  async list(params?: ListReceivablesParams): Promise<ReceivablesResponse> {
+    const { data } = await api.get<ReceivablesResponse>(BASE_URL, { params });
     return data;
   },
 

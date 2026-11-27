@@ -8,6 +8,7 @@ use App\Http\Resources\Api\Admin\ContaReceberResource;
 use App\Models\ContaReceber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use App\Models\Servico;
 use App\Models\ContaPagar;
 
@@ -18,7 +19,7 @@ class ContaReceberController extends Controller
         $date = 'DATE(COALESCE((SELECT COALESCE(data_servico, data_inicio, servicos.created_at) FROM servicos WHERE servicos.id = contas_receber.servico_id), data_emissao, data_lancamento, data_vencimento))';
         $payments = ContaPagar::query()->whereColumn('contas_pagar.servico_id', 'contas_receber.servico_id')
             ->whereNotNull('contas_pagar.tecnico_id')->where('status', '!=', 'cancelado')->where('valor_a_pagar', '>', 0);
-        $contasReceber = ContaReceber::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_receber'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
+        $query = ContaReceber::query()->select(array_diff(\Illuminate\Support\Facades\Schema::getColumnListing('contas_receber'), ['fatura_conteudo']))->with(['oficina', 'tecnico', 'servico.primeiroVeiculo'])
             ->addSelect([
                 'technician_payments' => (clone $payments)->selectRaw('COUNT(*)'),
                 'technician_payments_complete' => (clone $payments)->where(function ($query) {
@@ -90,10 +91,40 @@ class ContaReceberController extends Controller
             ->when($request->input('busca'), function ($query, $busca) {
                 $query->where('descricao', 'like', "%{$busca}%");
             })
-            ->orderByDesc('id')
-            ->paginate($request->integer('per_page', 20));
+            ->orderByDesc('id');
 
-        return ContaReceberResource::collection($contasReceber);
+        $summaryQuery = (clone $query)->reorder()->select([
+            'id', 'status', 'valor_servico', 'parcelas', 'data_vencimento', 'numero_fatura', 'fatura_nome', 'fatura',
+        ]);
+        $summaryRows = $summaryQuery->get();
+        $today = Carbon::today()->toDateString();
+        $summary = ['balance' => 0.0, 'overdue' => 0.0, 'open_invoices' => 0];
+        foreach ($summaryRows as $row) {
+            $status = $row->status instanceof \BackedEnum ? $row->status->value : $row->status;
+            if ($status === 'cancelado') continue;
+            $installments = is_array($row->parcelas) ? $row->parcelas : [];
+            $paid = $installments
+                ? array_sum(array_map(fn ($part) => (float) ($part['valor_pago'] ?? 0), $installments))
+                : (in_array($status, ['confirmado', 'recebido', 'pago'], true) ? (float) $row->valor_servico : 0);
+            $pending = max(0, (float) $row->valor_servico - $paid);
+            $summary['balance'] += $pending;
+            if ($installments) {
+                foreach ($installments as $part) {
+                    if (($part['vencimento'] ?? '') < $today) {
+                        $summary['overdue'] += max(0, (float) ($part['valor'] ?? 0) - (float) ($part['valor_pago'] ?? 0));
+                    }
+                }
+            } elseif ($row->data_vencimento && $row->data_vencimento->toDateString() < $today) {
+                $summary['overdue'] += $pending;
+            }
+            if ($pending > 0 && ($row->numero_fatura || $row->fatura_nome || $row->fatura)) {
+                $summary['open_invoices']++;
+            }
+        }
+
+        $contasReceber = (clone $query)->paginate($request->integer('per_page', 20));
+
+        return ContaReceberResource::collection($contasReceber)->additional(['summary' => $summary]);
     }
 
     public function store(StoreUpdateContaReceberRequest $request)

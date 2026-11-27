@@ -18,7 +18,7 @@
 | Usuários | EM DESENVOLVIMENTO | O título do filtro da listagem foi reduzido para “Nome”. Reestruturação dos perfis, documentos, exclusão protegida e mostradores ainda pendentes. |
 | Serviços | EM DESENVOLVIMENTO | Ajustados rótulos/preço e total filtrado na listagem; campos de marca e modelo deixaram de ser derivados um do outro ao editar. Cancelamento/reativação financeira está em código local. Seletores, vínculo de perícia e demais solicitações pendentes. |
 | Perícias | EM DESENVOLVIMENTO | A listagem ganhou filtros nas colunas de data, oficina, perito, cidade, país, veículo, placa, chassi, preço, desmontagem e observação; preço/desmontagem alinhados à direita. Build aprovado; integração dos filtros com API aguarda teste Laravel. Detalhes e fluxo de adicionar perito pendentes. |
-| Financeiro — tabelas, filtros e destaques | EM DESENVOLVIMENTO | Contas a Receber: removidos indicadores solicitados e botão de novo lançamento; adicionados filtros a modelo, placa, chassi e valor total. Contas a Pagar: filtro superior removido, filtros adicionados nas colunas e três destaques calculados no backend para todos os resultados filtrados. Os indicadores de Receber ainda se baseiam na página exibida. Teste de API pendente. |
+| Financeiro — tabelas, filtros e destaques | EM DESENVOLVIMENTO | Contas a Receber: removidos indicadores solicitados e botão de novo lançamento; filtros adicionados a modelo, placa, chassi e valor total; saldo, vencido e faturas em aberto calculados no backend sobre todos os registros filtrados. Contas a Pagar: filtro superior removido, filtros nas colunas e três destaques calculados no backend sobre todos os resultados filtrados. Testes da API pendentes. |
 | Configurações e mostradores | EM DESENVOLVIMENTO | Reordenação das abas do Financeiro adicionada às configurações e persistida no navegador. Mostradores de Usuários, Serviços e Perícias ainda pendentes. |
 | Integração com o aplicativo | PENDENTE | Compatibilidade não foi validada nesta execução. Nenhum build Expo foi publicado. |
 | Vídeos — pedidos verbais | BLOQUEADO | Faltou transcrição de áudio verificável; pedidos adicionais não serão inferidos apenas de quadros parciais. |
@@ -33,6 +33,7 @@
 - `web/src/pages/servicos/ServicoDetail.tsx` e `web/src/types/service.ts`: adicionam ação de reativação com confirmação.
 - `api/tests/Feature/AdminServiceImprovementsTest.php`: adiciona regressão para dois ciclos de cancelamento/reativação, preservação de fatura/pagamento e ausência de lançamentos duplicados.
 - Listagens financeiras e de Perícias receberam filtros por coluna e os indicadores de Contas a Pagar passaram a considerar todos os registros filtrados.
+- Contas a Receber agora também calcula seus três indicadores no backend, considerando o conjunto completo filtrado.
 - `web/src/constants/financeTabPreferences.ts`, `web/src/pages/Settings.tsx` e `web/src/pages/financeiro/Financeiro.tsx`: salvam e aplicam a ordem das abas do Financeiro no navegador.
 
 ## Verificações executadas
@@ -42,6 +43,7 @@
 - `npm run test:services` em `web/`: aprovado.
 - `git diff --check`: aprovado.
 - Após os ajustes recentes em filtros de Perícias/Financeiro e ordem das abas, `npm run build`, `npm run lint` e `npm run test:services` foram executados novamente: build e teste passaram; lint reportou apenas avisos já existentes. O build ainda alerta que o bundle JS excede 500 kB.
+- Após os indicadores globais de Contas a Receber, build, lint, teste `test:services` e `git diff --check` passaram novamente (lint somente com avisos preexistentes).
 - Testes Laravel e validação da migration: BLOQUEADOS nesta máquina porque PHP e `composer` não estão instalados e `api/vendor` não está presente.
 
 ## Commits e publicação
@@ -49,6 +51,7 @@
 - `a74e9a5` — `fix(finance): preserve service ledger state on reactivation`.
 - `3e3cfba` — `feat(finance): add column filters and dashboard totals`.
 - `706dad6` — `fix(ui): show filtered service totals and update labels`.
+- `a5bdc69` — `fix(finance): calculate receivable summaries across filters`.
 - `047e945` e `f009eb5` — commits locais de documentação do acompanhamento e do checkpoint remoto.
 - A branch remota `codex/binotto-melhorias-2026-11-27` foi criada e conferida em 27/11/2026. O commit remoto de código é `1d09c7547143307473dabbae5825a8266ce69dc0`, baseado no commit `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`; o checkpoint remoto de documentação é `953cac1a5ba4313ee2a1f9aba206a832e3ffb2f3`.
 - O push via terminal não autenticou. Após autorização direta do usuário no chat, o estado final foi publicado usando a integração GitHub.
