@@ -30,8 +30,6 @@ use App\Http\Controllers\Api\Mobile\Tecnico\TecnicoPerfilController;
 use App\Http\Controllers\Api\Mobile\Tecnico\TecnicoPericiaController;
 use App\Http\Controllers\Api\Mobile\Tecnico\TecnicoServicoController;
 use App\Http\Controllers\Api\Mobile\UsuarioController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->middleware(['locale'])->group(function () {
@@ -43,6 +41,7 @@ Route::prefix('admin')->middleware(['locale'])->group(function () {
         Route::prefix('usuarios')->group(function () {
             Route::get('/selecao', [AdminUsuarioController::class, 'listSelecao']);
             Route::get('/peritos', [AdminUsuarioController::class, 'listPeritos']);
+            Route::post('/peritos', [AdminUsuarioController::class, 'storePerito']);
             Route::get('/', [AdminUsuarioController::class, 'index']);
             Route::post('/', [AdminUsuarioController::class, 'store']);
             Route::get('/{id}', [AdminUsuarioController::class, 'show']);
@@ -253,30 +252,3 @@ Route::prefix('mobile')->middleware(['locale'])->group(function () {
     });
 });
 
-// ROTA DEV
-Route::post('/dev/setup-database', function (Request $request) {
-    $password = $request->input('password');
-
-    if ($password !== 'Z4*n0BL2_9') {
-        return response()->json([
-            'message' => 'Unauthorized',
-        ], 403);
-    }
-
-    // limpa cache/otimizações
-    Artisan::call('optimize:clear');
-
-    // roda migrations e seeders
-    // Artisan::call('migrate:fresh', [
-    //     '--seed' => true,
-    //     '--force' => true,
-    // ]);
-
-    // roda migrations
-    Artisan::call('migrate');
-
-    return response()->json([
-        'message' => 'Database migrated and seeded successfully',
-        'migrate_output' => Artisan::output(),
-    ]);
-});

@@ -23,6 +23,8 @@ export default function ServicoCreate({ inspection = false }: { inspection?: boo
   const back = inspection ? "/pericias" : "/servicos";
   const action = inspection ? "Criar perícia" : "Criar serviço";
   const [inspectorName, setInspectorName] = useState("");
+  const [inspectorOptions, setInspectorOptions] = useState<{ id: number; nome: string }[]>([]);
+  const [inspectorCreating, setInspectorCreating] = useState(false);
   const [draft, setForm] = useState<ServiceAdminFormState>(initialServiceForm);
   const [manualRepairPrice, setManualRepairPrice] = useState(false);
   const [workshops, setWorkshops] = useState<UserSelectionItem[]>([]);
@@ -50,12 +52,40 @@ export default function ServicoCreate({ inspection = false }: { inspection?: boo
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    const term = inspectorName.trim();
+    if (!inspection || term.length < 2) { setInspectorOptions([]); return; }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      userService.listInspectors(term).then(results => { if (!cancelled) setInspectorOptions(results); })
+        .catch(error => { if (!cancelled) toast.error(getApiErrorMessage(error)); });
+    }, 250);
+    return () => { cancelled = true; window.clearTimeout(timeout); };
+  }, [inspection, inspectorName]);
+
   function change<K extends keyof ServiceAdminFormState>(field: K, value: ServiceAdminFormState[K]) {
     if (field === "detailedPrices" && (value as ServiceAdminFormState["detailedPrices"]).oficina_carro.valor !== form.detailedPrices.oficina_carro.valor) {
       setManualRepairPrice(true);
     }
     setForm((current) => ({ ...current, [field]: value, ...(field === "technicianId" ? { status: value ? "aguardando_aprovacao" as const : "aguardando" as const } : {}) }));
     markDirty();
+  }
+
+  async function createInspector() {
+    const name = inspectorName.trim();
+    if (name.length < 2 || inspectorCreating) return;
+    setInspectorCreating(true);
+    try {
+      const created = await userService.createInspector(name);
+      setInspectorName(created.nome);
+      setInspectorOptions(current => [created, ...current.filter(item => item.id !== created.id)]);
+      markDirty();
+      toast.success("Perito disponível para seleção.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error));
+    } finally {
+      setInspectorCreating(false);
+    }
   }
 
   async function submit(nextStatus: ServiceStatus = form.status) {
@@ -158,7 +188,14 @@ export default function ServicoCreate({ inspection = false }: { inspection?: boo
       </div>
       <fieldset disabled={saving} className="min-w-0">
       <ServiceAdminForm value={form} onChange={change} workshops={workshops} technicians={technicians} partsState={partsState} errors={errors}
-        inspector={inspection ? { name: inspectorName, onChange: name => { setInspectorName(name); markDirty(); } } : undefined}
+        inspector={inspection ? {
+          name: inspectorName,
+          options: inspectorOptions,
+          creating: inspectorCreating,
+          onChange: name => { setInspectorName(name); markDirty(); },
+          onSelect: name => { setInspectorName(name); markDirty(); },
+          onCreate: () => { void createInspector(); },
+        } : undefined}
         fixedInvoice canAccept={!inspection && Boolean(form.technicianId) && form.status !== "aceito"}
         canRefuse={!inspection && Boolean(form.technicianId) && form.status !== "recusado"}
         onAccept={() => change("status", "aceito")} onRefuse={() => change("status", "recusado")}

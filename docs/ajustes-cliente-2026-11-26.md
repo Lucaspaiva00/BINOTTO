@@ -17,7 +17,7 @@
 | Financeiro — cancelamento/reativação | EM DESENVOLVIMENTO | O código local guarda os estados anteriores, preserva dados de faturas/pagamentos e tenta restaurar as contas sem duplicar lançamentos. A ação de reativar está na tela de detalhes. Migration e regressão Laravel aguardam execução. |
 | Usuários | EM DESENVOLVIMENTO | O título do filtro da listagem foi reduzido para “Nome”. Reestruturação dos perfis, documentos, exclusão protegida e mostradores ainda pendentes. |
 | Serviços | EM DESENVOLVIMENTO | Ajustados rótulos/preço e total filtrado na listagem; campos de marca e modelo deixaram de ser derivados um do outro ao editar. Cancelamento/reativação financeira está em código local. Seletores, vínculo de perícia e demais solicitações pendentes. |
-| Perícias | EM DESENVOLVIMENTO | A listagem ganhou filtros nas colunas de data, oficina, perito, cidade, país, veículo, placa, chassi, preço, desmontagem e observação; preço/desmontagem alinhados à direita. Build aprovado; integração dos filtros com API aguarda teste Laravel. Detalhes e fluxo de adicionar perito pendentes. |
+| Perícias | EM DESENVOLVIMENTO | A listagem ganhou filtros nas colunas de data, oficina, perito, cidade, país, veículo, placa, chassi, preço, desmontagem e observação; preço/desmontagem alinhados à direita. O campo de perito pesquisa nomes existentes e permite adicionar um novo à lista sem duplicar nomes. Build aprovado; endpoints e integração aguardam teste Laravel. Detalhes da perícia ainda pendentes. |
 | Financeiro — tabelas, filtros e destaques | EM DESENVOLVIMENTO | Contas a Receber: removidos indicadores solicitados e botão de novo lançamento; filtros adicionados a modelo, placa, chassi e valor total; saldo, vencido e faturas em aberto calculados no backend sobre todos os registros filtrados. Contas a Pagar: filtro superior removido, filtros nas colunas e três destaques calculados no backend sobre todos os resultados filtrados. Testes da API pendentes. |
 | Configurações e mostradores | EM DESENVOLVIMENTO | Reordenação das abas do Financeiro adicionada às configurações e persistida no navegador. Mostradores de Usuários, Serviços e Perícias ainda pendentes. |
 | Integração com o aplicativo | PENDENTE | Compatibilidade não foi validada nesta execução. Nenhum build Expo foi publicado. |
@@ -32,8 +32,10 @@
 - `api/app/Models/Servico.php`, `api/app/Models/ContaReceber.php`, `api/app/Models/ContaPagar.php` e `api/app/Http/Resources/Api/Admin/ServicoResource.php`: persistem/exibem o estado necessário à reativação.
 - `web/src/pages/servicos/ServicoDetail.tsx` e `web/src/types/service.ts`: adicionam ação de reativação com confirmação.
 - `api/tests/Feature/AdminServiceImprovementsTest.php`: adiciona regressão para dois ciclos de cancelamento/reativação, preservação de fatura/pagamento e ausência de lançamentos duplicados.
+- `api/routes/api.php`: removida uma rota de desenvolvimento sem uso que continha uma credencial embutida; o container já executa as migrations no fluxo de inicialização.
 - Listagens financeiras e de Perícias receberam filtros por coluna e os indicadores de Contas a Pagar passaram a considerar todos os registros filtrados.
 - Contas a Receber agora também calcula seus três indicadores no backend, considerando o conjunto completo filtrado.
+- Na criação de perícia, a pesquisa de perito usa a lista Usuários > Perito e oferece cadastro de nomes ausentes; API e fixture de regressão adicionados.
 - `web/src/constants/financeTabPreferences.ts`, `web/src/pages/Settings.tsx` e `web/src/pages/financeiro/Financeiro.tsx`: salvam e aplicam a ordem das abas do Financeiro no navegador.
 
 ## Verificações executadas
@@ -52,8 +54,11 @@
 - `3e3cfba` — `feat(finance): add column filters and dashboard totals`.
 - `706dad6` — `fix(ui): show filtered service totals and update labels`.
 - `a5bdc69` — `fix(finance): calculate receivable summaries across filters`.
-- `047e945` e `f009eb5` — commits locais de documentação do acompanhamento e do checkpoint remoto.
-- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada e conferida em 27/11/2026. O commit remoto de código é `1d09c7547143307473dabbae5825a8266ce69dc0`, baseado no commit `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`; o checkpoint remoto de documentação é `953cac1a5ba4313ee2a1f9aba206a832e3ffb2f3`.
+- `e375858` — `feat(pericias): search and register inspectors`.
+- `2715d90` — `security(api): remove unused credentialed setup route`.
+- Os commits `e375858` e `2715d90` ainda aguardam sincronização com a branch remota.
+- `047e945`, `f009eb5`, `340ba66` e `93d9a8f` — commits locais de documentação do acompanhamento e checkpoints.
+- A branch remota `codex/binotto-melhorias-2026-11-27` foi criada em 27/11/2026, baseada em `f78872f0eebc46678bc282aee5c51350b39602a6` de `main`. O snapshot inicial foi `1d09c7547143307473dabbae5825a8266ce69dc0`; o follow-up remoto de Contas a Receber é `8c77f5e5046714e646c16f6f365d7bab98d79abe`. O push deste commit de peritos ainda está pendente.
 - O push via terminal não autenticou. Após autorização direta do usuário no chat, o estado final foi publicado usando a integração GitHub.
 - Não houve alteração em `main`, execução de migration ou deploy. A publicação permanece pendente dos testes da API e da conclusão do escopo restante.
 

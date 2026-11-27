@@ -21,6 +21,7 @@ class AdminServiceImprovementsTest extends TestCase
             $t->id(); $t->string('nome_fantasia'); $t->string('cidade')->nullable(); $t->string('pais')->nullable();
         });
         Schema::create('tecnicos', function (Blueprint $t) { $t->id(); $t->string('nome_completo'); });
+        Schema::create('peritos', function (Blueprint $t) { $t->id(); $t->string('nome'); $t->string('nome_normalizado', 160)->unique(); });
         Schema::create('usuarios', function (Blueprint $t) { $t->id(); $t->softDeletes(); });
         Schema::create('servicos', function (Blueprint $t) {
             $t->id(); $t->unsignedBigInteger('oficina_id')->nullable(); $t->unsignedBigInteger('tecnico_id')->nullable();
@@ -515,6 +516,18 @@ class AdminServiceImprovementsTest extends TestCase
             }
         }
         $this->deleteJson('/api/admin/servicos/999999')->assertNotFound();
+    }
+
+    public function test_perito_registry_reuses_existing_names_and_rejects_blank_names(): void
+    {
+        $created = $this->postJson('/api/admin/usuarios/peritos', ['nome' => 'Perito Exemplo'])
+            ->assertOk()->assertJsonPath('data.nome', 'Perito Exemplo');
+        $id = $created->json('data.id');
+
+        $this->postJson('/api/admin/usuarios/peritos', ['nome' => '  perito exemplo  '])
+            ->assertOk()->assertJsonPath('data.id', $id);
+        $this->assertDatabaseCount('peritos', 1);
+        $this->postJson('/api/admin/usuarios/peritos', ['nome' => '   '])->assertUnprocessable();
     }
 
 }

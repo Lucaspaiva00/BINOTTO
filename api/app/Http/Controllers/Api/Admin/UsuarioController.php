@@ -70,6 +70,21 @@ class UsuarioController extends Controller
         return response()->json(['data' => $peritos]);
     }
 
+    public function storePerito(Request $request)
+    {
+        $validated = $request->validate(['nome' => ['required', 'string', 'max:160']]);
+        $nome = trim($validated['nome']);
+        if ($nome === '') {
+            throw ValidationException::withMessages(['nome' => ['Informe o nome do perito.']]);
+        }
+
+        $normalized = mb_strtolower($nome);
+        DB::table('peritos')->insertOrIgnore(['nome' => $nome, 'nome_normalizado' => $normalized]);
+        $perito = DB::table('peritos')->where('nome_normalizado', $normalized)->first(['id', 'nome']);
+
+        return response()->json(['data' => $perito]);
+    }
+
     public function index(Request $request)
     {
         $usuarios = User::query()

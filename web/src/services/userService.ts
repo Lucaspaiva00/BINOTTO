@@ -25,6 +25,11 @@ export const userService = {
     return data.data;
   },
 
+  async createInspector(nome: string): Promise<{ id: number; nome: string }> {
+    const { data } = await api.post<{ data: { id: number; nome: string } }>(`${BASE_URL}/peritos`, { nome });
+    return data.data;
+  },
+
   async listForSelection(tipo: UserType): Promise<UserSelectionItem[]> {
     const { data } = await api.get<{ data: UserSelectionItem[] }>(`${BASE_URL}/selecao`, { params: { tipo } });
     return data.data;

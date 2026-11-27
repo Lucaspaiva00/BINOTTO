@@ -78,7 +78,7 @@ interface Props {
   onAccept?: () => void;
   onRefuse?: () => void;
   fixedInvoice?: boolean;
-  inspector?: { name: string; onChange: (name: string) => void };
+  inspector?: { name: string; onChange: (name: string) => void; options: { id: number; nome: string }[]; onSelect: (name: string) => void; onCreate: () => void; creating?: boolean };
   canAccept?: boolean;
   canRefuse?: boolean;
   actionBusy?: boolean;
@@ -89,6 +89,7 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
   onAccept, onRefuse, fixedInvoice = false, canAccept = false, canRefuse = false, actionBusy = false, statusOptions, errors = {}, inspector,
 }: Props) {
   const [recognizing, setRecognizing] = useState<VehiclePhotoField | null>(null);
+  const [inspectorFocused, setInspectorFocused] = useState(false);
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
   function photoChange(key: VehiclePhotoKey, photo: File | string | null) {
     onChange("vehiclePhotos", { ...value.vehiclePhotos, [key]: photo });
@@ -148,13 +149,23 @@ export function ServiceAdminForm({ value, onChange, workshops, technicians, part
         <div className="min-w-0 space-y-2"><Label htmlFor="service-date">Data</Label><DateInput id="service-date" required value={value.serviceDate} onChange={e => onChange("serviceDate", e.target.value)} />{errors.serviceDate && <p className="text-xs text-destructive">{errors.serviceDate}</p>}</div>
         {inspector ? <div className="min-w-0 space-y-2">
           <Label htmlFor="inspection-name">Perito</Label>
-          <SearchableSelect value={value.technicianId} placeholder="Selecione um técnico ou informe o nome"
-            options={[{ value: "", label: "Preencher nome manualmente" }, ...technicians.map(technician => ({ value: String(technician.id), label: technician.name }))]}
-            onChange={id => {
-              onChange("technicianId", id);
-              inspector.onChange(technicians.find(technician => String(technician.id) === id)?.name ?? "");
-            }} />
-          {!value.technicianId && <Input id="inspection-name" value={inspector.name} onChange={event => inspector.onChange(event.target.value)} required />}
+          <div className="relative">
+            <Input id="inspection-name" autoComplete="off" value={inspector.name} placeholder="Digite para pesquisar um perito" required
+              onFocus={() => setInspectorFocused(true)} onBlur={() => window.setTimeout(() => setInspectorFocused(false), 120)}
+              onChange={event => { onChange("technicianId", ""); inspector.onChange(event.target.value); }} />
+            {inspectorFocused && inspector.name.trim() && <div className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-border bg-popover p-1 shadow-lg">
+              {inspector.options.map(option => <button type="button" key={option.id} onMouseDown={event => event.preventDefault()}
+                onClick={() => { inspector.onSelect(option.nome); setInspectorFocused(false); }}
+                className="block w-full rounded px-2 py-2 text-left text-sm hover:bg-accent">{option.nome}</button>)}
+              {inspector.name.trim().length >= 2 && !inspector.options.some(option => option.nome.trim().toLocaleLowerCase() === inspector.name.trim().toLocaleLowerCase()) &&
+                <button type="button" disabled={inspector.creating} onMouseDown={event => event.preventDefault()}
+                  onClick={() => { inspector.onCreate(); setInspectorFocused(false); }}
+                  className="block w-full rounded px-2 py-2 text-left text-sm font-medium text-primary hover:bg-accent">
+                  {inspector.creating ? "Adicionando…" : `Adicionar perito “${inspector.name.trim()}”`}
+                </button>}
+              {!inspector.options.length && inspector.name.trim().length < 2 && <p className="px-2 py-2 text-xs text-muted-foreground">Digite pelo menos dois caracteres.</p>}
+            </div>}
+          </div>
           {errors.inspector && <p className="text-xs text-destructive">{errors.inspector}</p>}
         </div> : <>
         <div className="min-w-0 space-y-2"><Label>Técnico</Label><SearchableSelect className="[&>button>span:first-child]:truncate" value={value.technicianId || (value.manualTechnicianName ? "manual" : "")} onChange={v => onChange("technicianId", v)} placeholder="Sem técnico" options={[{ value: "", label: "Sem técnico" }, ...(value.manualTechnicianName ? [{ value: "manual", label: value.manualTechnicianName, disabled: true }] : []), ...technicians.map(t => ({ value: String(t.id), label: t.name }))]} /></div>
